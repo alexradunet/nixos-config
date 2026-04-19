@@ -1,6 +1,8 @@
 { ... }:
 
 {
+  # Shared Home Manager entrypoint for alex.
+  # Host-specific Home Manager additions live under ./hosts.
   imports = [
     ./git.nix
     ./packages.nix
@@ -14,5 +16,6 @@
   home.homeDirectory = "/home/alex";
   home.stateVersion = "25.11";
 
+  # Let Home Manager manage its own activation and files.
   programs.home-manager.enable = true;
 }
