@@ -5,6 +5,6 @@
     isNormalUser = true;
     description = "alex";
     extraGroups = [ "wheel" "networkmanager" ];
-    shell = pkgs.bashInteractive;
+    shell = pkgs.zsh;
   };
 }
