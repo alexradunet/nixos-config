@@ -1,7 +1,7 @@
-{ pkgs, llm-agents, ... }:
+{ pkgs, ... }:
 
 let
-  piPkg = llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.pi;
+  piPkg = pkgs.callPackage ../../pkgs/pi { };
 in
 {
   environment.systemPackages = with pkgs; [

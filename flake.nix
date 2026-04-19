@@ -8,13 +8,9 @@
       url = "github:nix-community/home-manager/release-25.11";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
-    llm-agents = {
-      url = "github:numtide/llm-agents.nix";
-    };
   };
 
-  outputs = { self, nixpkgs, home-manager, llm-agents, ... }:
+  outputs = { self, nixpkgs, home-manager, ... }:
   let
     # Shared host constructor:
     # - system module path under ./hosts
@@ -24,7 +20,6 @@
       path: homeModule:
       nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
-        specialArgs = { inherit llm-agents; };
         modules = [
           path
           home-manager.nixosModules.home-manager

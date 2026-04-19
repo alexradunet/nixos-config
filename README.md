@@ -16,6 +16,7 @@ flake.nix                 # flake entrypoint and host wiring
 hosts/                    # real machine definitions
 home/                     # Home Manager config for alex
 modules/                  # reusable NixOS modules
+pkgs/                     # locally maintained packages
 ```
 
 ### `hosts/`
@@ -42,6 +43,13 @@ Reusable NixOS modules grouped by purpose.
 - `modules/users` - shared user definitions
 - `modules/services/*` - reusable service modules
 - `modules/hosts/*` - reusable host-policy modules like boot and unfree
+
+### `pkgs/`
+
+Locally maintained package definitions.
+
+- `pkgs/pi` builds the Pi binary under our control
+- package version/dependency hashes are pinned in this repo
 
 ### `home/`
 
