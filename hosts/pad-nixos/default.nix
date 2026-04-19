@@ -1,6 +1,4 @@
-{ ... }:
-
-{
+{...}: {
   # Host definition for the laptop.
   # Shared behavior lives in ../../modules, while this file keeps
   # only machine-specific composition and identity.

@@ -1,9 +1,4 @@
-{ pkgs, ... }:
-
-let
-  piPkg = pkgs.callPackage ../../pkgs/pi { };
-in
-{
+{pkgs, ...}: {
   environment.systemPackages = with pkgs; [
     git
     neovim
@@ -11,6 +6,6 @@ in
     wget
     curl
     zellij
-    piPkg
+    pi
   ];
 }

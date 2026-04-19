@@ -1,6 +1,4 @@
-{ ... }:
-
-{
+{...}: {
   # Host-specific Home Manager additions for the mini PC.
   programs.zsh.shellAliases = {
     rb = "sudo nixos-rebuild switch --flake ~/nixos-config#evo-nixos";

@@ -6,15 +6,13 @@
   fd,
   ripgrep,
   runCommand,
-}:
-
-let
+}: let
   versionData = lib.importJSON ./hashes.json;
   version = versionData.version;
 
   # Package the published pi npm tarball, but keep the lockfile in-repo so
   # we control updates ourselves.
-  srcWithLock = runCommand "pi-src-with-lock" { } ''
+  srcWithLock = runCommand "pi-src-with-lock" {} ''
     mkdir -p $out
     tar -xzf ${
       fetchurl {
@@ -25,39 +23,39 @@ let
     cp ${./package-lock.json} $out/package-lock.json
   '';
 in
-buildNpmPackage {
-  inherit version;
-  pname = "pi";
+  buildNpmPackage {
+    inherit version;
+    pname = "pi";
 
-  src = srcWithLock;
-
-  npmDeps = fetchNpmDeps {
     src = srcWithLock;
-    hash = versionData.npmDepsHash;
-  };
-  makeCacheWritable = true;
 
-  dontNpmBuild = true;
+    npmDeps = fetchNpmDeps {
+      src = srcWithLock;
+      hash = versionData.npmDepsHash;
+    };
+    makeCacheWritable = true;
 
-  postInstall = ''
-    wrapProgram $out/bin/pi \
-      --prefix PATH : ${
+    dontNpmBuild = true;
+
+    postInstall = ''
+      wrapProgram $out/bin/pi \
+        --prefix PATH : ${
         lib.makeBinPath [
           fd
           ripgrep
         ]
       } \
-      --set PI_SKIP_VERSION_CHECK 1 \
-      --set PI_TELEMETRY 0
-  '';
+        --set PI_SKIP_VERSION_CHECK 1 \
+        --set PI_TELEMETRY 0
+    '';
 
-  meta = {
-    description = "A terminal-based coding agent with multi-model support";
-    homepage = "https://github.com/badlogic/pi-mono";
-    changelog = "https://github.com/badlogic/pi-mono/releases";
-    license = lib.licenses.mit;
-    sourceProvenance = with lib.sourceTypes; [ binaryBytecode ];
-    platforms = lib.platforms.all;
-    mainProgram = "pi";
-  };
-}
+    meta = {
+      description = "A terminal-based coding agent with multi-model support";
+      homepage = "https://github.com/badlogic/pi-mono";
+      changelog = "https://github.com/badlogic/pi-mono/releases";
+      license = lib.licenses.mit;
+      sourceProvenance = with lib.sourceTypes; [binaryBytecode];
+      platforms = lib.platforms.all;
+      mainProgram = "pi";
+    };
+  }

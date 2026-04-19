@@ -1,6 +1,4 @@
-{ ... }:
-
-{
+{...}: {
   services.fail2ban = {
     enable = true;
     jails.sshd.settings = {

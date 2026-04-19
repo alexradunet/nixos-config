@@ -1,10 +1,8 @@
-{ pkgs, ... }:
-
-{
+{pkgs, ...}: {
   users.users.alex = {
     isNormalUser = true;
     description = "alex";
-    extraGroups = [ "wheel" "networkmanager" ];
+    extraGroups = ["wheel" "networkmanager"];
     shell = pkgs.zsh;
 
     openssh.authorizedKeys.keys = [

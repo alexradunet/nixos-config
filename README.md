@@ -12,11 +12,13 @@ Personal multi-host NixOS fleet config.
 ## Structure
 
 ```text
-flake.nix                 # flake entrypoint and host wiring
+flake.nix                 # flake entrypoint, overlays, apps, checks, dev shell
+.github/workflows/        # CI for flake validation
 hosts/                    # real machine definitions
 home/                     # Home Manager config for alex
 modules/                  # reusable NixOS modules
-pkgs/                     # locally maintained packages
+pkgs/                     # locally maintained packages, exposed via overlay
+.gitignore                # ignore build artifacts like result symlinks
 ```
 
 ### `hosts/`
@@ -39,7 +41,6 @@ Reusable NixOS modules grouped by purpose.
 - `modules/common` - shared base packages and system settings
 - `modules/desktop` - GUI / KDE desktop role
 - `modules/laptop` - laptop-specific behavior
-- `modules/server` - server-oriented defaults
 - `modules/users` - shared user definitions
 - `modules/services/*` - reusable service modules
 - `modules/hosts/*` - reusable host-policy modules like boot and unfree
@@ -49,6 +50,7 @@ Reusable NixOS modules grouped by purpose.
 Locally maintained package definitions.
 
 - `pkgs/pi` builds the Pi binary under our control
+- local packages are exported through `overlays.default` and reused everywhere as `pkgs.pi` / `pkgs.pi-web-access`
 - package version/dependency hashes are pinned in this repo
 - see `pkgs/pi/README.md` for the Pi update workflow
 
@@ -94,9 +96,30 @@ Laptop:
 sudo nixos-rebuild switch --flake ~/nixos-config#pad-nixos
 ```
 
+## Quality checks
+
+Format the repo:
+
+```bash
+nix fmt
+```
+
+Run the flake checks:
+
+```bash
+nix flake check --accept-flake-config
+```
+
+Open the repo dev shell with formatter/lint tools:
+
+```bash
+nix develop
+```
+
 ## Notes
 
 - `system.stateVersion` stays host-local
 - shared user config lives in Home Manager
 - machine-specific overrides should stay small and obvious
+- repo-specific binary cache settings live in `flake.nix` via `nixConfig`
 - nixpi is intentionally not integrated yet; this repo is preparing the infrastructure first

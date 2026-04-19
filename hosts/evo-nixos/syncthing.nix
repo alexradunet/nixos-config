@@ -1,6 +1,4 @@
-{ ... }:
-
-{
+{...}: {
   services.syncthing.settings = {
     devices = {
       "pad-nixos" = {
@@ -11,7 +9,7 @@
     folders = {
       "sync" = {
         path = "/home/alex/Sync";
-        devices = [ "pad-nixos" ];
+        devices = ["pad-nixos"];
       };
     };
   };

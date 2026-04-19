@@ -1,6 +1,4 @@
-{ ... }:
-
-{
+{...}: {
   services.syncthing.settings = {
     devices = {
       "evo-nixos" = {
@@ -11,7 +9,7 @@
     folders = {
       "sync" = {
         path = "/home/alex/Sync";
-        devices = [ "evo-nixos" ];
+        devices = ["evo-nixos"];
       };
     };
   };

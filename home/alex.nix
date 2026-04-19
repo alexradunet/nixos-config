@@ -1,6 +1,4 @@
-{ ... }:
-
-{
+{...}: {
   # Shared Home Manager entrypoint for alex.
   # Host-specific Home Manager additions live under ./hosts.
   imports = [
