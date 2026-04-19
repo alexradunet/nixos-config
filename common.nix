@@ -7,6 +7,7 @@
     htop
     wget
     curl
+    zellij
   ];
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
