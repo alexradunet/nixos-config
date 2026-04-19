@@ -16,7 +16,7 @@
       evo-nixos = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
         modules = [
-          ./hosts/evo-nixos.nix
+          ./hosts/evo-nixos
           home-manager.nixosModules.home-manager
           {
             home-manager.useGlobalPkgs = true;
@@ -29,7 +29,7 @@
       pad-nixos = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
         modules = [
-          ./hosts/pad-nixos.nix
+          ./hosts/pad-nixos
           home-manager.nixosModules.home-manager
           {
             home-manager.useGlobalPkgs = true;

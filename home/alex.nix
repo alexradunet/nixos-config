@@ -14,7 +14,6 @@
     fastfetch
     eza
     gh
-    vscodium
   ];
 
   programs.home-manager.enable = true;

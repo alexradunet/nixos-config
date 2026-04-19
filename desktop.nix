@@ -40,5 +40,6 @@
     kdePackages.dolphin
     kdePackages.plasma-nm
     vlc
+    vscodium
   ];
 }
