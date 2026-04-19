@@ -142,12 +142,7 @@
             # CI/read-only formatting check.
             # `alejandra --check` fails if a file needs formatting but does not
             # rewrite anything.
-            #
-            # The pi-web-access file is temporarily excluded because this local
-            # checkout still has it as a root-owned file with old formatting.
-            # Once ownership is fixed and the file is reformatted, remove this
-            # exclusion.
-            find . -type f -name '*.nix' ! -path './pkgs/pi-web-access/default.nix' -print0 \
+            find . -type f -name '*.nix' -print0 \
               | xargs -0 alejandra --check
 
             # runCommand derivations must produce an output path on success.
