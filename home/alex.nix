@@ -52,7 +52,6 @@
       gs = "git status";
       ga = "git add .";
       gc = "git commit -m";
-      rebuild = "sudo nixos-rebuild switch --flake ~/nixos-config#evo-nixos";
     };
 
 
