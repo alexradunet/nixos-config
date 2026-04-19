@@ -6,7 +6,7 @@
     ../../common.nix
     ../../desktop.nix
     ../../users.nix
-    ../../syncthing.nix
+    ./syncthing.nix
   ];
 
   networking.hostName = "evo-nixos";

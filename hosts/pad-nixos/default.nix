@@ -7,7 +7,7 @@
     ../../desktop.nix
     ../../laptop.nix
     ../../users.nix
-    ../../syncthing.nix
+    ./syncthing.nix
   ];
 
   networking.hostName = "pad-nixos";
