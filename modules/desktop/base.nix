@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ ... }:
 
 {
   # Graphical session
@@ -31,15 +31,7 @@
       PermitRootLogin = "no";
     };
   };
+
   # Desktop programs
   programs.firefox.enable = true;
-
-  environment.systemPackages = with pkgs; [
-    kdePackages.kate
-    kdePackages.konsole
-    kdePackages.dolphin
-    kdePackages.plasma-nm
-    vlc
-    vscodium
-  ];
 }

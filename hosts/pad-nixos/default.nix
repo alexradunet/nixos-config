@@ -3,10 +3,10 @@
 {
   imports = [
     ./hardware-configuration.nix
-    ../../common.nix
-    ../../desktop.nix
-    ../../laptop.nix
-    ../../users.nix
+    ../../modules/common
+    ../../modules/desktop
+    ../../modules/laptop
+    ../../modules/users
     ./syncthing.nix
   ];
 
