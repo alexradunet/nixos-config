@@ -1,7 +1,7 @@
 import { chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   appendEvent,
   buildBacklinks,
@@ -12,6 +12,8 @@ import {
   loadRegistry,
   readEvents,
   rebuildAllMeta,
+  renderIndex,
+  renderLog,
   scanPages,
 } from "../extension/actions-meta.js";
 
@@ -234,6 +236,97 @@ summary: Stable personal notes
     expect(artifacts.log).toContain("_No events yet._");
   });
 
+  it("renderIndex and renderLog stay stable for golden-style output checks", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-19T12:34:56Z"));
+    try {
+      const registry = {
+        version: 1,
+        generatedAt: "2026-04-19T12:34:56Z",
+        pages: [
+          {
+            type: "concept",
+            path: "pages/resources/technical/system-landscape.md",
+            folder: "resources/technical",
+            title: "System Landscape",
+            aliases: [],
+            summary: "Shared technical map",
+            status: "active",
+            tags: [],
+            hosts: ["pad-nixos"],
+            domain: "technical",
+            areas: ["infrastructure"],
+            updated: "2026-04-19",
+            sourceIds: [],
+            linksOut: [],
+            headings: [],
+            wordCount: 42,
+          },
+          {
+            type: "journal",
+            path: "pages/journal/daily/2026-04-19.md",
+            folder: "journal/daily",
+            title: "2026-04-19 Daily Journal",
+            aliases: [],
+            summary: "",
+            status: "active",
+            tags: [],
+            hosts: [],
+            domain: "personal",
+            areas: ["journal"],
+            updated: "2026-04-19",
+            sourceIds: [],
+            linksOut: [],
+            headings: [],
+            wordCount: 10,
+          },
+        ],
+      };
+
+      expect(renderIndex(registry)).toMatchInlineSnapshot(`
+        "# Wiki Index
+
+        Generated: 2026-04-19T12:34:56Z
+
+        ## Concept Pages
+
+        - [[resources/technical/system-landscape|System Landscape]] [domain: technical] [areas: infrastructure] [hosts: pad-nixos] — Shared technical map
+
+        ## Journal Pages
+
+        - [[journal/daily/2026-04-19|2026-04-19 Daily Journal]] [domain: personal] [areas: journal]
+        "
+      `);
+      expect(
+        renderLog([
+          {
+            ts: "2026-04-19T12:00:00Z",
+            kind: "capture",
+            title: "Captured source",
+            sourceIds: ["SRC-2026-04-19-001"],
+          },
+          {
+            ts: "2026-04-19T12:05:00Z",
+            kind: "page-create",
+            title: "Created page",
+            pagePaths: ["pages/resources/technical/system-landscape.md"],
+          },
+        ]),
+      ).toMatchInlineSnapshot(`
+        "# Wiki Log
+
+        ## [2026-04-19 12:00 UTC] capture | Captured source
+        - Sources: SRC-2026-04-19-001
+
+        ## [2026-04-19 12:05 UTC] page-create | Created page
+        - Pages: pages/resources/technical/system-landscape.md
+        "
+      `);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("rebuildAllMeta writes registry, backlinks, index, and log", () => {
     writeFileSync(
       path.join(wikiRoot, "pages", "journal", "daily", "2026-04-19.md"),
@@ -367,6 +460,103 @@ summary: Stable personal notes
     }
   });
 
+  it("handleWikiStatus counts sources, journals, and unspecified domains", () => {
+    process.env.PI_LLM_WIKI_HOST = "pad-nixos";
+    mkdirSync(path.join(wikiRoot, "pages", "sources"), { recursive: true });
+    writeFileSync(
+      path.join(wikiRoot, "pages", "resources", "technical", "global-note.md"),
+      `---
+type: concept
+title: Global Note
+tags: []
+hosts: []
+areas: [infrastructure]
+status: active
+updated: 2026-04-19
+source_ids: []
+summary: No explicit domain
+---
+# Global Note
+`,
+      "utf8",
+    );
+    writeFileSync(
+      path.join(wikiRoot, "pages", "sources", "captured.md"),
+      `---
+type: source
+source_id: SRC-2026-04-19-001
+title: Captured Source
+status: captured
+captured_at: 2026-04-19T00:00:00Z
+origin_type: text
+origin_value: clip
+aliases: []
+tags: []
+hosts: []
+areas: []
+source_ids: []
+summary: Captured source
+---
+# Captured Source
+`,
+      "utf8",
+    );
+    writeFileSync(
+      path.join(wikiRoot, "pages", "sources", "integrated.md"),
+      `---
+type: source
+source_id: SRC-2026-04-19-002
+title: Integrated Source
+status: integrated
+captured_at: 2026-04-19T00:00:00Z
+origin_type: text
+origin_value: clip
+aliases: []
+tags: []
+hosts: []
+areas: []
+source_ids: []
+summary: Integrated source
+---
+# Integrated Source
+`,
+      "utf8",
+    );
+    writeFileSync(
+      path.join(wikiRoot, "pages", "journal", "daily", "2026-04-20.md"),
+      `---
+type: journal
+title: 2026-04-20 Daily Journal
+tags: [journal]
+hosts: []
+areas: [journal]
+status: active
+updated: 2026-04-20
+summary: Daily note
+---
+# Daily Journal
+`,
+      "utf8",
+    );
+    rebuildAllMeta(wikiRoot);
+
+    const result = handleWikiStatus(wikiRoot);
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value.details).toMatchObject({
+        total: 4,
+        source: 2,
+        canonical: 1,
+        journal: 1,
+        captured: 1,
+        integrated: 1,
+        domains: { technical: 1, unspecified: 3 },
+      });
+      expect(result.value.text).toContain("Sources: 1 captured, 1 integrated");
+      expect(result.value.text).toContain("Domains: technical=1, unspecified=3");
+    }
+  });
+
   it("buildWikiDigest filters by host and excludes identity and journal pages", () => {
     process.env.PI_LLM_WIKI_HOST = "pad-nixos";
     writeFileSync(
@@ -492,6 +682,40 @@ summary: Daily note
     rebuildAllMeta(wikiRoot);
 
     expect(buildWikiDigest(wikiRoot)).toBe("");
+  });
+
+  it("buildWikiDigest omits summary separators for empty summaries and caps output", () => {
+    process.env.PI_LLM_WIKI_HOST = "pad-nixos";
+    for (let i = 0; i < 16; i += 1) {
+      writeFileSync(
+        path.join(wikiRoot, "pages", "resources", "technical", `note-${i}.md`),
+        `---
+type: concept
+title: Note ${i}
+domain: technical
+tags: []
+hosts: []
+areas: [infrastructure]
+status: active
+updated: 2026-04-19
+source_ids: []
+summary: ${i === 0 ? "" : `Summary ${i}`}
+---
+# Note ${i}
+
+${"word ".repeat(i === 0 ? 100 : 20 + i)}
+`,
+        "utf8",
+      );
+    }
+    rebuildAllMeta(wikiRoot);
+
+    const digest = buildWikiDigest(wikiRoot);
+    expect(digest).toContain("[WIKI MEMORY DIGEST for pad-nixos]");
+    expect(digest).toContain("- Note 15 (concept) [domain: technical] [areas: infrastructure] — Summary 15");
+    expect(digest).toContain("- Note 0 (concept) [domain: technical] [areas: infrastructure]");
+    expect(digest).not.toContain("- Note 0 (concept) [domain: technical] [areas: infrastructure] — ");
+    expect(digest.split("\n").filter((line) => line.startsWith("- ")).length).toBe(15);
   });
 
   it("appendEvent and readEvents round-trip JSONL events", () => {
