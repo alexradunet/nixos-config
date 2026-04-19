@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, pkgs, llm-agents, ... }:
 
 {
   environment.systemPackages = with pkgs; [
