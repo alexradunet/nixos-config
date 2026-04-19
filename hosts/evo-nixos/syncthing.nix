@@ -16,8 +16,8 @@
       };
 
       folders = {
-        "nixos-config" = {
-          path = "/home/alex/nixos-config";
+        "sync" = {
+          path = "/home/alex/Sync";
           devices = [ "pad-nixos" ];
         };
       };
