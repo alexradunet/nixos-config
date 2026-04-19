@@ -20,19 +20,20 @@
 
   programs.git = {
     enable = true;
-    userName = "alex";
-    userEmail = "dev@alexradu.net";
 
-    aliases = {
-      st = "status";
-      co = "checkout";
-      sw = "switch";
-      br = "branch";
-      ci = "commit";
-      lg = "log --oneline --graph --decorate --all";
-    };
+    settings = {
+      user.name = "alex";
+      user.email = "dev@alexradu.net";
 
-    extraConfig = {
+      alias = {
+        st = "status";
+        co = "checkout";
+        sw = "switch";
+        br = "branch";
+        ci = "commit";
+        lg = "log --oneline --graph --decorate --all";
+      };
+
       init.defaultBranch = "main";
       pull.rebase = false;
       core.editor = "nvim";
@@ -74,6 +75,7 @@
 
   programs.ssh = {
     enable = true;
+    enableDefaultConfig = false;
     matchBlocks = {
       "github.com" = {
         user = "git";
