@@ -12,6 +12,14 @@
 
   outputs = { self, nixpkgs, home-manager, ... }:
   let
+    system = "x86_64-linux";
+    pkgs = nixpkgs.legacyPackages.${system};
+    piPkg = pkgs.callPackage ./pkgs/pi { };
+    piApp = {
+      type = "app";
+      program = "${piPkg}/bin/pi";
+    };
+
     # Shared host constructor:
     # - system module path under ./hosts
     # - shared Home Manager config in ./home/alex.nix
@@ -19,7 +27,7 @@
     mkHost =
       path: homeModule:
       nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
+        inherit system;
         modules = [
           path
           home-manager.nixosModules.home-manager
@@ -37,6 +45,16 @@
       };
   in
   {
+    packages.${system} = {
+      pi = piPkg;
+      default = piPkg;
+    };
+
+    apps.${system} = {
+      pi = piApp;
+      default = piApp;
+    };
+
     nixosConfigurations = {
       # Mini PC / desktop workstation.
       evo-nixos = mkHost ./hosts/evo-nixos ./home/hosts/evo-nixos.nix;
