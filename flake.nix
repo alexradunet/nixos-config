@@ -1,0 +1,19 @@
+{
+  description = "My NixOS configurations";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
+  };
+
+  outputs = { self, nixpkgs, ... }:
+  {
+    nixosConfigurations = {
+      evo-nixos = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules = [
+          ./hosts/evo-nixos.nix
+        ];
+      };
+    };
+  };
+}
