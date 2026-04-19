@@ -6,6 +6,7 @@
     ../../modules/common
     ../../modules/desktop
     ../../modules/users
+    ../../modules/services/openssh
     ../../modules/services/syncthing
     ./syncthing.nix
   ];
