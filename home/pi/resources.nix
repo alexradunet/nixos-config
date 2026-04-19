@@ -1,4 +1,5 @@
 {
+  config,
   lib,
   pkgs,
   ...
@@ -42,6 +43,9 @@ in {
   home.file.".pi/agent/extensions/pi-web-access".source = piWebAccessRoot;
   home.file.".pi/agent/extensions/pi-llm-wiki".source = piLlmWikiRoot;
   home.file.".pi/agent/skills/librarian/SKILL.md".source = "${piWebAccessRoot}/skills/librarian/SKILL.md";
+
+  # Put the shared llm-wiki in Sync so Syncthing keeps it aligned across hosts.
+  home.sessionVariables.PI_LLM_WIKI_DIR = "${config.home.homeDirectory}/Sync/llm-wiki";
 
   # Seed pi-web-access config once, then leave it mutable for Pi commands.
   home.activation.piWebAccessStarter = lib.hm.dag.entryAfter ["writeBoundary"] ''

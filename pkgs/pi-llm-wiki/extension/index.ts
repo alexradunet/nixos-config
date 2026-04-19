@@ -1,5 +1,5 @@
 /**
- * wiki — Wiki memory capture, search, scaffolding, linting, and metadata rebuilds.
+ * llm-wiki — local wiki capture, search, scaffolding, linting, and metadata rebuilds.
  *
  * @tools wiki_status, wiki_capture, wiki_search, wiki_ensure_page, wiki_lint, wiki_rebuild
  * @hooks tool_call, agent_end, before_agent_start
@@ -20,8 +20,20 @@ import { handleWikiLint } from "./actions-lint.js";
 import { buildWikiDigest, handleWikiStatus, loadRegistry, rebuildAllMeta } from "./actions-meta.js";
 import { handleEnsurePage } from "./actions-pages.js";
 import { handleWikiSearch } from "./actions-search.js";
-import { getWikiRoot, isProtectedPath, isWikiPagePath } from "./paths.js";
+import { getCurrentHost, getWikiRoot, isProtectedPath, isWikiPagePath } from "./paths.js";
 import type { CanonicalPageType } from "./types.js";
+
+const PageTypeEnum = StringEnum([
+	"source",
+	"concept",
+	"entity",
+	"synthesis",
+	"analysis",
+	"evolution",
+	"procedure",
+	"decision",
+	"identity",
+] as const);
 
 const CanonicalTypeEnum = StringEnum([
 	"concept",
@@ -31,6 +43,7 @@ const CanonicalTypeEnum = StringEnum([
 	"evolution",
 	"procedure",
 	"decision",
+	"identity",
 ] as const);
 
 const LintModeEnum = StringEnum([
@@ -43,18 +56,24 @@ const LintModeEnum = StringEnum([
 	"all",
 ] as const);
 
+const HostScopeEnum = StringEnum(["current", "all"] as const);
+
 const WikiCaptureParams = Type.Object({
 	input_type: StringEnum(["text", "file"] as const),
 	value: Type.String({ description: "Text content or an absolute file path to capture." }),
 	title: Type.Optional(Type.String({ description: "Optional title override." })),
 	kind: Type.Optional(Type.String({ description: "Optional source kind, for example note or pdf." })),
 	tags: Type.Optional(Type.Array(Type.String())),
+	hosts: Type.Optional(
+		Type.Array(Type.String({ description: "Optional host scope. Omit for global knowledge shared across hosts." })),
+	),
 });
 
 const WikiSearchParams = Type.Object({
 	query: Type.String({ description: "Search query." }),
-	type: Type.Optional(CanonicalTypeEnum),
+	type: Type.Optional(PageTypeEnum),
 	limit: Type.Optional(Type.Number({ description: "Maximum results to return.", default: 10 })),
+	host_scope: Type.Optional(HostScopeEnum),
 });
 
 const WikiEnsurePageParams = Type.Object({
@@ -62,6 +81,9 @@ const WikiEnsurePageParams = Type.Object({
 	title: Type.String({ description: "Canonical page title." }),
 	aliases: Type.Optional(Type.Array(Type.String())),
 	tags: Type.Optional(Type.Array(Type.String())),
+	hosts: Type.Optional(
+		Type.Array(Type.String({ description: "Optional host scope. Omit for global knowledge shared across hosts." })),
+	),
 	summary: Type.Optional(Type.String({ description: "Optional one-line summary." })),
 });
 
@@ -80,6 +102,21 @@ async function runWikiMutation<TDetails extends object>(
 	return actionResult;
 }
 
+function buildWikiContextPrompt(): string {
+	const wikiRoot = getWikiRoot();
+	const host = getCurrentHost();
+	return [
+		"",
+		"",
+		"[LLM WIKI CONTEXT]",
+		`- Wiki root: ${wikiRoot}`,
+		`- Current host: ${host}`,
+		"- Pages with a frontmatter hosts list apply only to those hosts.",
+		"- Pages without hosts are global and apply across all hosts.",
+		`- When knowledge is host-specific, set hosts: [${host}] or another explicit host list.`,
+	].join("\n");
+}
+
 export default function (pi: ExtensionAPI) {
 	let dirty = false;
 
@@ -87,7 +124,7 @@ export default function (pi: ExtensionAPI) {
 		{
 			name: "wiki_status",
 			label: "Wiki Status",
-			description: "Show wiki page counts and source state totals.",
+			description: "Show wiki root, current host, page counts, and source state totals.",
 			parameters: EmptyToolParams,
 			async execute() {
 				return toToolResult(handleWikiStatus(getWikiRoot()));
@@ -96,32 +133,47 @@ export default function (pi: ExtensionAPI) {
 		{
 			name: "wiki_capture",
 			label: "Wiki Capture",
-			description: "Capture text or a local file into a raw source packet and scaffold a source page.",
+			description:
+				"Capture text or a local file into a raw source packet and scaffold a source page. Use hosts for host-specific knowledge.",
 			parameters: WikiCaptureParams,
 			async execute(_toolCallId, params) {
 				const typed = params as Static<typeof WikiCaptureParams>;
 				const wikiRoot = getWikiRoot();
 				return runWikiMutation(wikiRoot, async () =>
 					typed.input_type === "file"
-						? captureFile(wikiRoot, typed.value, { title: typed.title, kind: typed.kind, tags: typed.tags })
-						: captureText(wikiRoot, typed.value, { title: typed.title, kind: typed.kind, tags: typed.tags }),
+						? captureFile(wikiRoot, typed.value, {
+								title: typed.title,
+								kind: typed.kind,
+								tags: typed.tags,
+								hosts: typed.hosts,
+							})
+						: captureText(wikiRoot, typed.value, {
+								title: typed.title,
+								kind: typed.kind,
+								tags: typed.tags,
+								hosts: typed.hosts,
+							}),
 				);
 			},
 		},
 		{
 			name: "wiki_search",
 			label: "Wiki Search",
-			description: "Search wiki pages by title, aliases, headings, tags, source IDs, and summary text.",
+			description:
+				"Search wiki pages by title, aliases, headings, tags, source IDs, and summary text. By default it only returns pages relevant to the current host plus global pages.",
 			parameters: WikiSearchParams,
 			async execute(_toolCallId, params) {
 				const typed = params as Static<typeof WikiSearchParams>;
-				return toToolResult(handleWikiSearch(loadRegistry(getWikiRoot()), typed.query, typed.type, typed.limit));
+				return toToolResult(
+					handleWikiSearch(loadRegistry(getWikiRoot()), typed.query, typed.type, typed.limit, typed.host_scope),
+				);
 			},
 		},
 		{
 			name: "wiki_ensure_page",
 			label: "Wiki Ensure Page",
-			description: "Resolve an existing canonical page by title or alias, or create a new draft page if missing.",
+			description:
+				"Resolve an existing canonical page by title or alias, or create a new draft page if missing. Use hosts for host-specific knowledge.",
 			parameters: WikiEnsurePageParams,
 			async execute(_toolCallId, params) {
 				const typed = params as Static<typeof WikiEnsurePageParams> & { type: CanonicalPageType };
@@ -183,8 +235,8 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("before_agent_start", async (event) => {
+		const wikiContext = buildWikiContextPrompt();
 		const digest = buildWikiDigest(getWikiRoot());
-		if (!digest) return;
-		return { systemPrompt: `${event.systemPrompt}${digest}` };
+		return { systemPrompt: `${event.systemPrompt}${wikiContext}${digest}` };
 	});
 }

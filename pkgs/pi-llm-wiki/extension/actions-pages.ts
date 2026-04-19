@@ -4,7 +4,7 @@ import { atomicWriteFile } from "./lib/filesystem.js";
 import { stringifyFrontmatter } from "./lib/frontmatter.js";
 import { nowIso, ok } from "./lib/utils.js";
 import { appendEvent, loadRegistry } from "./actions-meta.js";
-import { dedupeSlug, slugifyTitle, todayStamp } from "./paths.js";
+import { dedupeSlug, normalizeHosts, slugifyTitle, todayStamp } from "./paths.js";
 import type { ActionResult, CanonicalPageFrontmatter, CanonicalPageType, EnsurePageDetails } from "./types.js";
 
 interface EnsurePageParams {
@@ -12,6 +12,7 @@ interface EnsurePageParams {
 	title: string;
 	aliases?: string[];
 	tags?: string[];
+	hosts?: string[];
 	summary?: string;
 }
 
@@ -57,6 +58,7 @@ export function handleEnsurePage(wikiRoot: string, params: EnsurePageParams): Ac
 		title: params.title,
 		aliases: params.aliases ?? [],
 		tags: params.tags ?? [],
+		hosts: normalizeHosts(params.hosts),
 		status: "draft",
 		updated: todayStamp(),
 		source_ids: [],

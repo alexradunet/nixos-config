@@ -50,6 +50,7 @@ export interface SourcePageFrontmatter {
 	origin_value: string;
 	aliases: string[];
 	tags: string[];
+	hosts: string[];
 	source_ids: string[];
 	summary: string;
 }
@@ -59,6 +60,7 @@ export interface CanonicalPageFrontmatter {
 	title: string;
 	aliases: string[];
 	tags: string[];
+	hosts: string[];
 	status: "draft" | "active" | "contested" | "superseded" | "archived";
 	updated: string;
 	source_ids: string[];
@@ -75,6 +77,7 @@ export interface RegistryEntry {
 	summary: string;
 	status: "draft" | "active" | "contested" | "superseded" | "archived" | "captured" | "integrated";
 	tags: string[];
+	hosts: string[];
 	updated: string;
 	sourceIds: string[];
 	linksOut: string[];
@@ -158,7 +161,10 @@ export type EnsurePageDetails = EnsurePageConflictDetails | EnsurePageResolvedDe
 
 export interface WikiStatusDetails {
 	initialized: boolean;
+	host?: string;
+	root?: string;
 	total?: number;
+	visible?: number;
 	source?: number;
 	canonical?: number;
 	captured?: number;

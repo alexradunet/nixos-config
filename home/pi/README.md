@@ -13,6 +13,14 @@ Bundled resources currently include:
 - `pi-llm-wiki` at `~/.pi/agent/extensions/pi-llm-wiki`
 - the bundled `librarian` skill at `~/.pi/agent/skills/librarian/SKILL.md`
 
+## llm-wiki notes
+
+`pi-llm-wiki` stores its wiki under `~/Sync/llm-wiki` so Syncthing can keep it in sync across machines.
+This repo exports that location as `PI_LLM_WIKI_DIR`.
+
+The wiki also supports optional `hosts:` frontmatter on pages and captured sources.
+When `hosts` is omitted, knowledge is treated as global. When present, the page applies only to those hosts.
+
 ## Why not manage `settings.json` yet?
 
 Pi mutates `~/.pi/agent/settings.json` itself for normal workflows like:

@@ -1,8 +1,36 @@
+import os from "node:os";
 import path from "node:path";
-import { getNixPiDir } from "./lib/filesystem.js";
 
 export function getWikiRoot(): string {
-	return path.join(getNixPiDir(), "Wiki");
+	return process.env.PI_LLM_WIKI_DIR ?? path.join(os.homedir(), "Sync", "llm-wiki");
+}
+
+function normalizeHost(host: string): string {
+	return host.trim().toLowerCase();
+}
+
+export function getCurrentHost(): string {
+	return normalizeHost(process.env.PI_LLM_WIKI_HOST ?? os.hostname());
+}
+
+export function normalizeHosts(hosts: string[] | undefined): string[] {
+	if (!hosts) return [];
+	return [...new Set(hosts.map(normalizeHost).filter(Boolean))];
+}
+
+export function appliesToHost(hosts: string[] | undefined, host = getCurrentHost()): boolean {
+	const normalizedHosts = normalizeHosts(hosts);
+	if (normalizedHosts.length === 0) return true;
+	if (normalizedHosts.includes("all") || normalizedHosts.includes("*")) return true;
+	return normalizedHosts.includes(normalizeHost(host));
+}
+
+export function formatHostsSuffix(hosts: string[] | undefined): string {
+	const normalizedHosts = normalizeHosts(hosts);
+	if (normalizedHosts.length === 0 || normalizedHosts.includes("all") || normalizedHosts.includes("*")) {
+		return "";
+	}
+	return ` [hosts: ${normalizedHosts.join(", ")}]`;
 }
 
 export function slugifyTitle(title: string): string {

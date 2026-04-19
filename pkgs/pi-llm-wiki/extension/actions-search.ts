@@ -1,5 +1,6 @@
 import { ok } from "./lib/utils.js";
 import { SEARCH_FIELD_WEIGHTS } from "./rules.js";
+import { appliesToHost, formatHostsSuffix, getCurrentHost } from "./paths.js";
 import type { ActionResult, RegistryData, RegistryEntry, WikiPageType } from "./types.js";
 
 export interface SearchMatch {
@@ -7,11 +8,14 @@ export interface SearchMatch {
 	path: string;
 	title: string;
 	summary: string;
+	hosts: string[];
 	score: number;
 }
 
 export interface SearchResult {
 	query: string;
+	hostScope: "current" | "all";
+	host?: string;
 	matches: SearchMatch[];
 }
 
@@ -88,11 +92,14 @@ export function searchRegistry(
 	query: string,
 	type?: WikiPageType | string,
 	limit = 10,
+	hostScope: "current" | "all" = "current",
+	host = getCurrentHost(),
 ): SearchResult {
 	const normalized = query.trim().toLowerCase();
 	const tokens = tokenize(normalized);
 	const matches = registry.pages
 		.filter((e) => !type || e.type === type)
+		.filter((e) => hostScope === "all" || appliesToHost(e.hosts, host))
 		.map((e) => ({ entry: e, score: scoreEntry(e, normalized, tokens) }))
 		.filter((m) => m.score > 0)
 		.sort((a, b) => b.score - a.score || a.entry.title.localeCompare(b.entry.title))
@@ -102,9 +109,10 @@ export function searchRegistry(
 			path: entry.path,
 			title: entry.title,
 			summary: entry.summary,
+			hosts: entry.hosts,
 			score,
 		}));
-	return { query, matches };
+	return { query, hostScope, ...(hostScope === "current" ? { host } : {}), matches };
 }
 
 export function handleWikiSearch(
@@ -112,14 +120,17 @@ export function handleWikiSearch(
 	query: string,
 	type?: string,
 	limit?: number,
+	hostScope: "current" | "all" = "current",
 ): ActionResult<SearchResult> {
-	const result = searchRegistry(registry, query, type as WikiPageType | undefined, limit);
+	const result = searchRegistry(registry, query, type as WikiPageType | undefined, limit, hostScope);
 	if (result.matches.length === 0) {
-		return ok({ text: `No wiki matches for: ${query}`, details: { query, matches: [] } });
+		const hostText = result.host ? ` on ${result.host}` : "";
+		return ok({ text: `No wiki matches for${hostText}: ${query}`, details: result });
 	}
+	const scopeText = result.host ? ` on ${result.host}` : "";
 	const lines = [
-		`Top matches for: ${query}`,
-		...result.matches.map((m) => `- [${m.score}] ${m.title} (${m.type}) — ${m.path}`),
+		`Top matches for${scopeText}: ${query}`,
+		...result.matches.map((m) => `- [${m.score}] ${m.title} (${m.type}) — ${m.path}${formatHostsSuffix(m.hosts)}`),
 	];
 	return ok({ text: lines.join("\n"), details: result });
 }

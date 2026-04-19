@@ -3,7 +3,16 @@ import path from "node:path";
 import { atomicWriteFile } from "./lib/filesystem.js";
 import { parseFrontmatter } from "./lib/frontmatter.js";
 import { nowIso, ok } from "./lib/utils.js";
-import { countWords, extractHeadings, extractWikiLinks, normalizeWikiLink } from "./paths.js";
+import {
+	appliesToHost,
+	countWords,
+	extractHeadings,
+	extractWikiLinks,
+	formatHostsSuffix,
+	getCurrentHost,
+	normalizeHosts,
+	normalizeWikiLink,
+} from "./paths.js";
 import type {
 	ActionResult,
 	BacklinksData,
@@ -121,6 +130,7 @@ export function buildRegistry(pages: ParsedPage[]): RegistryData {
 			summary: asString(fm.summary),
 			status: asString(fm.status, "draft") as RegistryEntry["status"],
 			tags: asStringArray(fm.tags),
+			hosts: normalizeHosts(asStringArray(fm.hosts)),
 			updated: asString(fm.updated),
 			sourceIds: asStringArray(pickField(fm, "sourceIds", "source_ids")),
 			linksOut: p.normalizedLinks,
@@ -211,8 +221,9 @@ export function renderIndex(registry: RegistryData): string {
 			// Strip pages/ prefix and .md suffix for the display path
 			const displayPath = entry.path.replace(/^pages\//, "").replace(/\.md$/, "");
 			const label = entry.title || displayPath;
+			const hostSuffix = formatHostsSuffix(entry.hosts);
 			const summary = entry.summary ? ` — ${entry.summary}` : "";
-			lines.push(`- [[${displayPath}|${label}]]${summary}`);
+			lines.push(`- [[${displayPath}|${label}]]${hostSuffix}${summary}`);
 		}
 		lines.push("");
 	}
@@ -327,23 +338,28 @@ export function readEvents(wikiRoot: string): WikiEvent[] {
 export function handleWikiStatus(wikiRoot: string): ActionResult<WikiStatusDetails> {
 	const pagesDir = path.join(wikiRoot, "pages");
 	if (!existsSync(pagesDir)) {
-		return ok({ text: "Wiki not initialized.", details: { initialized: false } });
+		return ok({ text: "Wiki not initialized.", details: { initialized: false, root: wikiRoot, host: getCurrentHost() } });
 	}
 
 	const registry = loadRegistry(wikiRoot);
+	const host = getCurrentHost();
+	const visiblePages = registry.pages.filter((p) => appliesToHost(p.hosts, host));
 	const total = registry.pages.length;
 	const sourceCount = registry.pages.filter((p) => p.type === "source").length;
 	const canonicalCount = total - sourceCount;
 	const capturedCount = registry.pages.filter((p) => p.type === "source" && p.status === "captured").length;
 	const integratedCount = registry.pages.filter((p) => p.type === "source" && p.status === "integrated").length;
 
-	const text = `Pages: ${total} total (${sourceCount} source, ${canonicalCount} canonical)\nSources: ${capturedCount} captured, ${integratedCount} integrated`;
+	const text = `Wiki root: ${wikiRoot}\nHost: ${host}\nPages: ${total} total (${sourceCount} source, ${canonicalCount} canonical)\nVisible here: ${visiblePages.length}\nSources: ${capturedCount} captured, ${integratedCount} integrated`;
 
 	return ok({
 		text,
 		details: {
 			initialized: true,
+			host,
+			root: wikiRoot,
 			total,
+			visible: visiblePages.length,
 			source: sourceCount,
 			canonical: canonicalCount,
 			captured: capturedCount,
@@ -360,18 +376,21 @@ export function buildWikiDigest(wikiRoot: string): string {
 	const registryPath = path.join(wikiRoot, "meta", "registry.json");
 	if (!existsSync(registryPath)) return "";
 
+	const host = getCurrentHost();
 	const registry = loadRegistry(wikiRoot);
 	const active = registry.pages
 		.filter((p) => p.type !== "source" && p.type !== "identity" && p.status === "active")
+		.filter((p) => appliesToHost(p.hosts, host))
 		.sort((a, b) => b.wordCount - a.wordCount)
 		.slice(0, 15);
 
 	if (active.length === 0) return "";
 
-	const lines = ["\n\n[WIKI MEMORY DIGEST]"];
+	const lines = [`\n\n[WIKI MEMORY DIGEST for ${host}]`];
 	for (const entry of active) {
+		const hostSuffix = formatHostsSuffix(entry.hosts);
 		const summary = entry.summary ? ` — ${entry.summary}` : "";
-		lines.push(`- ${entry.title} (${entry.type})${summary}`);
+		lines.push(`- ${entry.title} (${entry.type})${hostSuffix}${summary}`);
 	}
 
 	return lines.join("\n");
