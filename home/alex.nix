@@ -7,6 +7,7 @@
     ./git.nix
     ./packages.nix
     ./paths.nix
+    ./pi
     ./shell.nix
     ./ssh.nix
     ./zellij.nix

@@ -13,6 +13,7 @@
     ../../modules/hosts/efi-systemd-boot
     ../../modules/hosts/unfree
     ../../modules/services/networkmanager
+    ../../modules/services/netbird
     ../../modules/services/openssh
     ../../modules/services/fail2ban
     ../../modules/services/syncthing

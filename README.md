@@ -50,6 +50,7 @@ Shared Home Manager config for `alex`.
 - `home/alex.nix` is the shared entrypoint
 - `home/*.nix` splits user config by concern
 - `home/hosts/*.nix` holds host-specific Home Manager additions
+- `home/pi/` holds Pi-specific user infrastructure
 
 ## Current conventions
 

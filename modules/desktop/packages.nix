@@ -6,6 +6,7 @@
     kdePackages.konsole
     kdePackages.dolphin
     kdePackages.plasma-nm
+    netbird-ui
     vlc
     vscodium
   ];
