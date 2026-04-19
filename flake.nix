@@ -16,24 +16,31 @@
 
   outputs = { self, nixpkgs, home-manager, llm-agents, ... }:
   let
-    mkHost = path: nixpkgs.lib.nixosSystem {
-      system = "x86_64-linux";
-      specialArgs = { inherit llm-agents; };
-      modules = [
-        path
-        home-manager.nixosModules.home-manager
-        {
-          home-manager.useGlobalPkgs = true;
-          home-manager.useUserPackages = true;
-          home-manager.users.alex = import ./home/alex.nix;
-        }
-      ];
-    };
+    mkHost =
+      path: homeModule:
+      nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = { inherit llm-agents; };
+        modules = [
+          path
+          home-manager.nixosModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.users.alex = {
+              imports = [
+                ./home/alex.nix
+                homeModule
+              ];
+            };
+          }
+        ];
+      };
   in
   {
     nixosConfigurations = {
-      evo-nixos = mkHost ./hosts/evo-nixos;
-      pad-nixos = mkHost ./hosts/pad-nixos;
+      evo-nixos = mkHost ./hosts/evo-nixos ./home/hosts/evo-nixos.nix;
+      pad-nixos = mkHost ./hosts/pad-nixos ./home/hosts/pad-nixos.nix;
     };
   };
 }
