@@ -10,7 +10,7 @@ export interface ParsedFrontmatter<T> {
 }
 
 /** Frontmatter keys that are parsed as comma-separated arrays. */
-const FRONTMATTER_ARRAY_KEYS = new Set(["tags", "links", "aliases", "hosts"]);
+const FRONTMATTER_ARRAY_KEYS = new Set(["tags", "links", "aliases", "hosts", "areas"]);
 
 /** Serialize a data object and markdown body into a frontmatter-delimited string. */
 export function stringifyFrontmatter<T extends object>(data: T, content: string): string {

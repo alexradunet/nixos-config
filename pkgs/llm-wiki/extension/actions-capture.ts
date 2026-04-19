@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { appendEvent } from "./actions-meta.js";
 import { atomicWriteFile } from "./lib/filesystem.js";
 import { stringifyFrontmatter } from "./lib/frontmatter.js";
 import { err, ok } from "./lib/utils.js";
-import { appendEvent } from "./actions-meta.js";
-import { makeSourceId, normalizeHosts } from "./paths.js";
+import { makeSourceId, normalizeAreas, normalizeDomain, normalizeHosts } from "./paths.js";
 import type { ActionResult, CaptureDetails, SourceManifest, SourcePageFrontmatter } from "./types.js";
 
 function sha256(value: string | Buffer): string {
@@ -16,8 +16,8 @@ function listExistingSourceIds(wikiRoot: string): string[] {
 	const dir = path.join(wikiRoot, "raw");
 	try {
 		return readdirSync(dir, { withFileTypes: true })
-			.filter((e) => e.isDirectory() && e.name.startsWith("SRC-"))
-			.map((e) => e.name);
+			.filter((entry) => entry.isDirectory() && entry.name.startsWith("SRC-"))
+			.map((entry) => entry.name);
 	} catch {
 		return [];
 	}
@@ -33,6 +33,8 @@ function scaffoldSourcePage(
 	originValue: string,
 	tags: string[],
 	hosts: string[],
+	domain: string | undefined,
+	areas: string[],
 ): string {
 	const fm: SourcePageFrontmatter = {
 		type: "source",
@@ -46,6 +48,8 @@ function scaffoldSourcePage(
 		aliases: [],
 		tags,
 		hosts,
+		...(domain ? { domain } : {}),
+		areas,
 		source_ids: [sourceId],
 		summary: "",
 	};
@@ -70,11 +74,11 @@ function scaffoldSourcePage(
 		"## Open questions",
 		"",
 	].join("\n");
-	const relPath = path.join("pages", "sources", `${sourceId}.md`);
+	const relPath = path.join("pages", "sources", `${sourceId}.md`).split("\\").join("/");
 	const absPath = path.join(wikiRoot, relPath);
 	mkdirSync(path.dirname(absPath), { recursive: true });
 	atomicWriteFile(absPath, stringifyFrontmatter(fm, body));
-	return relPath.split("\\").join("/");
+	return relPath;
 }
 
 interface CaptureDescriptor {
@@ -84,6 +88,8 @@ interface CaptureDescriptor {
 	extractedText: string;
 	tags: string[];
 	hosts: string[];
+	domain?: string;
+	areas: string[];
 	writeOriginal(absPacket: string): void;
 }
 
@@ -103,11 +109,7 @@ function decodeUtf8FileContent(absoluteFilePath: string, ext: string): string | 
 	}
 }
 
-function createCapture(
-	wikiRoot: string,
-	descriptor: CaptureDescriptor,
-	now = new Date(),
-): ActionResult<CaptureDetails> {
+function createCapture(wikiRoot: string, descriptor: CaptureDescriptor, now = new Date()): ActionResult<CaptureDetails> {
 	const existingIds = listExistingSourceIds(wikiRoot);
 	const sourceId = makeSourceId(existingIds, now);
 	const absPacket = path.join(wikiRoot, "raw", sourceId);
@@ -142,6 +144,8 @@ function createCapture(
 		descriptor.origin.value,
 		descriptor.tags,
 		descriptor.hosts,
+		descriptor.domain,
+		descriptor.areas,
 	);
 
 	appendEvent(wikiRoot, {
@@ -161,14 +165,14 @@ function createCapture(
 export function captureText(
 	wikiRoot: string,
 	text: string,
-	options?: { title?: string; kind?: string; tags?: string[]; hosts?: string[] },
+	options?: { title?: string; kind?: string; tags?: string[]; hosts?: string[]; domain?: string; areas?: string[] },
 	now = new Date(),
 ): ActionResult<CaptureDetails> {
 	const title =
 		options?.title ??
 		text
 			.split("\n")
-			.find((l) => l.trim())
+			.find((line) => line.trim())
 			?.slice(0, 80) ??
 		"Untitled Source";
 	const kind = options?.kind ?? "note";
@@ -181,6 +185,8 @@ export function captureText(
 			extractedText: text,
 			tags: options?.tags ?? [],
 			hosts: normalizeHosts(options?.hosts),
+			domain: normalizeDomain(options?.domain),
+			areas: normalizeAreas(options?.areas),
 			writeOriginal(absPacket) {
 				writeFileSync(path.join(absPacket, "original", "source.txt"), text, "utf-8");
 			},
@@ -192,7 +198,7 @@ export function captureText(
 export function captureFile(
 	wikiRoot: string,
 	absoluteFilePath: string,
-	options?: { title?: string; kind?: string; tags?: string[]; hosts?: string[] },
+	options?: { title?: string; kind?: string; tags?: string[]; hosts?: string[]; domain?: string; areas?: string[] },
 	now = new Date(),
 ): ActionResult<CaptureDetails> {
 	if (!existsSync(absoluteFilePath)) return err(`File not found: ${absoluteFilePath}`);
@@ -212,6 +218,8 @@ export function captureFile(
 			extractedText: content,
 			tags: options?.tags ?? [],
 			hosts: normalizeHosts(options?.hosts),
+			domain: normalizeDomain(options?.domain),
+			areas: normalizeAreas(options?.areas),
 			writeOriginal(absPacket) {
 				copyFileSync(absoluteFilePath, path.join(absPacket, "original", `source${ext}`));
 			},

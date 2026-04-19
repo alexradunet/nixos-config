@@ -36,11 +36,11 @@
     forAllSystems = lib.genAttrs supportedSystems;
 
     # Export local packages through an overlay so the same package names are
-    # available everywhere as pkgs.pi, pkgs.pi-web-access, and pkgs.pi-llm-wiki.
+    # available everywhere as pkgs.pi, pkgs.pi-web-access, and pkgs.llm-wiki.
     overlay = final: _prev: {
       pi = final.callPackage ./pkgs/pi {};
       pi-web-access = final.callPackage ./pkgs/pi-web-access {};
-      pi-llm-wiki = final.callPackage ./pkgs/pi-llm-wiki {};
+      llm-wiki = final.callPackage ./pkgs/llm-wiki {};
     };
 
     # Import nixpkgs for a specific target system with our local overlay applied.
@@ -115,7 +115,8 @@
         }
     );
 
-    # Dev shell with the formatter and two common Nix linters.
+    # Dev shell with the formatter, two common Nix linters, and Node.js for
+    # local llm-wiki test runs.
     devShells = forAllSystems (
       system: let
         pkgs = pkgsFor system;
@@ -124,6 +125,7 @@
           packages = with pkgs; [
             alejandra
             deadnix
+            nodejs
             statix
           ];
         };
@@ -133,6 +135,8 @@
     checks = forAllSystems (
       system: let
         pkgs = pkgsFor system;
+        alexHome = self.nixosConfigurations.pad-nixos.config.home-manager.users.alex.home;
+        llmWikiActivation = self.nixosConfigurations.pad-nixos.config.home-manager.users.alex.home.activation.llmWikiStarter;
       in {
         formatting =
           pkgs.runCommand "formatting-check" {
@@ -149,6 +153,26 @@
             # runCommand derivations must produce an output path on success.
             touch $out
           '';
+
+        llm-wiki-tests = pkgs.callPackage ./pkgs/llm-wiki/tests.nix {};
+
+        llm-wiki-home = pkgs.runCommand "llm-wiki-home-check" {} ''
+          session_var='${alexHome.sessionVariables.PI_LLM_WIKI_DIR}'
+          extension_source='${alexHome.file.".pi/agent/extensions/llm-wiki".source}'
+          activation_script='${llmWikiActivation.data}'
+
+          test "$session_var" = "/home/alex/Sync/llm-wiki"
+          test -d "$extension_source"
+
+          printf '%s\n' "$activation_script" | grep -F 'pages/projects/technical' >/dev/null
+          printf '%s\n' "$activation_script" | grep -F 'pages/areas/personal' >/dev/null
+          printf '%s\n' "$activation_script" | grep -F 'pages/resources/technical/system-landscape.md' >/dev/null
+          printf '%s\n' "$activation_script" | grep -F 'pages/journal/daily' >/dev/null
+          printf '%s\n' "$activation_script" | grep -F 'templates/obsidian/daily-journal.md' >/dev/null
+          printf '%s\n' "$activation_script" | grep -F 'templates/obsidian/page.md' >/dev/null
+
+          touch $out
+        '';
       }
     );
 
@@ -158,7 +182,7 @@
       in {
         pi = pkgs.pi;
         pi-web-access = pkgs.pi-web-access;
-        pi-llm-wiki = pkgs.pi-llm-wiki;
+        llm-wiki = pkgs.llm-wiki;
         default = pkgs.pi;
       }
     );

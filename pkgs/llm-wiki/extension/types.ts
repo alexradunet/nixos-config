@@ -12,6 +12,7 @@ export const PAGE_TYPES = [
 	"procedure",
 	"decision",
 	"identity",
+	"journal",
 ] as const;
 export type WikiPageType = (typeof PAGE_TYPES)[number];
 
@@ -24,6 +25,7 @@ export const CANONICAL_PAGE_TYPES = [
 	"procedure",
 	"decision",
 	"identity",
+	"journal",
 ] as const;
 export type CanonicalPageType = (typeof CANONICAL_PAGE_TYPES)[number];
 
@@ -51,6 +53,8 @@ export interface SourcePageFrontmatter {
 	aliases: string[];
 	tags: string[];
 	hosts: string[];
+	domain?: string;
+	areas: string[];
 	source_ids: string[];
 	summary: string;
 }
@@ -61,6 +65,8 @@ export interface CanonicalPageFrontmatter {
 	aliases: string[];
 	tags: string[];
 	hosts: string[];
+	domain?: string;
+	areas: string[];
 	status: "draft" | "active" | "contested" | "superseded" | "archived";
 	updated: string;
 	source_ids: string[];
@@ -72,12 +78,15 @@ export type WikiFrontmatter = SourcePageFrontmatter | CanonicalPageFrontmatter;
 export interface RegistryEntry {
 	type: WikiPageType;
 	path: string;
+	folder: string;
 	title: string;
 	aliases: string[];
 	summary: string;
 	status: "draft" | "active" | "contested" | "superseded" | "archived" | "captured" | "integrated";
 	tags: string[];
 	hosts: string[];
+	domain?: string;
+	areas: string[];
 	updated: string;
 	sourceIds: string[];
 	linksOut: string[];
@@ -167,8 +176,10 @@ export interface WikiStatusDetails {
 	visible?: number;
 	source?: number;
 	canonical?: number;
+	journal?: number;
 	captured?: number;
 	integrated?: number;
+	domains?: Record<string, number>;
 }
 
 export interface LintDetails {

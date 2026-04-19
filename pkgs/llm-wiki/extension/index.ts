@@ -7,19 +7,12 @@
 import { StringEnum } from "@mariozechner/pi-ai";
 import { type ExtensionAPI, isToolCallEventType } from "@mariozechner/pi-coding-agent";
 import { type Static, Type } from "@sinclair/typebox";
-import {
-	type ActionResult,
-	EmptyToolParams,
-	ok,
-	type RegisteredExtensionTool,
-	registerTools,
-	toToolResult,
-} from "./lib/utils.js";
 import { captureFile, captureText } from "./actions-capture.js";
 import { handleWikiLint } from "./actions-lint.js";
 import { buildWikiDigest, handleWikiStatus, loadRegistry, rebuildAllMeta } from "./actions-meta.js";
 import { handleEnsurePage } from "./actions-pages.js";
 import { handleWikiSearch } from "./actions-search.js";
+import { EmptyToolParams, ok, type RegisteredExtensionTool, registerTools, toToolResult, type ActionResult } from "./lib/utils.js";
 import { getCurrentHost, getWikiRoot, isProtectedPath, isWikiPagePath } from "./paths.js";
 import type { CanonicalPageType } from "./types.js";
 
@@ -33,6 +26,7 @@ const PageTypeEnum = StringEnum([
 	"procedure",
 	"decision",
 	"identity",
+	"journal",
 ] as const);
 
 const CanonicalTypeEnum = StringEnum([
@@ -44,18 +38,10 @@ const CanonicalTypeEnum = StringEnum([
 	"procedure",
 	"decision",
 	"identity",
+	"journal",
 ] as const);
 
-const LintModeEnum = StringEnum([
-	"links",
-	"orphans",
-	"frontmatter",
-	"duplicates",
-	"coverage",
-	"staleness",
-	"all",
-] as const);
-
+const LintModeEnum = StringEnum(["links", "orphans", "frontmatter", "duplicates", "coverage", "staleness", "all"] as const);
 const HostScopeEnum = StringEnum(["current", "all"] as const);
 
 const WikiCaptureParams = Type.Object({
@@ -64,9 +50,9 @@ const WikiCaptureParams = Type.Object({
 	title: Type.Optional(Type.String({ description: "Optional title override." })),
 	kind: Type.Optional(Type.String({ description: "Optional source kind, for example note or pdf." })),
 	tags: Type.Optional(Type.Array(Type.String())),
-	hosts: Type.Optional(
-		Type.Array(Type.String({ description: "Optional host scope. Omit for global knowledge shared across hosts." })),
-	),
+	hosts: Type.Optional(Type.Array(Type.String({ description: "Optional host scope. Omit for global knowledge shared across hosts." }))),
+	domain: Type.Optional(Type.String({ description: "Optional domain such as technical or personal." })),
+	areas: Type.Optional(Type.Array(Type.String({ description: "Optional areas such as nixos, pi, health, writing, etc." }))),
 });
 
 const WikiSearchParams = Type.Object({
@@ -74,6 +60,11 @@ const WikiSearchParams = Type.Object({
 	type: Type.Optional(PageTypeEnum),
 	limit: Type.Optional(Type.Number({ description: "Maximum results to return.", default: 10 })),
 	host_scope: Type.Optional(HostScopeEnum),
+	domain: Type.Optional(Type.String({ description: "Optional domain filter such as technical or personal." })),
+	areas: Type.Optional(Type.Array(Type.String({ description: "Require these areas in frontmatter." }))),
+	folder: Type.Optional(
+		Type.String({ description: "Optional folder filter under pages/, for example technical, personal, resources/technical, areas/personal, journal/daily." }),
+	),
 });
 
 const WikiEnsurePageParams = Type.Object({
@@ -81,24 +72,20 @@ const WikiEnsurePageParams = Type.Object({
 	title: Type.String({ description: "Canonical page title." }),
 	aliases: Type.Optional(Type.Array(Type.String())),
 	tags: Type.Optional(Type.Array(Type.String())),
-	hosts: Type.Optional(
-		Type.Array(Type.String({ description: "Optional host scope. Omit for global knowledge shared across hosts." })),
+	hosts: Type.Optional(Type.Array(Type.String({ description: "Optional host scope. Omit for global knowledge shared across hosts." }))),
+	domain: Type.Optional(Type.String({ description: "Optional domain such as technical or personal." })),
+	areas: Type.Optional(Type.Array(Type.String({ description: "Optional areas such as nixos, pi, health, writing, etc." }))),
+	folder: Type.Optional(
+		Type.String({ description: "Optional folder under pages/, for example technical, personal, resources/technical, areas/personal, journal/daily." }),
 	),
 	summary: Type.Optional(Type.String({ description: "Optional one-line summary." })),
 });
 
-const WikiLintParams = Type.Object({
-	mode: Type.Optional(LintModeEnum),
-});
+const WikiLintParams = Type.Object({ mode: Type.Optional(LintModeEnum) });
 
-async function runWikiMutation<TDetails extends object>(
-	wikiRoot: string,
-	operation: () => Promise<ActionResult<TDetails>>,
-) {
+async function runWikiMutation<TDetails extends object>(wikiRoot: string, operation: () => Promise<ActionResult<TDetails>>) {
 	const actionResult = toToolResult(await operation());
-	if (!actionResult.isError) {
-		rebuildAllMeta(wikiRoot);
-	}
+	if (!actionResult.isError) rebuildAllMeta(wikiRoot);
 	return actionResult;
 }
 
@@ -111,6 +98,12 @@ function buildWikiContextPrompt(): string {
 		"[LLM WIKI CONTEXT]",
 		`- Wiki root: ${wikiRoot}`,
 		`- Current host: ${host}`,
+		"- Open this folder directly in Obsidian to contribute markdown notes.",
+		"- Use domain: technical or domain: personal to separate system knowledge from user knowledge.",
+		"- Use areas: [...] for long-lived themes and responsibilities.",
+		"- For PARA-style organization, prefer folders under pages/projects, pages/areas, pages/resources, and pages/archives.",
+		"- Journal entries should usually live under pages/journal/daily and use type: journal.",
+		"- wiki_ensure_page can also create journal entries when type=journal.",
 		"- Pages with a frontmatter hosts list apply only to those hosts.",
 		"- Pages without hosts are global and apply across all hosts.",
 		`- When knowledge is host-specific, set hosts: [${host}] or another explicit host list.`,
@@ -134,7 +127,7 @@ export default function (pi: ExtensionAPI) {
 			name: "wiki_capture",
 			label: "Wiki Capture",
 			description:
-				"Capture text or a local file into a raw source packet and scaffold a source page. Use hosts for host-specific knowledge.",
+				"Capture text or a local file into a raw source packet and scaffold a source page. Use hosts, domain, and areas for scoped knowledge.",
 			parameters: WikiCaptureParams,
 			async execute(_toolCallId, params) {
 				const typed = params as Static<typeof WikiCaptureParams>;
@@ -146,12 +139,16 @@ export default function (pi: ExtensionAPI) {
 								kind: typed.kind,
 								tags: typed.tags,
 								hosts: typed.hosts,
+								domain: typed.domain,
+								areas: typed.areas,
 							})
 						: captureText(wikiRoot, typed.value, {
 								title: typed.title,
 								kind: typed.kind,
 								tags: typed.tags,
 								hosts: typed.hosts,
+								domain: typed.domain,
+								areas: typed.areas,
 							}),
 				);
 			},
@@ -160,12 +157,19 @@ export default function (pi: ExtensionAPI) {
 			name: "wiki_search",
 			label: "Wiki Search",
 			description:
-				"Search wiki pages by title, aliases, headings, tags, source IDs, and summary text. By default it only returns pages relevant to the current host plus global pages.",
+				"Search wiki pages by title, aliases, domain, areas, headings, tags, source IDs, and summary text. By default it only returns pages relevant to the current host plus global pages.",
 			parameters: WikiSearchParams,
 			async execute(_toolCallId, params) {
 				const typed = params as Static<typeof WikiSearchParams>;
 				return toToolResult(
-					handleWikiSearch(loadRegistry(getWikiRoot()), typed.query, typed.type, typed.limit, typed.host_scope),
+					handleWikiSearch(loadRegistry(getWikiRoot()), typed.query, {
+						type: typed.type,
+						limit: typed.limit,
+						hostScope: typed.host_scope,
+						domain: typed.domain,
+						areas: typed.areas,
+						folder: typed.folder,
+					}),
 				);
 			},
 		},
@@ -173,7 +177,7 @@ export default function (pi: ExtensionAPI) {
 			name: "wiki_ensure_page",
 			label: "Wiki Ensure Page",
 			description:
-				"Resolve an existing canonical page by title or alias, or create a new draft page if missing. Use hosts for host-specific knowledge.",
+				"Resolve an existing page by title or alias, or create a new page if missing. You can place pages directly under pages/technical or pages/personal, under PARA folders like pages/resources/technical, or create journal entries with type=journal.",
 			parameters: WikiEnsurePageParams,
 			async execute(_toolCallId, params) {
 				const typed = params as Static<typeof WikiEnsurePageParams> & { type: CanonicalPageType };
@@ -208,23 +212,14 @@ export default function (pi: ExtensionAPI) {
 		if (isProtectedPath(wikiRoot, pathValue)) {
 			return { block: true as const, reason: "Wiki protects raw/ and meta/. Use wiki tools instead." };
 		}
-		if (isWikiPagePath(wikiRoot, pathValue)) {
-			dirty = true;
-		}
+		if (isWikiPagePath(wikiRoot, pathValue)) dirty = true;
 		return undefined;
 	}
 
 	pi.on("tool_call", async (event) => {
 		const wikiRoot = getWikiRoot();
-
-		if (isToolCallEventType("write", event)) {
-			return protectOrMark(event.input.path, wikiRoot);
-		}
-
-		if (isToolCallEventType("edit", event)) {
-			return protectOrMark(event.input.path, wikiRoot);
-		}
-
+		if (isToolCallEventType("write", event)) return protectOrMark(event.input.path, wikiRoot);
+		if (isToolCallEventType("edit", event)) return protectOrMark(event.input.path, wikiRoot);
 		return undefined;
 	});
 

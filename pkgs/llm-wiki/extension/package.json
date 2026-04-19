@@ -1,5 +1,5 @@
 {
-  "name": "pi-llm-wiki",
+  "name": "llm-wiki",
   "version": "0.1.0",
   "description": "A Pi extension for local wiki capture, search, scaffolding, and linting",
   "private": true,

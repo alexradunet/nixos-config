@@ -1,14 +1,27 @@
 import { ok } from "./lib/utils.js";
 import { SEARCH_FIELD_WEIGHTS } from "./rules.js";
-import { appliesToHost, formatHostsSuffix, getCurrentHost } from "./paths.js";
+import {
+	appliesToHost,
+	folderMatches,
+	formatAreasSuffix,
+	formatDomainSuffix,
+	formatHostsSuffix,
+	getCurrentHost,
+	normalizeAreas,
+	normalizeDomain,
+	normalizePageFolder,
+} from "./paths.js";
 import type { ActionResult, RegistryData, RegistryEntry, WikiPageType } from "./types.js";
 
 export interface SearchMatch {
 	type: string;
 	path: string;
+	folder: string;
 	title: string;
 	summary: string;
 	hosts: string[];
+	domain?: string;
+	areas: string[];
 	score: number;
 }
 
@@ -16,7 +29,20 @@ export interface SearchResult {
 	query: string;
 	hostScope: "current" | "all";
 	host?: string;
+	domain?: string;
+	areas: string[];
+	folder?: string;
 	matches: SearchMatch[];
+}
+
+export interface SearchOptions {
+	type?: WikiPageType | string;
+	limit?: number;
+	hostScope?: "current" | "all";
+	host?: string;
+	domain?: string;
+	areas?: string[];
+	folder?: string;
 }
 
 function tokenize(input: string): string[] {
@@ -32,6 +58,8 @@ function scoreExactMatches(
 	fields: {
 		title: string;
 		aliases: string[];
+		domain?: string;
+		areas: string[];
 		summary: string;
 		sourceIds: string[];
 		path: string;
@@ -41,6 +69,8 @@ function scoreExactMatches(
 	let score = 0;
 	if (fields.title === normalized) score += SEARCH_FIELD_WEIGHTS.exactTitle;
 	if (fields.aliases.includes(normalized)) score += SEARCH_FIELD_WEIGHTS.exactAlias;
+	if (fields.domain === normalized) score += SEARCH_FIELD_WEIGHTS.exactDomain;
+	if (fields.areas.includes(normalized)) score += SEARCH_FIELD_WEIGHTS.exactArea;
 	if (fields.summary.includes(normalized)) score += SEARCH_FIELD_WEIGHTS.exactSummary;
 	if (fields.sourceIds.includes(normalized)) score += SEARCH_FIELD_WEIGHTS.exactSourceId;
 	if (fields.path.includes(normalized)) score += SEARCH_FIELD_WEIGHTS.exactPath;
@@ -53,6 +83,8 @@ function scoreTokenMatches(
 	fields: {
 		title: string;
 		aliases: string[];
+		domain?: string;
+		areas: string[];
 		summary: string;
 		headings: string[];
 		tags: string[];
@@ -64,10 +96,12 @@ function scoreTokenMatches(
 	for (const token of tokens) {
 		if (fields.title.includes(token)) score += SEARCH_FIELD_WEIGHTS.tokenTitle;
 		if (includesAny(fields.aliases, token)) score += SEARCH_FIELD_WEIGHTS.tokenAlias;
+		if (fields.domain?.includes(token)) score += SEARCH_FIELD_WEIGHTS.tokenDomain;
+		if (includesAny(fields.areas, token)) score += SEARCH_FIELD_WEIGHTS.tokenArea;
 		if (fields.summary.includes(token)) score += SEARCH_FIELD_WEIGHTS.tokenSummary;
 		if (includesAny(fields.headings, token)) score += SEARCH_FIELD_WEIGHTS.tokenHeading;
-		if (includesAny(fields.tags, token)) score += SEARCH_FIELD_WEIGHTS.tokenTag;
 		if (includesAny(fields.sourceIds, token)) score += SEARCH_FIELD_WEIGHTS.tokenSourceId;
+		if (includesAny(fields.tags, token)) score += SEARCH_FIELD_WEIGHTS.tokenTag;
 		if (fields.path.includes(token)) score += SEARCH_FIELD_WEIGHTS.tokenPath;
 	}
 	return score;
@@ -77,6 +111,8 @@ function scoreEntry(entry: RegistryEntry, normalized: string, tokens: string[]):
 	const normalizedFields = {
 		title: entry.title.toLowerCase(),
 		aliases: entry.aliases.map((alias) => alias.toLowerCase()),
+		domain: entry.domain?.toLowerCase(),
+		areas: entry.areas.map((area) => area.toLowerCase()),
 		summary: entry.summary.toLowerCase(),
 		headings: entry.headings.map((heading) => heading.toLowerCase()),
 		tags: entry.tags.map((tag) => tag.toLowerCase()),
@@ -87,50 +123,75 @@ function scoreEntry(entry: RegistryEntry, normalized: string, tokens: string[]):
 	return scoreExactMatches(normalized, normalizedFields) + scoreTokenMatches(tokens, normalizedFields);
 }
 
-export function searchRegistry(
-	registry: RegistryData,
-	query: string,
-	type?: WikiPageType | string,
-	limit = 10,
-	hostScope: "current" | "all" = "current",
-	host = getCurrentHost(),
-): SearchResult {
+function matchesAreas(entry: RegistryEntry, areas: string[]): boolean {
+	if (areas.length === 0) return true;
+	return areas.every((area) => entry.areas.includes(area));
+}
+
+export function searchRegistry(registry: RegistryData, query: string, options: SearchOptions = {}): SearchResult {
+	const host = options.host ?? getCurrentHost();
+	const hostScope = options.hostScope ?? "current";
+	const domain = normalizeDomain(options.domain);
+	const areas = normalizeAreas(options.areas);
+	const folder = normalizePageFolder(options.folder);
 	const normalized = query.trim().toLowerCase();
 	const tokens = tokenize(normalized);
+
 	const matches = registry.pages
-		.filter((e) => !type || e.type === type)
-		.filter((e) => hostScope === "all" || appliesToHost(e.hosts, host))
-		.map((e) => ({ entry: e, score: scoreEntry(e, normalized, tokens) }))
-		.filter((m) => m.score > 0)
+		.filter((entry) => !options.type || entry.type === options.type)
+		.filter((entry) => hostScope === "all" || appliesToHost(entry.hosts, host))
+		.filter((entry) => !domain || entry.domain === domain)
+		.filter((entry) => matchesAreas(entry, areas))
+		.filter((entry) => folderMatches(entry.folder, folder))
+		.map((entry) => ({ entry, score: scoreEntry(entry, normalized, tokens) }))
+		.filter((match) => match.score > 0)
 		.sort((a, b) => b.score - a.score || a.entry.title.localeCompare(b.entry.title))
-		.slice(0, limit)
+		.slice(0, options.limit ?? 10)
 		.map(({ entry, score }) => ({
 			type: entry.type,
 			path: entry.path,
+			folder: entry.folder,
 			title: entry.title,
 			summary: entry.summary,
 			hosts: entry.hosts,
+			domain: entry.domain,
+			areas: entry.areas,
 			score,
 		}));
-	return { query, hostScope, ...(hostScope === "current" ? { host } : {}), matches };
+
+	return {
+		query,
+		hostScope,
+		...(hostScope === "current" ? { host } : {}),
+		...(domain ? { domain } : {}),
+		areas,
+		...(folder ? { folder } : {}),
+		matches,
+	};
 }
 
-export function handleWikiSearch(
-	registry: RegistryData,
-	query: string,
-	type?: string,
-	limit?: number,
-	hostScope: "current" | "all" = "current",
-): ActionResult<SearchResult> {
-	const result = searchRegistry(registry, query, type as WikiPageType | undefined, limit, hostScope);
+export function handleWikiSearch(registry: RegistryData, query: string, options: SearchOptions = {}): ActionResult<SearchResult> {
+	const result = searchRegistry(registry, query, options);
+	const scopeBits = [
+		result.host ? `host=${result.host}` : undefined,
+		result.domain ? `domain=${result.domain}` : undefined,
+		result.areas.length > 0 ? `areas=${result.areas.join(",")}` : undefined,
+		result.folder ? `folder=${result.folder}` : undefined,
+	]
+		.filter(Boolean)
+		.join(" ");
+	const scopeText = scopeBits ? ` (${scopeBits})` : "";
+
 	if (result.matches.length === 0) {
-		const hostText = result.host ? ` on ${result.host}` : "";
-		return ok({ text: `No wiki matches for${hostText}: ${query}`, details: result });
+		return ok({ text: `No wiki matches for${scopeText}: ${query}`, details: result });
 	}
-	const scopeText = result.host ? ` on ${result.host}` : "";
+
 	const lines = [
 		`Top matches for${scopeText}: ${query}`,
-		...result.matches.map((m) => `- [${m.score}] ${m.title} (${m.type}) — ${m.path}${formatHostsSuffix(m.hosts)}`),
+		...result.matches.map(
+			(match) =>
+				`- [${match.score}] ${match.title} (${match.type}) — ${match.path}${formatDomainSuffix(match.domain)}${formatAreasSuffix(match.areas)}${formatHostsSuffix(match.hosts)}`,
+		),
 	];
 	return ok({ text: lines.join("\n"), details: result });
 }

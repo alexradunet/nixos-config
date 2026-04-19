@@ -43,7 +43,8 @@ function lintOrphans(registry: RegistryData, backlinks: BacklinksData): LintIssu
 function lintFrontmatter(pages: ReturnType<typeof scanPages>): LintIssue[] {
 	const issues: LintIssue[] = [];
 	for (const page of pages) {
-		const type = page.frontmatter.type === "source" ? "source" : "concept";
+		const rawType = typeof page.frontmatter.type === "string" ? page.frontmatter.type : "concept";
+		const type = rawType in REQUIRED_FRONTMATTER_FIELDS ? (rawType as keyof typeof REQUIRED_FRONTMATTER_FIELDS) : "concept";
 		const required = REQUIRED_FRONTMATTER_FIELDS[type];
 		for (const field of required) {
 			if (!(field in page.frontmatter)) {
@@ -64,7 +65,8 @@ function lintDuplicates(registry: RegistryData): LintIssue[] {
 	const issues: LintIssue[] = [];
 	for (const page of registry.pages.filter((entry) => entry.type !== "source")) {
 		const normalizedTitle = page.title.trim().toLowerCase();
-		const previousPath = seen.get(normalizedTitle);
+		const key = `${page.type}:${page.domain ?? "global"}:${normalizedTitle}`;
+		const previousPath = seen.get(key);
 		if (previousPath) {
 			issues.push({
 				kind: "duplicate",
@@ -74,7 +76,7 @@ function lintDuplicates(registry: RegistryData): LintIssue[] {
 			});
 			continue;
 		}
-		seen.set(normalizedTitle, page.path);
+		seen.set(key, page.path);
 	}
 	return issues;
 }
@@ -92,6 +94,10 @@ function lintCoverage(registry: RegistryData, backlinks: BacklinksData): LintIss
 					message: "Source not cited by any canonical page.",
 				});
 			}
+			continue;
+		}
+
+		if (page.type === "journal") {
 			continue;
 		}
 

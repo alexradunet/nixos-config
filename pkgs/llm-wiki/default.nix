@@ -6,14 +6,14 @@
   src = ./extension;
 in
   buildNpmPackage {
-    pname = "pi-llm-wiki";
+    pname = "llm-wiki";
     version = "0.1.0";
 
     inherit src;
 
     npmDeps = fetchNpmDeps {
       inherit src;
-      hash = "sha256-8uo9HJbM958g1dTEKoRc2GOS+QxiaocoFuSfXKl64WQ=";
+      hash = "sha256-+LeWxRQkXOuVRHqg76p3DEdj7T9xEpUpohCY/G1tHGY=";
     };
 
     dontNpmBuild = true;
@@ -21,8 +21,8 @@ in
     installPhase = ''
       runHook preInstall
 
-      mkdir -p $out/share/pi-llm-wiki
-      cp -r . $out/share/pi-llm-wiki/
+      mkdir -p $out/share/llm-wiki
+      cp -r . $out/share/llm-wiki/
 
       runHook postInstall
     '';

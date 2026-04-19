@@ -8,8 +8,14 @@ import {
 	countWords,
 	extractHeadings,
 	extractWikiLinks,
+	formatAreasSuffix,
+	formatDomainSuffix,
 	formatHostsSuffix,
 	getCurrentHost,
+	getPageFolder,
+	inferDomainFromFolder,
+	normalizeAreas,
+	normalizeDomain,
 	normalizeHosts,
 	normalizeWikiLink,
 } from "./paths.js";
@@ -25,35 +31,22 @@ import type {
 } from "./types.js";
 import { PAGE_TYPES } from "./types.js";
 
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
-function asString(v: unknown, fallback = ""): string {
-	if (typeof v === "string") return v;
-	return fallback;
+function asString(value: unknown, fallback = ""): string {
+	return typeof value === "string" ? value : fallback;
 }
 
-function pickField(fm: Record<string, unknown>, ...keys: string[]): unknown {
+function pickField(frontmatter: Record<string, unknown>, ...keys: string[]): unknown {
 	for (const key of keys) {
-		if (key in fm) return fm[key];
+		if (key in frontmatter) return frontmatter[key];
 	}
 	return undefined;
 }
 
-function asStringArray(v: unknown): string[] {
-	if (Array.isArray(v)) {
-		return v.filter((x): x is string => typeof x === "string");
-	}
-	if (typeof v === "string" && v.trim()) {
-		return [v.trim()];
-	}
+function asStringArray(value: unknown): string[] {
+	if (Array.isArray(value)) return value.filter((entry): entry is string => typeof entry === "string");
+	if (typeof value === "string" && value.trim()) return [value.trim()];
 	return [];
 }
-
-// ---------------------------------------------------------------------------
-// ParsedPage (internal)
-// ---------------------------------------------------------------------------
 
 interface ParsedPage {
 	relativePath: string;
@@ -65,10 +58,6 @@ interface ParsedPage {
 	wordCount: number;
 }
 
-// ---------------------------------------------------------------------------
-// scanPages
-// ---------------------------------------------------------------------------
-
 function walkMdFiles(dir: string, results: string[]): void {
 	let entries: import("node:fs").Dirent[];
 	try {
@@ -77,12 +66,11 @@ function walkMdFiles(dir: string, results: string[]): void {
 		return;
 	}
 	for (const entry of entries) {
-		const name = entry.name as string;
-		const full = path.join(dir, name);
+		const fullPath = path.join(dir, entry.name as string);
 		if (entry.isDirectory()) {
-			walkMdFiles(full, results);
-		} else if (entry.isFile() && name.endsWith(".md")) {
-			results.push(full);
+			walkMdFiles(fullPath, results);
+		} else if (entry.isFile() && entry.name.endsWith(".md")) {
+			results.push(fullPath);
 		}
 	}
 }
@@ -100,7 +88,7 @@ export function scanPages(wikiRoot: string): ParsedPage[] {
 		const { attributes, body } = parseFrontmatter(raw);
 		const headings = extractHeadings(body);
 		const rawLinks = extractWikiLinks(body);
-		const normalizedLinks = rawLinks.map((l) => normalizeWikiLink(l)).filter((l): l is string => l !== undefined);
+		const normalizedLinks = rawLinks.map((link) => normalizeWikiLink(link)).filter((link): link is string => link !== undefined);
 		return {
 			relativePath: path.relative(wikiRoot, filePath).replace(/\\/g, "/"),
 			frontmatter: attributes,
@@ -113,47 +101,39 @@ export function scanPages(wikiRoot: string): ParsedPage[] {
 	});
 }
 
-// ---------------------------------------------------------------------------
-// buildRegistry
-// ---------------------------------------------------------------------------
-
 export function buildRegistry(pages: ParsedPage[]): RegistryData {
-	const entries: RegistryEntry[] = pages.map((p) => {
-		const fm = p.frontmatter;
-		const type = (PAGE_TYPES.includes(fm.type as WikiPageType) ? fm.type : "concept") as WikiPageType;
-		const title = asString(fm.title) || path.basename(p.relativePath, ".md");
+	const entries: RegistryEntry[] = pages.map((page) => {
+		const frontmatter = page.frontmatter;
+		const type = (PAGE_TYPES.includes(frontmatter.type as WikiPageType) ? frontmatter.type : "concept") as WikiPageType;
+		const title = asString(frontmatter.title) || path.basename(page.relativePath, ".md");
+		const folder = getPageFolder(page.relativePath);
+		const domain = normalizeDomain(asString(pickField(frontmatter, "domain"))) ?? inferDomainFromFolder(folder);
 		return {
 			type,
-			path: p.relativePath,
+			path: page.relativePath,
+			folder,
 			title,
-			aliases: asStringArray(fm.aliases),
-			summary: asString(fm.summary),
-			status: asString(fm.status, "draft") as RegistryEntry["status"],
-			tags: asStringArray(fm.tags),
-			hosts: normalizeHosts(asStringArray(fm.hosts)),
-			updated: asString(fm.updated),
-			sourceIds: asStringArray(pickField(fm, "sourceIds", "source_ids")),
-			linksOut: p.normalizedLinks,
-			headings: p.headings,
-			wordCount: p.wordCount,
+			aliases: asStringArray(frontmatter.aliases),
+			summary: asString(frontmatter.summary),
+			status: asString(frontmatter.status, "draft") as RegistryEntry["status"],
+			tags: asStringArray(frontmatter.tags),
+			hosts: normalizeHosts(asStringArray(frontmatter.hosts)),
+			...(domain ? { domain } : {}),
+			areas: normalizeAreas(asStringArray(frontmatter.areas)),
+			updated: asString(frontmatter.updated),
+			sourceIds: asStringArray(pickField(frontmatter, "sourceIds", "source_ids")),
+			linksOut: page.normalizedLinks,
+			headings: page.headings,
+			wordCount: page.wordCount,
 		};
 	});
 
 	entries.sort((a, b) => a.path.localeCompare(b.path));
-
-	return {
-		version: 1,
-		generatedAt: nowIso(),
-		pages: entries,
-	};
+	return { version: 1, generatedAt: nowIso(), pages: entries };
 }
 
-// ---------------------------------------------------------------------------
-// buildBacklinks
-// ---------------------------------------------------------------------------
-
 export function buildBacklinks(registry: RegistryData): BacklinksData {
-	const pathSet = new Set(registry.pages.map((p) => p.path));
+	const pathSet = new Set(registry.pages.map((page) => page.path));
 	const byPath: Record<string, { inbound: string[]; outbound: string[] }> = {};
 
 	for (const entry of registry.pages) {
@@ -161,31 +141,20 @@ export function buildBacklinks(registry: RegistryData): BacklinksData {
 	}
 
 	for (const entry of registry.pages) {
-		const validOut = entry.linksOut.filter((l) => pathSet.has(l));
-		const deduped = [...new Set(validOut)].sort();
-		byPath[entry.path].outbound = deduped;
-
-		for (const target of deduped) {
+		const outbound = [...new Set(entry.linksOut.filter((link) => pathSet.has(link)))].sort();
+		byPath[entry.path].outbound = outbound;
+		for (const target of outbound) {
 			if (!byPath[target]) byPath[target] = { inbound: [], outbound: [] };
 			byPath[target].inbound.push(entry.path);
 		}
 	}
 
-	// Sort and dedupe inbound arrays
 	for (const key of Object.keys(byPath)) {
 		byPath[key].inbound = [...new Set(byPath[key].inbound)].sort();
 	}
 
-	return {
-		version: 1,
-		generatedAt: nowIso(),
-		byPath,
-	};
+	return { version: 1, generatedAt: nowIso(), byPath };
 }
-
-// ---------------------------------------------------------------------------
-// renderIndex
-// ---------------------------------------------------------------------------
 
 export function renderIndex(registry: RegistryData): string {
 	const lines: string[] = ["# Wiki Index", "", `Generated: ${nowIso()}`, ""];
@@ -200,6 +169,7 @@ export function renderIndex(registry: RegistryData): string {
 		"procedure",
 		"decision",
 		"identity",
+		"journal",
 	];
 	const sectionLabel: Record<WikiPageType, string> = {
 		source: "Source Pages",
@@ -211,19 +181,20 @@ export function renderIndex(registry: RegistryData): string {
 		procedure: "Procedure Pages",
 		decision: "Decision Pages",
 		identity: "Identity Pages",
+		journal: "Journal Pages",
 	};
 
 	for (const type of sectionOrder) {
-		const entries = registry.pages.filter((p) => p.type === type);
+		const entries = registry.pages.filter((page) => page.type === type);
 		if (entries.length === 0) continue;
 		lines.push(`## ${sectionLabel[type]}`, "");
 		for (const entry of entries) {
-			// Strip pages/ prefix and .md suffix for the display path
 			const displayPath = entry.path.replace(/^pages\//, "").replace(/\.md$/, "");
 			const label = entry.title || displayPath;
-			const hostSuffix = formatHostsSuffix(entry.hosts);
 			const summary = entry.summary ? ` — ${entry.summary}` : "";
-			lines.push(`- [[${displayPath}|${label}]]${hostSuffix}${summary}`);
+			lines.push(
+				`- [[${displayPath}|${label}]]${formatDomainSuffix(entry.domain)}${formatAreasSuffix(entry.areas)}${formatHostsSuffix(entry.hosts)}${summary}`,
+			);
 		}
 		lines.push("");
 	}
@@ -231,45 +202,25 @@ export function renderIndex(registry: RegistryData): string {
 	return lines.join("\n");
 }
 
-// ---------------------------------------------------------------------------
-// rebuildLog
-// ---------------------------------------------------------------------------
-
 export function renderLog(events: WikiEvent[]): string {
-	if (events.length === 0) {
-		return "# Wiki Log\n\n_No events yet._\n";
-	}
+	if (events.length === 0) return "# Wiki Log\n\n_No events yet._\n";
 
 	const lines = ["# Wiki Log", ""];
-	for (const ev of events) {
-		const ts = ev.ts.replace("T", " ").replace(/:\d{2}(\.\d+)?Z$/, " UTC");
-		lines.push(`## [${ts}] ${ev.kind} | ${ev.title}`);
-		if (ev.sourceIds && ev.sourceIds.length > 0) {
-			lines.push(`- Sources: ${ev.sourceIds.join(", ")}`);
-		}
-		if (ev.pagePaths && ev.pagePaths.length > 0) {
-			lines.push(`- Pages: ${ev.pagePaths.join(", ")}`);
-		}
+	for (const event of events) {
+		const timestamp = event.ts.replace("T", " ").replace(/:\d{2}(\.\d+)?Z$/, " UTC");
+		lines.push(`## [${timestamp}] ${event.kind} | ${event.title}`);
+		if (event.sourceIds && event.sourceIds.length > 0) lines.push(`- Sources: ${event.sourceIds.join(", ")}`);
+		if (event.pagePaths && event.pagePaths.length > 0) lines.push(`- Pages: ${event.pagePaths.join(", ")}`);
 		lines.push("");
 	}
-
 	return lines.join("\n");
 }
 
 export function deriveWikiMetaArtifacts(pages: ParsedPage[], events: WikiEvent[]): WikiMetaArtifacts {
 	const registry = buildRegistry(pages);
 	const backlinks = buildBacklinks(registry);
-	return {
-		registry,
-		backlinks,
-		index: renderIndex(registry),
-		log: renderLog(events),
-	};
+	return { registry, backlinks, index: renderIndex(registry), log: renderLog(events) };
 }
-
-// ---------------------------------------------------------------------------
-// rebuildAllMeta
-// ---------------------------------------------------------------------------
 
 export function rebuildAllMeta(wikiRoot: string): { registry: RegistryData; backlinks: BacklinksData } {
 	const metaDir = path.join(wikiRoot, "meta");
@@ -287,23 +238,14 @@ export function rebuildAllMeta(wikiRoot: string): { registry: RegistryData; back
 	return { registry: artifacts.registry, backlinks: artifacts.backlinks };
 }
 
-// ---------------------------------------------------------------------------
-// loadRegistry
-// ---------------------------------------------------------------------------
-
 export function loadRegistry(wikiRoot: string): RegistryData {
 	const registryPath = path.join(wikiRoot, "meta", "registry.json");
 	try {
-		const raw = readFileSync(registryPath, "utf-8");
-		return JSON.parse(raw) as RegistryData;
+		return JSON.parse(readFileSync(registryPath, "utf-8")) as RegistryData;
 	} catch {
 		return rebuildAllMeta(wikiRoot).registry;
 	}
 }
-
-// ---------------------------------------------------------------------------
-// appendEvent / readEvents
-// ---------------------------------------------------------------------------
 
 function eventsPath(wikiRoot: string): string {
 	return path.join(wikiRoot, "meta", "events.jsonl");
@@ -311,8 +253,7 @@ function eventsPath(wikiRoot: string): string {
 
 function readEventsSync(wikiRoot: string): WikiEvent[] {
 	try {
-		const raw = readFileSync(eventsPath(wikiRoot), "utf-8");
-		return raw
+		return readFileSync(eventsPath(wikiRoot), "utf-8")
 			.split("\n")
 			.filter((line) => line.trim())
 			.map((line) => JSON.parse(line) as WikiEvent);
@@ -331,9 +272,14 @@ export function readEvents(wikiRoot: string): WikiEvent[] {
 	return readEventsSync(wikiRoot);
 }
 
-// ---------------------------------------------------------------------------
-// handleWikiStatus
-// ---------------------------------------------------------------------------
+function countByDomain(pages: RegistryEntry[]): Record<string, number> {
+	const counts: Record<string, number> = {};
+	for (const page of pages) {
+		const key = page.domain ?? "unspecified";
+		counts[key] = (counts[key] ?? 0) + 1;
+	}
+	return counts;
+}
 
 export function handleWikiStatus(wikiRoot: string): ActionResult<WikiStatusDetails> {
 	const pagesDir = path.join(wikiRoot, "pages");
@@ -343,14 +289,29 @@ export function handleWikiStatus(wikiRoot: string): ActionResult<WikiStatusDetai
 
 	const registry = loadRegistry(wikiRoot);
 	const host = getCurrentHost();
-	const visiblePages = registry.pages.filter((p) => appliesToHost(p.hosts, host));
+	const visiblePages = registry.pages.filter((page) => appliesToHost(page.hosts, host));
 	const total = registry.pages.length;
-	const sourceCount = registry.pages.filter((p) => p.type === "source").length;
-	const canonicalCount = total - sourceCount;
-	const capturedCount = registry.pages.filter((p) => p.type === "source" && p.status === "captured").length;
-	const integratedCount = registry.pages.filter((p) => p.type === "source" && p.status === "integrated").length;
+	const sourceCount = registry.pages.filter((page) => page.type === "source").length;
+	const journalCount = registry.pages.filter((page) => page.type === "journal").length;
+	const canonicalCount = total - sourceCount - journalCount;
+	const capturedCount = registry.pages.filter((page) => page.type === "source" && page.status === "captured").length;
+	const integratedCount = registry.pages.filter((page) => page.type === "source" && page.status === "integrated").length;
+	const domains = countByDomain(visiblePages);
+	const domainText = Object.entries(domains)
+		.sort((a, b) => a[0].localeCompare(b[0]))
+		.map(([domain, count]) => `${domain}=${count}`)
+		.join(", ");
 
-	const text = `Wiki root: ${wikiRoot}\nHost: ${host}\nPages: ${total} total (${sourceCount} source, ${canonicalCount} canonical)\nVisible here: ${visiblePages.length}\nSources: ${capturedCount} captured, ${integratedCount} integrated`;
+	const text = [
+		`Wiki root: ${wikiRoot}`,
+		`Host: ${host}`,
+		`Pages: ${total} total (${sourceCount} source, ${canonicalCount} canonical, ${journalCount} journal)`,
+		`Visible here: ${visiblePages.length}`,
+		`Sources: ${capturedCount} captured, ${integratedCount} integrated`,
+		domainText ? `Domains: ${domainText}` : undefined,
+	]
+		.filter(Boolean)
+		.join("\n");
 
 	return ok({
 		text,
@@ -362,25 +323,25 @@ export function handleWikiStatus(wikiRoot: string): ActionResult<WikiStatusDetai
 			visible: visiblePages.length,
 			source: sourceCount,
 			canonical: canonicalCount,
+			journal: journalCount,
 			captured: capturedCount,
 			integrated: integratedCount,
+			domains,
 		},
 	});
 }
 
-// ---------------------------------------------------------------------------
-// buildWikiDigest
-// ---------------------------------------------------------------------------
-
 export function buildWikiDigest(wikiRoot: string): string {
 	const registryPath = path.join(wikiRoot, "meta", "registry.json");
-	if (!existsSync(registryPath)) return "";
+	const pagesDir = path.join(wikiRoot, "pages");
+	if (!existsSync(registryPath) && !existsSync(pagesDir)) return "";
 
 	const host = getCurrentHost();
 	const registry = loadRegistry(wikiRoot);
 	const active = registry.pages
-		.filter((p) => p.type !== "source" && p.type !== "identity" && p.status === "active")
-		.filter((p) => appliesToHost(p.hosts, host))
+		.filter((page) => !["source", "identity", "journal"].includes(page.type))
+		.filter((page) => page.status === "active")
+		.filter((page) => appliesToHost(page.hosts, host))
 		.sort((a, b) => b.wordCount - a.wordCount)
 		.slice(0, 15);
 
@@ -388,10 +349,10 @@ export function buildWikiDigest(wikiRoot: string): string {
 
 	const lines = [`\n\n[WIKI MEMORY DIGEST for ${host}]`];
 	for (const entry of active) {
-		const hostSuffix = formatHostsSuffix(entry.hosts);
 		const summary = entry.summary ? ` — ${entry.summary}` : "";
-		lines.push(`- ${entry.title} (${entry.type})${hostSuffix}${summary}`);
+		lines.push(
+			`- ${entry.title} (${entry.type})${formatDomainSuffix(entry.domain)}${formatAreasSuffix(entry.areas)}${formatHostsSuffix(entry.hosts)}${summary}`,
+		);
 	}
-
 	return lines.join("\n");
 }

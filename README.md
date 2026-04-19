@@ -110,10 +110,20 @@ Run the flake checks:
 nix flake check --accept-flake-config
 ```
 
-Open the repo dev shell with formatter/lint tools:
+Run the llm-wiki unit + coverage suite only:
+
+```bash
+nix build .#checks.x86_64-linux.llm-wiki-tests
+nix build .#checks.x86_64-linux.llm-wiki-home
+```
+
+Or locally from the repo dev shell:
 
 ```bash
 nix develop
+cd pkgs/llm-wiki
+npm test
+npm run test:coverage
 ```
 
 ## Notes
