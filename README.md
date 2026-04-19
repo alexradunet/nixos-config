@@ -50,6 +50,7 @@ Locally maintained package definitions.
 
 - `pkgs/pi` builds the Pi binary under our control
 - package version/dependency hashes are pinned in this repo
+- see `pkgs/pi/README.md` for the Pi update workflow
 
 ### `home/`
 
