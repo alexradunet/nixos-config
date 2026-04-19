@@ -6,6 +6,7 @@
     ../../modules/common
     ../../modules/desktop
     ../../modules/users
+    ../../modules/services/syncthing
     ./syncthing.nix
   ];
 

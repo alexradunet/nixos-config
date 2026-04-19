@@ -7,6 +7,7 @@
     ../../modules/desktop
     ../../modules/laptop
     ../../modules/users
+    ../../modules/services/syncthing
     ./syncthing.nix
   ];
 
