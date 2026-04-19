@@ -15,35 +15,25 @@
   };
 
   outputs = { self, nixpkgs, home-manager, llm-agents, ... }:
+  let
+    mkHost = path: nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      specialArgs = { inherit llm-agents; };
+      modules = [
+        path
+        home-manager.nixosModules.home-manager
+        {
+          home-manager.useGlobalPkgs = true;
+          home-manager.useUserPackages = true;
+          home-manager.users.alex = import ./home/alex.nix;
+        }
+      ];
+    };
+  in
   {
     nixosConfigurations = {
-      evo-nixos = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        specialArgs = { inherit llm-agents; };
-        modules = [
-          ./hosts/evo-nixos
-          home-manager.nixosModules.home-manager
-          {
-            home-manager.useGlobalPkgs = true;
-            home-manager.useUserPackages = true;
-            home-manager.users.alex = import ./home/alex.nix;
-          }
-        ];
-      };
-
-      pad-nixos = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        specialArgs = { inherit llm-agents; };
-        modules = [
-          ./hosts/pad-nixos
-          home-manager.nixosModules.home-manager
-          {
-            home-manager.useGlobalPkgs = true;
-            home-manager.useUserPackages = true;
-            home-manager.users.alex = import ./home/alex.nix;
-          }
-        ];
-      };
+      evo-nixos = mkHost ./hosts/evo-nixos;
+      pad-nixos = mkHost ./hosts/pad-nixos;
     };
   };
 }
