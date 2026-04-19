@@ -16,6 +16,10 @@
 
   outputs = { self, nixpkgs, home-manager, llm-agents, ... }:
   let
+    # Shared host constructor:
+    # - system module path under ./hosts
+    # - shared Home Manager config in ./home/alex.nix
+    # - per-host Home Manager extension module
     mkHost =
       path: homeModule:
       nixpkgs.lib.nixosSystem {
@@ -39,7 +43,10 @@
   in
   {
     nixosConfigurations = {
+      # Mini PC / desktop workstation.
       evo-nixos = mkHost ./hosts/evo-nixos ./home/hosts/evo-nixos.nix;
+
+      # Laptop profile.
       pad-nixos = mkHost ./hosts/pad-nixos ./home/hosts/pad-nixos.nix;
     };
   };
