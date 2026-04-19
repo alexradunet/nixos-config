@@ -2,10 +2,10 @@
 
 {
   imports = [
-    ../hardware-configuration.nix
-    ../common.nix
-    ../desktop.nix
-    ../users.nix
+    ./hardware-configuration.nix
+    ../../common.nix
+    ../../desktop.nix
+    ../../users.nix
   ];
 
   networking.hostName = "evo-nixos";

@@ -2,10 +2,11 @@
 
 {
   imports = [
-    ../common.nix
-    ../desktop.nix
-    ../laptop.nix
-    ../users.nix
+    ./hardware-configuration.nix
+    ../../common.nix
+    ../../desktop.nix
+    ../../laptop.nix
+    ../../users.nix
   ];
 
   networking.hostName = "pad-nixos";
