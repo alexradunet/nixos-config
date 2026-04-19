@@ -207,7 +207,7 @@ export function captureFile(
 	const content = decodeUtf8FileContent(absoluteFilePath, ext);
 	if (typeof content !== "string") return err(content.error);
 	const title = options?.title ?? path.basename(absoluteFilePath, ext);
-	const kind = options?.kind ?? (ext === ".pdf" ? "pdf" : "note");
+	const kind = options?.kind ?? "note";
 
 	return createCapture(
 		wikiRoot,

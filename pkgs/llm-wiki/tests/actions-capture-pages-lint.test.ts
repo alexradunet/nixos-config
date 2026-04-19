@@ -1,10 +1,11 @@
+import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { captureFile, captureText } from "../extension/actions-capture.js";
 import { handleWikiLint } from "../extension/actions-lint.js";
-import { rebuildAllMeta } from "../extension/actions-meta.js";
+import { readEvents, rebuildAllMeta } from "../extension/actions-meta.js";
 import { handleEnsurePage } from "../extension/actions-pages.js";
 
 describe("capture, pages, and lint", () => {
@@ -21,49 +22,113 @@ describe("capture, pages, and lint", () => {
     rmSync(wikiRoot, { recursive: true, force: true });
   });
 
-  it("captureText creates packet and source page with domain, areas, and hosts", () => {
-    const result = captureText(wikiRoot, "Captured body", {
-      title: "Captured Note",
-      kind: "note",
-      tags: ["capture"],
-      hosts: ["pad-nixos"],
-      domain: "technical",
-      areas: ["infrastructure", "ai"],
-    });
+  it("captureText creates deterministic packets, manifests, and source pages", () => {
+    mkdirSync(path.join(wikiRoot, "raw", "SRC-2026-04-19-001"), { recursive: true });
+    mkdirSync(path.join(wikiRoot, "raw", "misc-dir"), { recursive: true });
+    const fixedNow = new Date("2026-04-19T12:00:00Z");
+    const text = `\n\n${"A".repeat(90)}\nCaptured body`;
+
+    const result = captureText(
+      wikiRoot,
+      text,
+      {
+        tags: ["capture"],
+        hosts: [" Pad-Nixos ", "pad-nixos"],
+        domain: " Technical ",
+        areas: [" Infrastructure ", "ai", "ai"],
+      },
+      fixedNow,
+    );
 
     expect(result.isOk()).toBe(true);
     if (result.isOk()) {
+      expect(result.value.details?.sourceId).toBe("SRC-2026-04-19-002");
       const packetDir = path.join(wikiRoot, result.value.details?.packetDir ?? "");
       const pagePath = path.join(wikiRoot, result.value.details?.sourcePagePath ?? "");
-      expect(existsSync(path.join(packetDir, "manifest.json"))).toBe(true);
-      expect(existsSync(path.join(packetDir, "extracted.md"))).toBe(true);
+      const manifest = JSON.parse(readFileSync(path.join(packetDir, "manifest.json"), "utf8"));
+      expect(manifest).toMatchObject({
+        sourceId: "SRC-2026-04-19-002",
+        title: "A".repeat(80),
+        kind: "note",
+        capturedAt: "2026-04-19T12:00:00.000Z",
+        status: "captured",
+        origin: { type: "text", value: "(inline)" },
+        hash: `sha256:${createHash("sha256").update(text).digest("hex")}`,
+      });
+      expect(readFileSync(path.join(packetDir, "extracted.md"), "utf8")).toBe(text);
+      expect(readFileSync(path.join(packetDir, "original", "source.txt"), "utf8")).toBe(text);
       expect(existsSync(pagePath)).toBe(true);
       const page = readFileSync(pagePath, "utf8");
+      expect(page).toContain(`# ${"A".repeat(80)}`);
+      expect(page).toContain("origin_type: text");
+      expect(page).toContain("origin_value: (inline)");
       expect(page).toContain("domain: technical");
-      expect(page).toContain("areas:");
       expect(page).toContain("- infrastructure");
-      expect(page).toContain("hosts:");
+      expect(page).toContain("- ai");
       expect(page).toContain("- pad-nixos");
+      expect(readEvents(wikiRoot)).toMatchObject([
+        {
+          kind: "capture",
+          sourceIds: ["SRC-2026-04-19-002"],
+          pagePaths: ["pages/sources/SRC-2026-04-19-002.md"],
+        },
+      ]);
     }
   });
 
-  it("captureFile copies the original and rejects binary/pdf input", () => {
+  it("captureText falls back to Untitled Source when raw is missing and text is blank", () => {
+    rmSync(path.join(wikiRoot, "raw"), { recursive: true, force: true });
+    const result = captureText(wikiRoot, "\n  \n", undefined, new Date("2026-04-19T13:00:00Z"));
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value.details?.sourceId).toBe("SRC-2026-04-19-001");
+      expect(result.value.details?.title).toBe("Untitled Source");
+      const page = readFileSync(path.join(wikiRoot, result.value.details?.sourcePagePath ?? ""), "utf8");
+      expect(page).toContain("title: Untitled Source");
+    }
+  });
+
+  it("captureFile copies files, supports extensionless files, and reports precise errors", () => {
     const sourceFile = path.join(wikiRoot, "input.txt");
     writeFileSync(sourceFile, "hello", "utf8");
 
-    const okResult = captureFile(wikiRoot, sourceFile, { domain: "personal", areas: ["journal"] });
+    const okResult = captureFile(wikiRoot, sourceFile, { domain: "personal", areas: ["journal"] }, new Date("2026-04-19T14:00:00Z"));
     expect(okResult.isOk()).toBe(true);
     if (okResult.isOk()) {
       expect(existsSync(path.join(wikiRoot, okResult.value.details?.packetDir ?? "", "original", "source.txt"))).toBe(true);
     }
 
+    const extensionlessFile = path.join(wikiRoot, "README");
+    writeFileSync(extensionlessFile, "extensionless", "utf8");
+    const extensionless = captureFile(wikiRoot, extensionlessFile, undefined, new Date("2026-04-19T15:00:00Z"));
+    expect(extensionless.isOk()).toBe(true);
+    if (extensionless.isOk()) {
+      expect(extensionless.value.details?.title).toBe("README");
+      expect(existsSync(path.join(wikiRoot, extensionless.value.details?.packetDir ?? "", "original", "source.bin"))).toBe(true);
+    }
+
+    const missing = captureFile(wikiRoot, path.join(wikiRoot, "missing.txt"));
+    expect(missing.isErr()).toBe(true);
+    if (missing.isErr()) {
+      expect(missing.error).toContain("File not found:");
+    }
+
     const pdfFile = path.join(wikiRoot, "input.pdf");
     writeFileSync(pdfFile, Buffer.from([0x25, 0x50, 0x44, 0x46]));
-    expect(captureFile(wikiRoot, pdfFile).isErr()).toBe(true);
+    const pdf = captureFile(wikiRoot, pdfFile);
+    expect(pdf.isErr()).toBe(true);
+    if (pdf.isErr()) {
+      expect(pdf.error).toBe("Unsupported file type for wiki capture: .pdf. Capture extracted text instead.");
+    }
 
     const binaryFile = path.join(wikiRoot, "input.bin");
     writeFileSync(binaryFile, Buffer.from([0xff, 0xfe, 0x00]));
-    expect(captureFile(wikiRoot, binaryFile).isErr()).toBe(true);
+    const binary = captureFile(wikiRoot, binaryFile);
+    expect(binary.isErr()).toBe(true);
+    if (binary.isErr()) {
+      expect(binary.error).toBe("Unsupported file type for wiki capture: .bin. Only UTF-8 text files are supported.");
+    }
   });
 
   it("handleEnsurePage creates notes in requested folder with metadata", () => {
