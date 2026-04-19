@@ -4,6 +4,7 @@
   ...
 }: let
   piWebAccessRoot = "${pkgs.pi-web-access}/share/pi-web-access";
+  piLlmWikiRoot = "${pkgs.pi-llm-wiki}/share/pi-llm-wiki";
   starterConfig = builtins.toJSON {
     provider = "exa";
     workflow = "summary-review";
@@ -37,8 +38,9 @@ in {
   home.file.".pi/agent/skills/.keep".text = "";
   home.file.".pi/agent/themes/.keep".text = "";
 
-  # Bundle pi-web-access as a globally available Pi extension.
+  # Bundle global Pi extensions and skills.
   home.file.".pi/agent/extensions/pi-web-access".source = piWebAccessRoot;
+  home.file.".pi/agent/extensions/pi-llm-wiki".source = piLlmWikiRoot;
   home.file.".pi/agent/skills/librarian/SKILL.md".source = "${piWebAccessRoot}/skills/librarian/SKILL.md";
 
   # Seed pi-web-access config once, then leave it mutable for Pi commands.

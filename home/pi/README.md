@@ -10,6 +10,7 @@ This repo manages Pi resources in the native global location:
 Bundled resources currently include:
 
 - `pi-web-access` at `~/.pi/agent/extensions/pi-web-access`
+- `pi-llm-wiki` at `~/.pi/agent/extensions/pi-llm-wiki`
 - the bundled `librarian` skill at `~/.pi/agent/skills/librarian/SKILL.md`
 
 ## Why not manage `settings.json` yet?

@@ -36,10 +36,11 @@
     forAllSystems = lib.genAttrs supportedSystems;
 
     # Export local packages through an overlay so the same package names are
-    # available everywhere as pkgs.pi and pkgs.pi-web-access.
+    # available everywhere as pkgs.pi, pkgs.pi-web-access, and pkgs.pi-llm-wiki.
     overlay = final: _prev: {
       pi = final.callPackage ./pkgs/pi {};
       pi-web-access = final.callPackage ./pkgs/pi-web-access {};
+      pi-llm-wiki = final.callPackage ./pkgs/pi-llm-wiki {};
     };
 
     # Import nixpkgs for a specific target system with our local overlay applied.
@@ -157,6 +158,7 @@
       in {
         pi = pkgs.pi;
         pi-web-access = pkgs.pi-web-access;
+        pi-llm-wiki = pkgs.pi-llm-wiki;
         default = pkgs.pi;
       }
     );
