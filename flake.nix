@@ -15,6 +15,7 @@
     system = "x86_64-linux";
     pkgs = nixpkgs.legacyPackages.${system};
     piPkg = pkgs.callPackage ./pkgs/pi { };
+    piWebAccessPkg = pkgs.callPackage ./pkgs/pi-web-access { };
     piApp = {
       type = "app";
       program = "${piPkg}/bin/pi";
@@ -47,6 +48,7 @@
   {
     packages.${system} = {
       pi = piPkg;
+      pi-web-access = piWebAccessPkg;
       default = piPkg;
     };
 
