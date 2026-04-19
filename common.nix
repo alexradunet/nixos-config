@@ -8,6 +8,8 @@
     wget
     curl
     zellij
+  ] ++ [
+    llm-agents.packages.${pkgs.system}.pi
   ];
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];

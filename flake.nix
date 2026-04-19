@@ -8,13 +8,22 @@
       url = "github:nix-community/home-manager/release-25.11";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+
+    llm-agents = {
+      url = "github:numtide/llm-agents.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, home-manager, ... }:
+  outputs = { self, nixpkgs, home-manager, llm-agents, ... }:
   {
     nixosConfigurations = {
       evo-nixos = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
+        specialArgs = {
+          inherit llm-agents;
+        };
         modules = [
           ./hosts/evo-nixos
           home-manager.nixosModules.home-manager
@@ -28,6 +37,9 @@
 
       pad-nixos = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
+        specialArgs = {
+          inherit llm-agents;
+        };
         modules = [
           ./hosts/pad-nixos
           home-manager.nixosModules.home-manager
