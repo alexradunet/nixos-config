@@ -10,5 +10,11 @@
     fastfetch
     eza
     gh
+
+    # Pi / pi-web-access runtime helpers
+    chromium
+    ffmpeg
+    yt-dlp
+    libsecret
   ];
 }

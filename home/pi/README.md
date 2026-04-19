@@ -36,5 +36,6 @@ truth and stop using Pi's imperative settings/package flows on those machines.
 ## pi-web-access notes
 
 `pi-web-access` reads its optional runtime config from `~/.pi/web-search.json`.
-That file is intentionally left mutable and unmanaged so Pi commands like
-`/curator` can keep working normally.
+This repo now seeds a starter config on first activation if the file does not
+already exist, then leaves it mutable so Pi commands like `/curator` can keep
+working normally.
