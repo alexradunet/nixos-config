@@ -143,6 +143,211 @@ summary: Existing page
     }
   });
 
+  it("handleEnsurePage reports conflicts when multiple pages match within one folder", () => {
+    mkdirSync(path.join(wikiRoot, "pages", "resources", "technical"), { recursive: true });
+    writeFileSync(
+      path.join(wikiRoot, "pages", "resources", "technical", "shared-name.md"),
+      `---
+type: concept
+title: Shared Name
+aliases: []
+tags: []
+hosts: []
+domain: technical
+areas: [infra]
+status: active
+updated: 2026-04-19
+source_ids: []
+summary: Existing page
+---
+# Shared Name
+`,
+      "utf8",
+    );
+    writeFileSync(
+      path.join(wikiRoot, "pages", "resources", "technical", "other-page.md"),
+      `---
+type: concept
+title: Other Page
+aliases: [Shared Name]
+tags: []
+hosts: []
+domain: technical
+areas: [infra]
+status: active
+updated: 2026-04-19
+source_ids: []
+summary: Existing page
+---
+# Other Page
+`,
+      "utf8",
+    );
+    rebuildAllMeta(wikiRoot);
+
+    const result = handleEnsurePage(wikiRoot, {
+      type: "concept",
+      title: "Shared Name",
+      domain: "technical",
+      folder: "resources/technical",
+    });
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value.details?.conflict).toBe(true);
+      expect(result.value.details?.candidates).toEqual([
+        { path: "pages/resources/technical/other-page.md", title: "Other Page" },
+        { path: "pages/resources/technical/shared-name.md", title: "Shared Name" },
+      ]);
+    }
+  });
+
+  it("handleEnsurePage dedupes slugs when the title is new but the slug already exists", () => {
+    mkdirSync(path.join(wikiRoot, "pages", "resources", "technical"), { recursive: true });
+    writeFileSync(
+      path.join(wikiRoot, "pages", "resources", "technical", "flake-patterns.md"),
+      `---
+type: concept
+title: Existing Page
+aliases: []
+tags: []
+hosts: []
+domain: technical
+areas: [infra]
+status: active
+updated: 2026-04-19
+source_ids: []
+summary: Existing page
+---
+# Existing Page
+`,
+      "utf8",
+    );
+    rebuildAllMeta(wikiRoot);
+
+    const result = handleEnsurePage(wikiRoot, {
+      type: "concept",
+      title: "Flake Patterns",
+      domain: "technical",
+      folder: "resources/technical",
+    });
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk() && result.value.details?.resolved && !result.value.details.conflict) {
+      expect(result.value.details.path).toBe("pages/resources/technical/flake-patterns-2.md");
+    }
+  });
+
+  it("handleEnsurePage ignores type, domain, and folder mismatches when resolving existing pages", () => {
+    mkdirSync(path.join(wikiRoot, "pages", "resources", "personal"), { recursive: true });
+    mkdirSync(path.join(wikiRoot, "pages", "areas", "technical"), { recursive: true });
+    mkdirSync(path.join(wikiRoot, "pages", "resources", "technical"), { recursive: true });
+    writeFileSync(
+      path.join(wikiRoot, "pages", "resources", "personal", "shared.md"),
+      `---
+type: concept
+title: Shared
+aliases: []
+tags: []
+hosts: []
+domain: personal
+areas: [identity]
+status: active
+updated: 2026-04-19
+source_ids: []
+summary: Personal page
+---
+# Shared
+`,
+      "utf8",
+    );
+    writeFileSync(
+      path.join(wikiRoot, "pages", "areas", "technical", "shared.md"),
+      `---
+type: concept
+title: Shared
+aliases: []
+tags: []
+hosts: []
+domain: technical
+areas: [infra]
+status: active
+updated: 2026-04-19
+source_ids: []
+summary: Area page
+---
+# Shared
+`,
+      "utf8",
+    );
+    writeFileSync(
+      path.join(wikiRoot, "pages", "resources", "technical", "shared-journal.md"),
+      `---
+type: journal
+title: Shared
+aliases: []
+tags: []
+hosts: []
+domain: technical
+areas: [journal]
+status: active
+updated: 2026-04-19
+summary: Journal page
+---
+# Shared
+`,
+      "utf8",
+    );
+    rebuildAllMeta(wikiRoot);
+
+    const result = handleEnsurePage(wikiRoot, {
+      type: "concept",
+      title: "Shared",
+      domain: "technical",
+      folder: "resources/technical",
+    });
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk() && result.value.details?.resolved && !result.value.details.conflict) {
+      expect(result.value.details.created).toBe(true);
+      expect(result.value.details.path).toBe("pages/resources/technical/shared.md");
+    }
+  });
+
+  it("handleEnsurePage creates a page in the domain root when no folder is provided", () => {
+    rebuildAllMeta(wikiRoot);
+    const result = handleEnsurePage(wikiRoot, {
+      type: "concept",
+      title: "Personal Systems",
+      domain: "personal",
+      areas: ["life-ops"],
+    });
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk() && result.value.details?.resolved && !result.value.details.conflict) {
+      expect(result.value.details.path).toBe("pages/personal/personal-systems.md");
+    }
+  });
+
+  it("handleEnsurePage can create a global page without a domain", () => {
+    rebuildAllMeta(wikiRoot);
+    const result = handleEnsurePage(wikiRoot, {
+      type: "concept",
+      title: "General Note",
+      hosts: [" Pad-Nixos "],
+      areas: [" General "],
+    });
+
+    expect(result.isOk()).toBe(true);
+    if (result.isOk() && result.value.details?.resolved && !result.value.details.conflict) {
+      expect(result.value.details.path).toBe("pages/general-note.md");
+      const content = readFileSync(path.join(wikiRoot, result.value.details.path), "utf8");
+      expect(content).not.toContain("domain:");
+      expect(content).toContain("- pad-nixos");
+      expect(content).toContain("- general");
+    }
+  });
+
   it("handleWikiLint reports frontmatter, links, and ignores journal coverage requirements", () => {
     mkdirSync(path.join(wikiRoot, "pages", "resources", "technical"), { recursive: true });
     mkdirSync(path.join(wikiRoot, "pages", "journal", "daily"), { recursive: true });
@@ -167,6 +372,25 @@ See [[missing-page]].
       "utf8",
     );
     writeFileSync(
+      path.join(wikiRoot, "pages", "resources", "technical", "invalid-frontmatter.md"),
+      `---
+type: concept
+title: ""
+domain: 123
+aliases: nope
+tags: []
+hosts: [pad-nixos, 1]
+areas: [nixos]
+status: publishing
+updated:
+source_ids: []
+summary:
+---
+# Invalid Frontmatter
+`,
+      "utf8",
+    );
+    writeFileSync(
       path.join(wikiRoot, "pages", "journal", "daily", "2026-04-19.md"),
       `---
 type: journal
@@ -187,10 +411,280 @@ summary: Daily note
     expect(result.isOk()).toBe(true);
     if (result.isOk()) {
       expect(result.value.details?.counts.brokenLinks).toBeGreaterThan(0);
-      expect(result.value.details?.counts.coverage).toBe(1);
+      expect(result.value.details?.counts.coverage).toBe(2);
+      expect(result.value.details?.counts.frontmatter).toBeGreaterThanOrEqual(5);
+      const messages = result.value.details?.issues.filter((issue) => issue.kind === "frontmatter").map((issue) => issue.message) ?? [];
+      expect(messages).toContain("Field title must be a non-empty string.");
+      expect(messages).toContain("Invalid domain: 123");
+      expect(messages).toContain("Field aliases must be an array of strings.");
+      expect(messages).toContain("Field hosts must be an array of strings.");
+      expect(messages).toContain("Invalid canonical status: publishing");
       const report = readFileSync(path.join(wikiRoot, "meta", "lint-report.md"), "utf8");
       expect(report).toContain("broken-link");
       expect(report).not.toContain("pages/journal/daily/2026-04-19.md` - No source_ids listed.");
+    }
+  });
+
+  it("handleWikiLint validates source-page specific frontmatter fields", () => {
+    mkdirSync(path.join(wikiRoot, "pages", "sources"), { recursive: true });
+    writeFileSync(
+      path.join(wikiRoot, "pages", "sources", "src-1.md"),
+      `---
+type: source
+source_id:
+title: Broken Source
+status: active
+captured_at:
+origin_type: clipboard
+origin_value:
+aliases: []
+tags: []
+hosts: []
+areas: []
+source_ids: nope
+summary: Broken source page
+---
+# Broken Source
+`,
+      "utf8",
+    );
+
+    const result = handleWikiLint(wikiRoot, "frontmatter");
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      const messages = result.value.details?.issues.map((issue) => issue.message) ?? [];
+      expect(messages).toContain("Field source_id must be a non-empty string.");
+      expect(messages).toContain("Invalid source status: active");
+      expect(messages).toContain("Field captured_at must be a non-empty string.");
+      expect(messages).toContain("Invalid origin_type: clipboard");
+      expect(messages).toContain("Field origin_value must be a non-empty string.");
+      expect(messages).toContain("Field source_ids must be an array of strings.");
+    }
+  });
+
+  it("handleWikiLint reports missing and invalid frontmatter schema fields", () => {
+    mkdirSync(path.join(wikiRoot, "pages", "resources", "technical"), { recursive: true });
+    mkdirSync(path.join(wikiRoot, "pages", "sources"), { recursive: true });
+    writeFileSync(
+      path.join(wikiRoot, "pages", "resources", "technical", "missing-type.md"),
+      `---
+title: Missing Type
+status: active
+updated: 2026-04-19
+source_ids: []
+summary: Missing type field
+---
+# Missing Type
+`,
+      "utf8",
+    );
+    writeFileSync(
+      path.join(wikiRoot, "pages", "resources", "technical", "invalid-type.md"),
+      `---
+type: nonsense
+title: Invalid Type
+summary: Invalid page
+---
+# Invalid Type
+`,
+      "utf8",
+    );
+    writeFileSync(
+      path.join(wikiRoot, "pages", "resources", "technical", "missing-required.md"),
+      `---
+type: concept
+title: Missing Required
+status: active
+source_ids: []
+summary: [oops]
+---
+# Missing Required
+`,
+      "utf8",
+    );
+    writeFileSync(
+      path.join(wikiRoot, "pages", "sources", "missing-source-fields.md"),
+      `---
+type: source
+source_id: SRC-2026-04-19-001
+title: Missing Source Fields
+status: captured
+captured_at: 2026-04-19T00:00:00Z
+origin_type: text
+source_ids: []
+summary: Source without origin value
+---
+# Missing Source Fields
+`,
+      "utf8",
+    );
+
+    const result = handleWikiLint(wikiRoot, "frontmatter");
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      const messages = result.value.details?.issues.map((issue) => issue.message) ?? [];
+      expect(messages).toContain("Missing: type");
+      expect(messages).toContain("Invalid type: nonsense");
+      expect(messages).toContain("Missing: updated");
+      expect(messages).toContain("Field summary must be a string.");
+      expect(messages).toContain("Missing: origin_value");
+    }
+  });
+
+  it("handleWikiLint validates wikilink heading fragments", () => {
+    mkdirSync(path.join(wikiRoot, "pages", "resources", "technical"), { recursive: true });
+    writeFileSync(
+      path.join(wikiRoot, "pages", "resources", "technical", "system-landscape.md"),
+      `---
+type: concept
+title: System Landscape
+domain: technical
+aliases: []
+tags: []
+hosts: []
+areas: [infrastructure]
+status: active
+updated: 2026-04-19
+source_ids: [SRC-2026-04-19-001]
+summary: Shared technical map
+---
+# System Landscape
+
+## Next Step
+`,
+      "utf8",
+    );
+    writeFileSync(
+      path.join(wikiRoot, "pages", "resources", "technical", "consumer.md"),
+      `---
+type: concept
+title: Consumer
+domain: technical
+aliases: []
+tags: []
+hosts: []
+areas: [infrastructure]
+status: active
+updated: 2026-04-19
+source_ids: [SRC-2026-04-19-001]
+summary: Consumer note
+---
+# Consumer
+
+See [[resources/technical/system-landscape#Next Step]].
+See [[resources/technical/system-landscape#Missing Heading]].
+`,
+      "utf8",
+    );
+
+    const result = handleWikiLint(wikiRoot, "links");
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value.details?.counts.brokenLinks).toBe(1);
+      expect(result.value.details?.issues[0]?.message).toBe(
+        "Broken heading link: [[resources/technical/system-landscape#Missing Heading]]",
+      );
+    }
+  });
+
+  it("handleWikiLint reports duplicates, orphans, uncited sources, and staleness", () => {
+    mkdirSync(path.join(wikiRoot, "pages", "resources", "technical"), { recursive: true });
+    mkdirSync(path.join(wikiRoot, "pages", "areas", "technical"), { recursive: true });
+    mkdirSync(path.join(wikiRoot, "pages", "sources"), { recursive: true });
+    writeFileSync(
+      path.join(wikiRoot, "pages", "resources", "technical", "same-title.md"),
+      `---
+type: concept
+title: Same Title
+domain: technical
+aliases: []
+tags: []
+hosts: []
+areas: [infra]
+status: active
+updated: 2026-04-19
+source_ids: []
+summary: First duplicate
+---
+# Same Title
+`,
+      "utf8",
+    );
+    writeFileSync(
+      path.join(wikiRoot, "pages", "areas", "technical", "same-title.md"),
+      `---
+type: concept
+title: Same Title
+domain: technical
+aliases: []
+tags: []
+hosts: []
+areas: [infra]
+status: active
+updated: 2026-04-19
+source_ids: []
+summary: Second duplicate
+---
+# Same Title
+`,
+      "utf8",
+    );
+    writeFileSync(
+      path.join(wikiRoot, "pages", "sources", "src-a.md"),
+      `---
+type: source
+source_id: SRC-2026-04-19-001
+title: Source A
+status: captured
+captured_at: 2026-04-19T00:00:00Z
+origin_type: text
+origin_value: clip
+aliases: []
+tags: []
+hosts: []
+areas: []
+source_ids: []
+summary: Source A
+---
+# Source A
+`,
+      "utf8",
+    );
+    writeFileSync(
+      path.join(wikiRoot, "pages", "sources", "src-b.md"),
+      `---
+type: source
+source_id: SRC-2026-04-19-002
+title: Source B
+status: integrated
+captured_at: 2026-04-19T00:00:00Z
+origin_type: text
+origin_value: clip
+aliases: []
+tags: []
+hosts: []
+areas: []
+source_ids: []
+summary: Source B
+---
+# Source B
+
+See [[sources/src-a]].
+`,
+      "utf8",
+    );
+
+    const result = handleWikiLint(wikiRoot, "all");
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      const issues = result.value.details?.issues ?? [];
+      expect(issues.some((issue) => issue.kind === "duplicate")).toBe(true);
+      expect(issues.some((issue) => issue.kind === "orphan")).toBe(true);
+      expect(issues.some((issue) => issue.kind === "coverage" && issue.message === "Source not cited by any canonical page.")).toBe(true);
+      expect(issues.some((issue) => issue.kind === "staleness" && issue.path === "pages/sources/src-a.md")).toBe(true);
+      expect(result.value.details?.counts.duplicates).toBeGreaterThan(0);
+      expect(result.value.details?.counts.orphans).toBeGreaterThan(0);
+      expect(result.value.details?.counts.staleness).toBe(1);
     }
   });
 

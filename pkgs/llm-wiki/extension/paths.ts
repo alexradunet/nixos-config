@@ -156,15 +156,16 @@ export function isWikiPagePath(wikiRoot: string, absolutePath: string): boolean 
 
 export function normalizeWikiLink(target: string): string | undefined {
 	const clean = target.trim().replace(/\\/g, "/").replace(/\.md$/i, "");
-	if (!clean) return undefined;
-	if (clean.startsWith("sources/")) return `pages/${clean}.md`;
-	if (clean.startsWith("pages/")) return `${clean}.md`;
-	return `pages/${clean}.md`;
+	const [pathTarget] = clean.split("#", 2);
+	if (!pathTarget) return undefined;
+	if (pathTarget.startsWith("sources/")) return `pages/${pathTarget}.md`;
+	if (pathTarget.startsWith("pages/")) return `${pathTarget}.md`;
+	return `pages/${pathTarget}.md`;
 }
 
 export function extractWikiLinks(markdown: string): string[] {
 	const links: string[] = [];
-	const regex = /\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]/g;
+	const regex = /\[\[([^\]|]+?)(?:\|[^\]]+)?\]\]/g;
 	for (const match of markdown.matchAll(regex)) {
 		links.push(match[1].trim());
 	}

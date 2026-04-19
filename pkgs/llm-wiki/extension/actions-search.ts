@@ -137,6 +137,18 @@ export function searchRegistry(registry: RegistryData, query: string, options: S
 	const normalized = query.trim().toLowerCase();
 	const tokens = tokenize(normalized);
 
+	if (!normalized) {
+		return {
+			query,
+			hostScope,
+			...(hostScope === "current" ? { host } : {}),
+			...(domain ? { domain } : {}),
+			areas,
+			...(folder ? { folder } : {}),
+			matches: [],
+		};
+	}
+
 	const matches = registry.pages
 		.filter((entry) => !options.type || entry.type === options.type)
 		.filter((entry) => hostScope === "all" || appliesToHost(entry.hosts, host))

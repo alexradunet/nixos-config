@@ -43,7 +43,7 @@ export function parseFrontmatter<T extends Record<string, unknown> = Record<stri
 		return empty;
 	}
 
-	if (typeof attributes !== "object" || attributes === null) {
+	if (typeof attributes !== "object" || attributes === null || Array.isArray(attributes)) {
 		return empty;
 	}
 

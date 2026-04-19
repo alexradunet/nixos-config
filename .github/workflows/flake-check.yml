@@ -22,3 +22,22 @@ jobs:
 
       - name: Run flake checks
         run: nix flake check --accept-flake-config
+
+  llm-wiki-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Configure Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Run llm-wiki unit and coverage tests
+        run: nix build .#checks.x86_64-linux.llm-wiki-tests -L
+
+      - name: Run llm-wiki Home Manager starter check
+        run: nix build .#checks.x86_64-linux.llm-wiki-home -L

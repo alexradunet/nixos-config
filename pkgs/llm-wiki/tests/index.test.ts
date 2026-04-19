@@ -12,6 +12,7 @@ const state = vi.hoisted(() => ({
   captureCalls: [] as Array<{ wikiRoot: string; params: Record<string, unknown> }>,
   searchCalls: [] as Array<{ wikiRoot: string; query: string; options: Record<string, unknown> }>,
   ensureCalls: [] as Array<{ wikiRoot: string; params: Record<string, unknown> }>,
+  lintCalls: [] as Array<{ wikiRoot: string; mode: unknown }>,
 }));
 
 vi.mock("../extension/paths.js", () => ({
@@ -60,7 +61,10 @@ vi.mock("../extension/actions-pages.js", () => ({
 }));
 
 vi.mock("../extension/actions-lint.js", () => ({
-  handleWikiLint: () => ({ isErr: () => false, isOk: () => true, value: { text: "lint", details: {} } }),
+  handleWikiLint: (wikiRoot: string, mode: unknown) => {
+    state.lintCalls.push({ wikiRoot, mode });
+    return { isErr: () => false, isOk: () => true, value: { text: "lint", details: {} } };
+  },
 }));
 
 describe("llm-wiki extension wiring", () => {
@@ -74,6 +78,7 @@ describe("llm-wiki extension wiring", () => {
     state.captureCalls = [];
     state.searchCalls = [];
     state.ensureCalls = [];
+    state.lintCalls = [];
   });
 
   afterEach(() => {
@@ -93,7 +98,10 @@ describe("llm-wiki extension wiring", () => {
     if (!tool || typeof tool.execute !== "function") {
       throw new Error(`Tool ${name} not found`);
     }
-    return { api, execute: tool.execute as (toolCallId: string, params: Record<string, unknown>) => Promise<{ isError?: boolean }> };
+    return {
+      api,
+      execute: tool.execute as (toolCallId: string, params: Record<string, unknown>) => Promise<{ isError?: boolean }>,
+    };
   }
 
   it("registers all llm-wiki tools", async () => {
@@ -121,7 +129,14 @@ describe("llm-wiki extension wiring", () => {
     expect(state.captureCalls).toEqual([
       {
         wikiRoot: state.wikiRoot,
-        params: { title: undefined, kind: undefined, tags: undefined, hosts: ["pad-nixos"], domain: "technical", areas: ["infrastructure"] },
+        params: {
+          title: undefined,
+          kind: undefined,
+          tags: undefined,
+          hosts: ["pad-nixos"],
+          domain: "technical",
+          areas: ["infrastructure"],
+        },
       },
     ]);
     expect(state.rebuildCalls).toEqual([state.wikiRoot]);
@@ -182,6 +197,20 @@ describe("llm-wiki extension wiring", () => {
     expect(state.rebuildCalls).toEqual([state.wikiRoot]);
   });
 
+  it("executes wiki_status, wiki_lint, and wiki_rebuild tools", async () => {
+    const status = await loadTool("wiki_status");
+    await status.execute("tool-call", {});
+
+    const lint = await loadTool("wiki_lint");
+    await lint.execute("tool-call", { mode: "duplicates" });
+
+    const rebuild = await loadTool("wiki_rebuild");
+    await rebuild.execute("tool-call", {});
+
+    expect(state.lintCalls).toEqual([{ wikiRoot: state.wikiRoot, mode: "duplicates" }]);
+    expect(state.rebuildCalls).toContain(state.wikiRoot);
+  });
+
   it("blocks writes to protected wiki paths", async () => {
     state.protectWrite = true;
     const api = await loadExtension();
@@ -191,6 +220,18 @@ describe("llm-wiki extension wiring", () => {
     });
 
     expect(result).toEqual({ block: true, reason: "Wiki protects raw/ and meta/. Use wiki tools instead." });
+  });
+
+  it("returns undefined for non-protected writes and for agent_end when not dirty", async () => {
+    const api = await loadExtension();
+    const result = await api.fireEvent("tool_call", {
+      toolName: "write",
+      input: { path: `${state.wikiRoot}/pages/resources/technical/foo.md` },
+    });
+    expect(result).toBeUndefined();
+
+    await api.fireEvent("agent_end");
+    expect(state.rebuildCalls).toEqual([]);
   });
 
   it("marks page edits dirty and rebuilds on agent_end", async () => {
@@ -215,5 +256,13 @@ describe("llm-wiki extension wiring", () => {
     expect(result.systemPrompt).toContain("domain: technical");
     expect(result.systemPrompt).toContain("pages/projects");
     expect(result.systemPrompt).toContain("[WIKI MEMORY DIGEST for pad-nixos]");
+  });
+
+  it("injects context even when digest is empty", async () => {
+    const api = await loadExtension();
+    const result = (await api.fireEvent("before_agent_start", { systemPrompt: "BASE" })) as { systemPrompt: string };
+    expect(result.systemPrompt).toContain("BASE");
+    expect(result.systemPrompt).toContain("[LLM WIKI CONTEXT]");
+    expect(result.systemPrompt).not.toContain("[WIKI MEMORY DIGEST");
   });
 });

@@ -106,6 +106,9 @@ describe("slug, ids, and wiki links", () => {
     expect(normalizeWikiLink("resources/technical/system-landscape")).toBe(
       "pages/resources/technical/system-landscape.md",
     );
+    expect(normalizeWikiLink("resources/technical/system-landscape#Overview")).toBe(
+      "pages/resources/technical/system-landscape.md",
+    );
   });
 });
 
@@ -121,8 +124,8 @@ describe("path protection and markdown extraction", () => {
   });
 
   it("extracts wiki links, headings, and word counts", () => {
-    const markdown = `# Hello\n\nSee [[resources/technical/system-landscape|System Landscape]].\n\n## Next Step`;
-    expect(extractWikiLinks(markdown)).toEqual(["resources/technical/system-landscape"]);
+    const markdown = `# Hello\n\nSee [[resources/technical/system-landscape#Next Step|System Landscape]].\n\n## Next Step`;
+    expect(extractWikiLinks(markdown)).toEqual(["resources/technical/system-landscape#Next Step"]);
     expect(extractHeadings(markdown)).toEqual(["Hello", "Next Step"]);
     expect(countWords("one two three")).toBe(3);
   });

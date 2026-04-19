@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -9,6 +9,7 @@ import {
   buildWikiDigest,
   deriveWikiMetaArtifacts,
   handleWikiStatus,
+  loadRegistry,
   readEvents,
   rebuildAllMeta,
   scanPages,
@@ -84,6 +85,102 @@ summary: Stable personal notes
     });
   });
 
+  it("scanPages tolerates missing or unreadable directories", () => {
+    rmSync(path.join(wikiRoot, "pages"), { recursive: true, force: true });
+    expect(scanPages(wikiRoot)).toEqual([]);
+
+    mkdirSync(path.join(wikiRoot, "pages", "resources", "technical"), { recursive: true });
+    mkdirSync(path.join(wikiRoot, "pages", "restricted"), { recursive: true });
+    writeFileSync(
+      path.join(wikiRoot, "pages", "resources", "technical", "visible.md"),
+      `---
+type: concept
+title: Visible
+status: active
+updated: 2026-04-19
+source_ids: []
+summary: Visible page
+---
+# Visible
+`,
+      "utf8",
+    );
+
+    chmodSync(path.join(wikiRoot, "pages", "restricted"), 0o000);
+    try {
+      const pages = scanPages(wikiRoot);
+      expect(pages.map((page) => page.relativePath)).toContain("pages/resources/technical/visible.md");
+    } finally {
+      chmodSync(path.join(wikiRoot, "pages", "restricted"), 0o755);
+    }
+  });
+
+  it("buildRegistry normalizes fallback values and buildBacklinks dedupes links", () => {
+    const pages = [
+      {
+        relativePath: "pages/resources/technical/fallback.md",
+        frontmatter: {
+          type: "unknown",
+          aliases: "aka fallback",
+          tags: "nixos",
+          hosts: " Pad-Nixos ",
+          areas: " Infra ",
+          sourceIds: "SRC-2026-04-19-001",
+        },
+        body: "Body",
+        headings: ["Heading"],
+        rawLinks: ["resources/technical/target", "resources/technical/target", "ghost"],
+        normalizedLinks: [
+          "pages/resources/technical/target.md",
+          "pages/resources/technical/target.md",
+          "pages/ghost.md",
+        ],
+        wordCount: 1,
+      },
+      {
+        relativePath: "pages/resources/technical/target.md",
+        frontmatter: {
+          type: "concept",
+          title: "Target",
+          domain: "technical",
+          aliases: [],
+          tags: [],
+          hosts: [],
+          areas: [],
+          status: "active",
+          updated: "2026-04-19",
+          source_ids: [],
+          summary: "",
+        },
+        body: "Target",
+        headings: [],
+        rawLinks: [],
+        normalizedLinks: [],
+        wordCount: 1,
+      },
+    ] as Parameters<typeof buildRegistry>[0];
+
+    const registry = buildRegistry(pages);
+    const backlinks = buildBacklinks(registry);
+
+    expect(registry.pages[0]).toMatchObject({
+      type: "concept",
+      title: "fallback",
+      domain: "technical",
+      aliases: ["aka fallback"],
+      tags: ["nixos"],
+      hosts: ["pad-nixos"],
+      areas: ["infra"],
+      sourceIds: ["SRC-2026-04-19-001"],
+    });
+    expect(backlinks.byPath["pages/resources/technical/fallback.md"]?.outbound).toEqual([
+      "pages/resources/technical/target.md",
+    ]);
+    expect(backlinks.byPath["pages/resources/technical/target.md"]?.inbound).toEqual([
+      "pages/resources/technical/fallback.md",
+    ]);
+  });
+
   it("buildBacklinks and deriveWikiMetaArtifacts compute links and index metadata", () => {
     writeFileSync(
       path.join(wikiRoot, "pages", "resources", "technical", "system-landscape.md"),
@@ -134,6 +231,7 @@ summary: Stable personal notes
     expect(artifacts.index).toContain("[domain: technical]");
     expect(artifacts.index).toContain("[areas: infrastructure]");
     expect(artifacts.index).toContain("## Identity Pages");
+    expect(artifacts.log).toContain("_No events yet._");
   });
 
   it("rebuildAllMeta writes registry, backlinks, index, and log", () => {
@@ -158,6 +256,7 @@ summary: Daily note
       ts: "2026-04-19T12:00:00Z",
       kind: "rebuild",
       title: "Rebuilt wiki metadata",
+      sourceIds: ["SRC-2026-04-19-001"],
       pagePaths: ["pages/journal/daily/2026-04-19.md"],
     });
 
@@ -167,7 +266,53 @@ summary: Daily note
     expect(existsSync(path.join(wikiRoot, "meta", "backlinks.json"))).toBe(true);
     expect(existsSync(path.join(wikiRoot, "meta", "index.md"))).toBe(true);
     expect(existsSync(path.join(wikiRoot, "meta", "log.md"))).toBe(true);
-    expect(readFileSync(path.join(wikiRoot, "meta", "log.md"), "utf8")).toContain("Rebuilt wiki metadata");
+    const log = readFileSync(path.join(wikiRoot, "meta", "log.md"), "utf8");
+    expect(log).toContain("Rebuilt wiki metadata");
+    expect(log).toContain("Sources: SRC-2026-04-19-001");
+  });
+
+  it("loadRegistry rebuilds from invalid registry files and readEvents tolerates bad json", () => {
+    writeFileSync(
+      path.join(wikiRoot, "pages", "resources", "technical", "rebuilt.md"),
+      `---
+type: concept
+title: Rebuilt
+domain: technical
+tags: []
+hosts: []
+areas: [infrastructure]
+status: active
+updated: 2026-04-19
+source_ids: []
+summary: Rebuilt page
+---
+# Rebuilt
+`,
+      "utf8",
+    );
+    mkdirSync(path.join(wikiRoot, "meta"), { recursive: true });
+    writeFileSync(path.join(wikiRoot, "meta", "registry.json"), "not json", "utf8");
+    writeFileSync(path.join(wikiRoot, "meta", "events.jsonl"), "not json\n", "utf8");
+
+    const registry = loadRegistry(wikiRoot);
+    expect(registry.pages.map((page) => page.title)).toContain("Rebuilt");
+    expect(readEvents(wikiRoot)).toEqual([]);
+  });
+
+  it("handleWikiStatus reports uninitialized wikis when pages are missing", () => {
+    const blankRoot = mkdtempSync(path.join(os.tmpdir(), "llm-wiki-blank-"));
+    try {
+      process.env.PI_LLM_WIKI_HOST = "pad-nixos";
+      const result = handleWikiStatus(blankRoot);
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.details).toEqual({ initialized: false, root: blankRoot, host: "pad-nixos" });
+        expect(result.value.text).toBe("Wiki not initialized.");
+      }
+      expect(buildWikiDigest(blankRoot)).toBe("");
+    } finally {
+      rmSync(blankRoot, { recursive: true, force: true });
+    }
   });
 
   it("handleWikiStatus reports domain counts and visible pages for the current host", () => {
@@ -305,6 +450,48 @@ summary: Stable personal notes
     expect(digest).toContain("Laptop Technical Note");
     expect(digest).not.toContain("Personal Identity");
     expect(digest).not.toContain("Daily Journal");
+  });
+
+  it("buildWikiDigest returns empty when no active canonical pages are visible", () => {
+    process.env.PI_LLM_WIKI_HOST = "pad-nixos";
+    writeFileSync(
+      path.join(wikiRoot, "pages", "resources", "technical", "draft.md"),
+      `---
+type: concept
+title: Draft Note
+domain: technical
+tags: []
+hosts: [evo-nixos]
+areas: [infrastructure]
+status: draft
+updated: 2026-04-19
+source_ids: []
+summary: Draft note
+---
+# Draft Note
+`,
+      "utf8",
+    );
+    writeFileSync(
+      path.join(wikiRoot, "pages", "journal", "daily", "2026-04-19.md"),
+      `---
+type: journal
+title: 2026-04-19 Daily Journal
+domain: personal
+tags: [journal]
+hosts: []
+areas: [journal]
+status: active
+updated: 2026-04-19
+summary: Daily note
+---
+# Daily Journal
+`,
+      "utf8",
+    );
+    rebuildAllMeta(wikiRoot);
+
+    expect(buildWikiDigest(wikiRoot)).toBe("");
   });
 
   it("appendEvent and readEvents round-trip JSONL events", () => {
