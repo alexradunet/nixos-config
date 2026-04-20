@@ -1,5 +1,5 @@
 {lib, ...}: let
-  secretFile = ../../secrets/common.yaml;
+  secretFile = ../../../secrets/common.yaml;
 in
   lib.mkIf (builtins.pathExists secretFile) {
     sops.secrets.github-token = {
