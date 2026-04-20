@@ -95,8 +95,21 @@
             then "1"
             else "0"
           }' = '1'
-          test '${builtins.concatStringsSep "," evoConfig.services.xserver.videoDrivers}' = 'nvidia'
-          test '${builtins.concatStringsSep "," evoConfig.boot.blacklistedKernelModules}' = 'nouveau,nvidiafb'
+          test '${
+            if builtins.elem "nvidia" evoConfig.services.xserver.videoDrivers
+            then "1"
+            else "0"
+          }' = '1'
+          test '${
+            if builtins.elem "nouveau" evoConfig.boot.blacklistedKernelModules
+            then "1"
+            else "0"
+          }' = '1'
+          test '${
+            if builtins.elem "nvidiafb" evoConfig.boot.blacklistedKernelModules
+            then "1"
+            else "0"
+          }' = '1'
 
           test '${
             if padConfig.services."power-profiles-daemon".enable
