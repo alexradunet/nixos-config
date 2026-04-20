@@ -1,3 +1,3 @@
 {...}: {
-  flake.nixosModules.service-netbird = import ../../../services/netbird;
+  flake.nixosModules.service-netbird = import ./module.nix;
 }

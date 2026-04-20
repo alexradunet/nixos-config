@@ -1,3 +1,3 @@
 {...}: {
-  flake.nixosModules.service-wg-admin = import ../../../services/wg-admin;
+  flake.nixosModules.service-wg-admin = import ./module.nix;
 }

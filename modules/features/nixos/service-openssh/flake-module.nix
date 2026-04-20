@@ -1,3 +1,3 @@
 {...}: {
-  flake.nixosModules.service-openssh = import ../../../services/openssh;
+  flake.nixosModules.service-openssh = import ./module.nix;
 }

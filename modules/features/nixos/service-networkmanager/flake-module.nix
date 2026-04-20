@@ -1,3 +1,3 @@
 {...}: {
-  flake.nixosModules.service-networkmanager = import ../../../services/networkmanager;
+  flake.nixosModules.service-networkmanager = import ./module.nix;
 }

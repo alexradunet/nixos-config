@@ -1,3 +1,3 @@
 {...}: {
-  flake.nixosModules.service-syncthing = import ../../../services/syncthing;
+  flake.nixosModules.service-syncthing = import ./module.nix;
 }

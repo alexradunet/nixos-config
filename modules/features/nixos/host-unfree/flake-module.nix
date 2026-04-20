@@ -1,3 +1,3 @@
 {...}: {
-  flake.nixosModules.host-unfree = import ../../../hosts/unfree;
+  flake.nixosModules.host-unfree = import ./module.nix;
 }

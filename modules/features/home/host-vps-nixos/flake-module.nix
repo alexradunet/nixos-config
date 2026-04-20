@@ -1,3 +1,3 @@
 {...}: {
-  flake.homeModules.host-vps-nixos = import ../../../../home/hosts/vps-nixos.nix;
+  flake.homeModules.host-vps-nixos = import ./module.nix;
 }

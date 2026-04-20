@@ -1,3 +1,3 @@
 {...}: {
-  flake.homeModules.pi = import ../../../../home/pi;
+  flake.homeModules.pi = import ./module.nix;
 }

@@ -1,3 +1,3 @@
 {...}: {
-  flake.nixosModules.users = import ../../../users;
+  flake.nixosModules.users = import ./module.nix;
 }

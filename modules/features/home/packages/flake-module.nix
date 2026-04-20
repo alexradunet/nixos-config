@@ -1,3 +1,3 @@
 {...}: {
-  flake.homeModules.packages = import ../../../../home/packages.nix;
+  flake.homeModules.packages = import ./module.nix;
 }

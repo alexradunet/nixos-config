@@ -1,3 +1,3 @@
 {...}: {
-  flake.homeModules.git = import ../../../../home/git.nix;
+  flake.homeModules.git = import ./module.nix;
 }

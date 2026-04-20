@@ -1,3 +1,3 @@
 {...}: {
-  flake.nixosModules.service-wireguard = import ../../../services/wireguard;
+  flake.nixosModules.service-wireguard = import ./module.nix;
 }

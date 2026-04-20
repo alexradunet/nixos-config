@@ -1,3 +1,3 @@
 {...}: {
-  flake.homeModules.ssh = import ../../../../home/ssh.nix;
+  flake.homeModules.ssh = import ./module.nix;
 }

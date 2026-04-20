@@ -1,3 +1,3 @@
 {...}: {
-  flake.nixosModules.role-nvidia = import ../../../roles/nvidia;
+  flake.nixosModules.role-nvidia = import ./module.nix;
 }

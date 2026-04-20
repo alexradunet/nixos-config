@@ -1,3 +1,3 @@
 {...}: {
-  flake.nixosModules.role-gaming = import ../../../roles/gaming;
+  flake.nixosModules.role-gaming = import ./module.nix;
 }

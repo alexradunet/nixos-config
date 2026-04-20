@@ -1,3 +1,3 @@
 {...}: {
-  flake.homeModules.zellij = import ../../../../home/zellij.nix;
+  flake.homeModules.zellij = import ./module.nix;
 }

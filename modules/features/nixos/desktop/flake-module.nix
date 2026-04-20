@@ -1,3 +1,3 @@
 {...}: {
-  flake.nixosModules.desktop = import ../../../desktop;
+  flake.nixosModules.desktop = import ./module.nix;
 }
