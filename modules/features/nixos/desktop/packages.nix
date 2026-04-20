@@ -7,5 +7,6 @@
     netbird-ui
     vlc
     vscodium
+    obsidian
   ];
 }
