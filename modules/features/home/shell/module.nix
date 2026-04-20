@@ -16,6 +16,13 @@
       path = "${config.home.homeDirectory}/.zsh_history";
       ignoreAllDups = true;
     };
+
+    initContent = ''
+      if [ -r /run/secrets/github-token ]; then
+        export GITHUB_TOKEN="$(< /run/secrets/github-token)"
+        export GH_TOKEN="$GITHUB_TOKEN"
+      fi
+    '';
   };
 
   programs.fzf = {

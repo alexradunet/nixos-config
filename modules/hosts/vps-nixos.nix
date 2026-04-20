@@ -29,6 +29,9 @@
         }
         ../../hosts/vps-nixos/hardware-configuration.nix
         config.flake.nixosModules.profile-server-base
+        config.flake.nixosModules.sops-common
+        config.flake.nixosModules.sops-shared-common
+        config.flake.nixosModules.sops-vps-nixos
         config.flake.nixosModules.service-wg-admin
         inputs.home-manager.nixosModules.home-manager
         {

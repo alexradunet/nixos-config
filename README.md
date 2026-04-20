@@ -189,6 +189,40 @@ Syncthing currently syncs:
 Git repos under `~/Repos` are **not** synced with Syncthing.
 Use Git/GitHub for those.
 
+## Secrets
+
+`sops-nix` is now scaffolded for all hosts.
+
+Current behavior:
+
+- each host enables shared sops settings
+- each host auto-loads `secrets/<host>.yaml` only when that file exists
+- shared secrets from `secrets/common.yaml` are also loaded when present
+- default host decryption identity is `/etc/ssh/ssh_host_ed25519_key`
+- Home Manager also has the `sops` module available
+
+Files:
+
+- `secrets/.sops.yaml`
+- `secrets/recipients.example.yaml`
+- `secrets/*.yaml.example`
+- `secrets/setup.md`
+- `modules/secrets/common.nix`
+- `modules/secrets/shared/common-secrets.nix`
+- `modules/secrets/hosts/*.nix`
+
+Current example shared secret:
+
+- `github.token` in `secrets/common.yaml`
+- materialized at `/run/secrets/github-token`
+- exported in interactive zsh shells as `GITHUB_TOKEN` and `GH_TOKEN` when present
+
+The dev shell now includes:
+
+- `sops`
+- `age`
+- `ssh-to-age`
+
 ## Rebuild
 
 Mini PC:

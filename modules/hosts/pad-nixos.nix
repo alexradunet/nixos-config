@@ -15,6 +15,9 @@
         }
         ../../hosts/pad-nixos/hardware-configuration.nix
         config.flake.nixosModules.profile-laptop-workstation
+        config.flake.nixosModules.sops-common
+        config.flake.nixosModules.sops-shared-common
+        config.flake.nixosModules.sops-pad-nixos
         ../../hosts/pad-nixos/syncthing.nix
         inputs.home-manager.nixosModules.home-manager
         {
