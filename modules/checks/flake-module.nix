@@ -114,7 +114,7 @@
             else "0"
           }' = '1'
           test '${
-            if padConfig.services."wg-admin".enable
+            if builtins.hasAttr "wg-admin" padConfig.services
             then "1"
             else "0"
           }' = '0'
@@ -154,6 +154,45 @@
           test -n '${config.flake.nixosConfigurations.evo-nixos.config.system.build.toplevel.drvPath}'
           test -n '${config.flake.nixosConfigurations.pad-nixos.config.system.build.toplevel.drvPath}'
           test -n '${config.flake.nixosConfigurations.vps-nixos.config.system.build.toplevel.drvPath}'
+          touch $out
+        '';
+
+        gaming-nvidia-contracts = pkgs.runCommand "gaming-nvidia-contracts-check" {} ''
+          test '${
+            if evoConfig.programs.steam.enable
+            then "1"
+            else "0"
+          }' = '1'
+          test '${
+            if evoConfig.programs.steam.remotePlay.openFirewall
+            then "1"
+            else "0"
+          }' = '1'
+          test '${
+            if evoConfig.programs.steam.dedicatedServer.openFirewall
+            then "1"
+            else "0"
+          }' = '1'
+          test '${
+            if evoConfig.hardware.graphics.enable32Bit
+            then "1"
+            else "0"
+          }' = '1'
+          test '${
+            if evoConfig.hardware.nvidia.modesetting.enable
+            then "1"
+            else "0"
+          }' = '1'
+          test '${
+            if evoConfig.hardware.nvidia.prime.offload.enable
+            then "1"
+            else "0"
+          }' = '1'
+          test '${
+            if evoConfig.hardware.nvidia.nvidiaSettings
+            then "1"
+            else "0"
+          }' = '1'
           touch $out
         '';
       }

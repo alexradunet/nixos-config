@@ -265,11 +265,11 @@ The flake checks currently cover:
 - `llm-wiki` unit tests and coverage-oriented package checks
 - host contract checks for `evo-nixos`, `pad-nixos`, and `vps-nixos`
 - host build contract checks for all exported NixOS systems
+- gaming/NVIDIA contract checks for the `evo-nixos` profile
 - VM smoke tests for:
   - `server-base`
   - `desktop-workstation`
   - `laptop-workstation`
-  - `gaming-nvidia`
   - `wg-admin`
   - WireGuard hub/client overlay connectivity
 
@@ -279,7 +279,9 @@ Run an individual smoke test:
 nix build .#checks.x86_64-linux.server-base-smoke -L
 nix build .#checks.x86_64-linux.desktop-workstation-smoke -L
 nix build .#checks.x86_64-linux.laptop-workstation-smoke -L
-nix build .#checks.x86_64-linux.gaming-nvidia-smoke -L
+nix build .#checks.x86_64-linux.host-contracts -L
+nix build .#checks.x86_64-linux.host-build-contracts -L
+nix build .#checks.x86_64-linux.gaming-nvidia-contracts -L
 nix build .#checks.x86_64-linux.wg-admin-basic -L
 nix build .#checks.x86_64-linux.wireguard-hub-client -L
 ```

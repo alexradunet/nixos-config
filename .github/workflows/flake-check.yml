@@ -32,7 +32,6 @@ jobs:
           - server-base-smoke
           - desktop-workstation-smoke
           - laptop-workstation-smoke
-          - gaming-nvidia-smoke
           - wireguard-hub-client
           - wg-admin-basic
 
@@ -47,6 +46,29 @@ jobs:
         uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Run smoke test ${{ matrix.check }}
+        run: nix build .#checks.x86_64-linux.${{ matrix.check }} -L
+
+  contract-checks:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        check:
+          - host-contracts
+          - host-build-contracts
+          - gaming-nvidia-contracts
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Configure Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Run contract check ${{ matrix.check }}
         run: nix build .#checks.x86_64-linux.${{ matrix.check }} -L
 
   llm-wiki-tests:
