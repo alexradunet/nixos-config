@@ -12,22 +12,28 @@ Personal multi-host NixOS fleet config.
 ## Structure
 
 ```text
-flake.nix                 # flake entrypoint, overlays, apps, checks, dev shell
-.github/workflows/        # CI for flake validation
-hosts/                    # real machine definitions
-home/                     # Home Manager config for alex
-modules/                  # reusable NixOS modules
-pkgs/                     # locally maintained packages, exposed via overlay
-.gitignore                # ignore build artifacts like result symlinks
+flake.nix                        # flake-parts entrypoint
+.github/workflows/               # CI for flake validation
+hosts/                           # hardware configs and host-local data
+modules/features/nixos/*/        # dendritic NixOS feature modules
+modules/features/home/*/         # dendritic Home Manager feature modules
+modules/hosts/*.nix              # flake host composition modules
+modules/users/*.nix              # user-level feature composition
+modules/packages/flake-module.nix# overlay, packages, apps, dev shell, formatter
+modules/checks/flake-module.nix  # flake checks
+modules/secrets/flake-module.nix # sops-nix exports
+pkgs/                            # locally maintained packages, exposed via overlay
+secrets/                         # sops-nix secret scaffold
+.gitignore                       # ignore build artifacts like result symlinks
 ```
 
 ### `hosts/`
 
-Each host folder contains:
+Each host folder now contains only machine-local files such as:
 
-- `default.nix` for host composition and identity
 - `hardware-configuration.nix` for machine-specific hardware
 - optional host-local files like `syncthing.nix`
+- optional untracked `wireguard.private.nix`
 
 Current hosts:
 
@@ -40,16 +46,23 @@ See `hosts/*/wireguard.private.example.nix`.
 
 ### `modules/`
 
-Reusable NixOS modules grouped by purpose.
+This repo now follows a dendritic pattern with flake-parts.
 
-- `modules/common` - shared base packages and system settings
-- `modules/desktop` - GUI / KDE desktop role
-- `modules/laptop` - laptop-specific behavior
-- `modules/roles/*` - optional host roles like `gaming` and `nvidia`
-- `modules/users` - shared user definitions
-- `modules/services/*` - reusable service modules
-  - includes `wireguard`, a simple hub-and-spoke overlay built on `networking.wireguard` with the networkd backend
-- `modules/hosts/*` - reusable host-policy modules like boot and unfree
+- `modules/features/nixos/*` - reusable exported NixOS features
+- `modules/features/home/*` - reusable exported Home Manager features
+- `modules/hosts/*.nix` - host composition using exported features
+- `modules/users/*.nix` - user composition using exported home features
+- `modules/secrets/flake-module.nix` - exported `sops-nix` modules
+- `modules/packages/flake-module.nix` - overlay, packages, apps, formatter, dev shell
+- `modules/checks/flake-module.nix` - flake checks
+
+Notable exported features include:
+
+- `common`, `desktop`, `laptop`
+- `role-gaming`, `role-nvidia`
+- `service-networkmanager`, `service-openssh`, `service-fail2ban`, `service-syncthing`
+- `service-wireguard`, a simple hub-and-spoke overlay built on `networking.wireguard` with the networkd backend
+- `service-wg-admin`
 
 ### `pkgs/`
 
@@ -60,14 +73,14 @@ Locally maintained package definitions.
 - package version/dependency hashes are pinned in this repo
 - see `pkgs/pi/README.md` for the Pi update workflow
 
-### `home/`
+### Home Manager
 
-Shared Home Manager config for `alex`.
+Shared Home Manager config for `alex` is now composed from dendritic home features.
 
-- `home/alex.nix` is the shared entrypoint
-- `home/*.nix` splits user config by concern
-- `home/hosts/*.nix` holds host-specific Home Manager additions
-- `home/pi/` holds Pi-specific user infrastructure
+- `modules/users/alex.nix` is the shared entrypoint
+- `modules/features/home/*` splits user config by concern
+- `modules/features/home/host-*` holds host-specific Home Manager additions
+- `modules/features/home/pi/` holds Pi-specific user infrastructure
 
 ## WireGuard hub-and-spoke overlay
 

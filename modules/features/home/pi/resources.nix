@@ -344,9 +344,9 @@ in {
 
   home.file.".pi/agent/extensions/pi-web-access".source = piWebAccessRoot;
   home.file.".pi/agent/extensions/llm-wiki".source = llmWikiRoot;
-  home.file.".pi/agent/extensions/wg-admin".source = ../../../../home/pi/extensions/wg-admin;
+  home.file.".pi/agent/extensions/wg-admin".source = ./extensions/wg-admin;
   home.file.".pi/agent/skills/librarian/SKILL.md".source = "${piWebAccessRoot}/skills/librarian/SKILL.md";
-  home.file.".pi/agent/skills/wg-admin/SKILL.md".source = ../../../../home/pi/skills/wg-admin/SKILL.md;
+  home.file.".pi/agent/skills/wg-admin/SKILL.md".source = ./skills/wg-admin/SKILL.md;
 
   home.sessionVariables.PI_LLM_WIKI_DIR = llmWikiDir;
 

@@ -26,7 +26,7 @@ in {
     name = "wg-admin-basic";
 
     nodes.hub = {pkgs, ...}: {
-      imports = [../../modules/services/wg-admin];
+      imports = [../../modules/features/nixos/service-wg-admin/module.nix];
 
       services.wg-admin = {
         enable = true;
@@ -65,7 +65,7 @@ in {
       hub = {pkgs, ...}:
         (mkBaseNode "192.168.1.1")
         // {
-          imports = [../../modules/services/wireguard];
+          imports = [../../modules/features/nixos/service-wireguard/module.nix];
 
           networking.wireguardHubAndSpoke = {
             enable = true;
@@ -88,7 +88,7 @@ in {
       client = {pkgs, ...}:
         (mkBaseNode "192.168.1.2")
         // {
-          imports = [../../modules/services/wireguard];
+          imports = [../../modules/features/nixos/service-wireguard/module.nix];
 
           networking.wireguardHubAndSpoke = {
             enable = true;
