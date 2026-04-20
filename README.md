@@ -45,7 +45,7 @@ Reusable NixOS modules grouped by purpose.
 - `modules/common` - shared base packages and system settings
 - `modules/desktop` - GUI / KDE desktop role
 - `modules/laptop` - laptop-specific behavior
-- `modules/roles/*` - optional host roles like `gaming`
+- `modules/roles/*` - optional host roles like `gaming` and `nvidia`
 - `modules/users` - shared user definitions
 - `modules/services/*` - reusable service modules
   - includes `wireguard`, a simple hub-and-spoke overlay built on `networking.wireguard` with the networkd backend

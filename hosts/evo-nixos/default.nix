@@ -8,6 +8,7 @@
       ../../modules/common
       ../../modules/desktop
       ../../modules/roles/gaming
+      ../../modules/roles/nvidia
       ../../modules/users
       ../../modules/hosts/efi-systemd-boot
       ../../modules/hosts/unfree
