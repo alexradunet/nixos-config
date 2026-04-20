@@ -120,12 +120,19 @@ in {
       ++ lib.optionals (cfg.mtu != null) [(renderLine "WG_ADMIN_MTU" (toString cfg.mtu))]
     );
 
-    systemd.tmpfiles.rules = [
-      "d ${cfg.stateDir} 0700 ${cfg.user} ${cfg.group} -"
-      "d ${cfg.stateDir}/peers 0700 ${cfg.user} ${cfg.group} -"
-      "d ${cfg.stateDir}/generated 0700 ${cfg.user} ${cfg.group} -"
-      "d ${cfg.stateDir}/archive 0700 ${cfg.user} ${cfg.group} -"
-      "d ${dirOf cfg.nixPeersFile} 0700 ${cfg.user} ${cfg.group} -"
-    ];
+    systemd.tmpfiles.settings."wg-admin" = let
+      # Shared ownership/mode for every wg-admin state directory.
+      dir = {
+        user = cfg.user;
+        group = cfg.group;
+        mode = "0700";
+      };
+    in {
+      ${cfg.stateDir}.d = dir;
+      "${cfg.stateDir}/peers".d = dir;
+      "${cfg.stateDir}/generated".d = dir;
+      "${cfg.stateDir}/archive".d = dir;
+      ${dirOf cfg.nixPeersFile}.d = dir;
+    };
   };
 }

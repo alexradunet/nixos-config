@@ -1,8 +1,15 @@
-{pkgs, ...}: {
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}: {
   users.users.alex = {
     isNormalUser = true;
     description = "alex";
-    extraGroups = ["wheel" "networkmanager"];
+    extraGroups =
+      ["wheel"]
+      ++ lib.optionals config.networking.networkmanager.enable ["networkmanager"];
     shell = pkgs.zsh;
 
     openssh.authorizedKeys.keys = [

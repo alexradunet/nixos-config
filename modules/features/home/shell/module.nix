@@ -42,4 +42,11 @@
     enable = true;
     enableZshIntegration = true;
   };
+
+  # vivid: generates LS_COLORS from a named theme — gives eza/ls coloured output
+  # without hardcoding ANSI escape strings.
+  programs.vivid = {
+    enable = true;
+    activeTheme = "molokai";
+  };
 }

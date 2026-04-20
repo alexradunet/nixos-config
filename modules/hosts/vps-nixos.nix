@@ -11,7 +11,6 @@
         {
           nixpkgs.overlays = [config.flake.overlays.default];
           networking.hostName = "vps-nixos";
-          users.groups.networkmanager = {};
           services.openssh.openFirewall = true;
           system.stateVersion = "25.11";
 

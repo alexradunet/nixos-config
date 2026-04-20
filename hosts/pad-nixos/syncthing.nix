@@ -1,4 +1,10 @@
 {...}: {
+  services.syncthing = {
+    # Nix is the source of truth — GUI changes are discarded on next activation.
+    overrideDevices = true;
+    overrideFolders = true;
+  };
+
   services.syncthing.settings = {
     devices = {
       "evo-nixos" = {

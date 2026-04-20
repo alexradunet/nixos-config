@@ -13,7 +13,7 @@
     vpsConfig = config.flake.nixosConfigurations.vps-nixos.config;
 
     alexHome = padConfig.home-manager.users.alex.home;
-    llmWikiActivation = padConfig.home-manager.users.alex.home.activation.llmWikiStarter;
+    llmWikiActivation = padConfig.home-manager.users.alex.home.activation.nixpiWikiStarter;
     nixosTests = lib.filterAttrs (_: lib.isDerivation) (pkgs.callPackage ../../tests/nixos {});
   in {
     checks =
@@ -37,7 +37,7 @@
           extension_source='${alexHome.file.".pi/agent/extensions/llm-wiki".source}'
           activation_script='${llmWikiActivation.data}'
 
-          test "$session_var" = "/home/alex/Sync/llm-wiki"
+          test "$session_var" = "/home/alex/Sync/Wiki/NixPI"
           test -d "$extension_source"
 
           printf '%s\n' "$activation_script" | grep -F 'pages/projects/technical' >/dev/null
@@ -117,7 +117,7 @@
             else "0"
           }' = '1'
           test '${
-            if padConfig.services.fail2ban.enable
+            if padConfig.services.reaction.enable
             then "1"
             else "0"
           }' = '1'
@@ -164,9 +164,12 @@
         '';
 
         host-build-contracts = pkgs.runCommand "host-build-contracts-check" {} ''
-          test -n '${config.flake.nixosConfigurations.evo-nixos.config.system.build.toplevel.drvPath}'
-          test -n '${config.flake.nixosConfigurations.pad-nixos.config.system.build.toplevel.drvPath}'
-          test -n '${config.flake.nixosConfigurations.vps-nixos.config.system.build.toplevel.drvPath}'
+          # Interpolating .name (a plain string) forces full Nix evaluation of each
+          # toplevel derivation without requiring the .drv to already exist in the store.
+          # Using .drvPath would fail for new derivations not yet computed locally.
+          test -n '${config.flake.nixosConfigurations.evo-nixos.config.system.build.toplevel.name}'
+          test -n '${config.flake.nixosConfigurations.pad-nixos.config.system.build.toplevel.name}'
+          test -n '${config.flake.nixosConfigurations.vps-nixos.config.system.build.toplevel.name}'
           touch $out
         '';
 

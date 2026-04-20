@@ -24,6 +24,8 @@
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    qmd.url = "github:tobi/qmd";
   };
 
   outputs = inputs @ {flake-parts, ...}:

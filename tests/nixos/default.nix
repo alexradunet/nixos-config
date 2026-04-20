@@ -70,20 +70,20 @@ in {
         ../../modules/features/nixos/common/module.nix
         ../../modules/features/nixos/users/module.nix
         ../../modules/features/nixos/service-openssh/module.nix
-        ../../modules/features/nixos/service-fail2ban/module.nix
+        ../../modules/features/nixos/service-reaction/module.nix
       ];
 
       networking.hostName = "server-smoke";
       system.stateVersion = "25.11";
-
-      users.groups.networkmanager = {};
+      # No networking.networkmanager — the users module omits the networkmanager
+      # group on hosts where NM is not enabled (our conditional extraGroups fix).
     };
 
     testScript = ''
       start_all()
       machine.wait_for_unit("multi-user.target")
       machine.wait_for_unit("sshd.service")
-      machine.wait_for_unit("fail2ban.service")
+      machine.wait_for_unit("reaction.service")
 
       with subtest("server profile enables hardened ssh"):
           machine.succeed("sshd -T | grep -F 'permitrootlogin no'")
@@ -91,12 +91,11 @@ in {
 
       with subtest("server profile provisions base user and shell"):
           machine.succeed("id alex")
-          machine.succeed("id -nG alex | tr ' ' '\n' | grep -Fx wheel")
-          machine.succeed("id -nG alex | tr ' ' '\n' | grep -Fx networkmanager")
+          machine.succeed("id -nG alex | tr ' ' '\\n' | grep -Fx wheel")
           machine.succeed("getent passwd alex | cut -d: -f7 | grep -F 'zsh'")
 
-      with subtest("fail2ban and common system settings are active"):
-          machine.succeed("fail2ban-client status sshd | grep -F 'Status for the jail: sshd'")
+      with subtest("reaction and common system settings are active"):
+          machine.succeed("systemctl is-active reaction.service")
           machine.succeed("timedatectl show -p Timezone --value | grep -Fx Europe/Bucharest")
     '';
   };
@@ -111,14 +110,14 @@ in {
         ../../modules/features/nixos/users/module.nix
         ../../modules/features/nixos/service-networkmanager/module.nix
         ../../modules/features/nixos/service-openssh/module.nix
-        ../../modules/features/nixos/service-fail2ban/module.nix
+        ../../modules/features/nixos/service-reaction/module.nix
         ../../modules/features/nixos/service-syncthing/module.nix
       ];
 
       networking.hostName = "desktop-smoke";
       system.stateVersion = "25.11";
-
-      users.groups.networkmanager = {};
+      # No manual users.groups.networkmanager — the users module adds the group
+      # automatically when networking.networkmanager.enable = true.
     };
 
     testScript = ''
@@ -126,7 +125,7 @@ in {
       machine.wait_for_unit("display-manager.service")
       machine.wait_for_unit("NetworkManager.service")
       machine.wait_for_unit("sshd.service")
-      machine.wait_for_unit("fail2ban.service")
+      machine.wait_for_unit("reaction.service")
       machine.wait_for_unit("syncthing.service")
 
       with subtest("desktop profile enables graphical and audio stack"):
@@ -138,7 +137,7 @@ in {
       with subtest("desktop profile keeps core workstation services up"):
           machine.succeed("systemctl is-active NetworkManager.service")
           machine.succeed("systemctl is-active sshd.service")
-          machine.succeed("fail2ban-client status sshd | grep -F 'Status for the jail: sshd'")
+          machine.succeed("systemctl is-active reaction.service")
           machine.succeed("systemctl is-active syncthing.service")
     '';
   };
@@ -154,14 +153,13 @@ in {
         ../../modules/features/nixos/users/module.nix
         ../../modules/features/nixos/service-networkmanager/module.nix
         ../../modules/features/nixos/service-openssh/module.nix
-        ../../modules/features/nixos/service-fail2ban/module.nix
+        ../../modules/features/nixos/service-reaction/module.nix
         ../../modules/features/nixos/service-syncthing/module.nix
       ];
 
       networking.hostName = "laptop-smoke";
       system.stateVersion = "25.11";
-
-      users.groups.networkmanager = {};
+      # No manual users.groups.networkmanager — added conditionally via service-networkmanager.
     };
 
     testScript = ''

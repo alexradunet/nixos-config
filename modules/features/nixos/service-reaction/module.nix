@@ -10,18 +10,18 @@
       # Create a dedicated iptables chain at startup so all bans live in one
       # place and are cleanly flushed when reaction stops.
       start = [
-        ["iptables"  "-w" "-N" "reaction"]
+        ["iptables" "-w" "-N" "reaction"]
         ["ip6tables" "-w" "-N" "reaction"]
-        ["iptables"  "-w" "-I" "INPUT"   "-p" "all" "-j" "reaction"]
-        ["ip6tables" "-w" "-I" "INPUT"   "-p" "all" "-j" "reaction"]
+        ["iptables" "-w" "-I" "INPUT" "-p" "all" "-j" "reaction"]
+        ["ip6tables" "-w" "-I" "INPUT" "-p" "all" "-j" "reaction"]
       ];
 
       stop = [
-        ["iptables"  "-w" "-D" "INPUT"   "-p" "all" "-j" "reaction"]
-        ["ip6tables" "-w" "-D" "INPUT"   "-p" "all" "-j" "reaction"]
-        ["iptables"  "-w" "-F" "reaction"]
+        ["iptables" "-w" "-D" "INPUT" "-p" "all" "-j" "reaction"]
+        ["ip6tables" "-w" "-D" "INPUT" "-p" "all" "-j" "reaction"]
+        ["iptables" "-w" "-F" "reaction"]
         ["ip6tables" "-w" "-F" "reaction"]
-        ["iptables"  "-w" "-X" "reaction"]
+        ["iptables" "-w" "-X" "reaction"]
         ["ip6tables" "-w" "-X" "reaction"]
       ];
 
@@ -55,7 +55,7 @@
 
               actions = {
                 ban4 = {
-                  cmd = ["iptables"  "-w" "-A" "reaction" "-s" "<ip>" "-j" "DROP"];
+                  cmd = ["iptables" "-w" "-A" "reaction" "-s" "<ip>" "-j" "DROP"];
                   ipv4only = true;
                 };
                 ban6 = {
@@ -64,12 +64,12 @@
                 };
                 # Unban after 24 h (was 1 h in fail2ban; lengthened intentionally).
                 unban4 = {
-                  cmd   = ["iptables"  "-w" "-D" "reaction" "-s" "<ip>" "-j" "DROP"];
+                  cmd = ["iptables" "-w" "-D" "reaction" "-s" "<ip>" "-j" "DROP"];
                   after = "24h";
                   ipv4only = true;
                 };
                 unban6 = {
-                  cmd   = ["ip6tables" "-w" "-D" "reaction" "-s" "<ip>" "-j" "DROP"];
+                  cmd = ["ip6tables" "-w" "-D" "reaction" "-s" "<ip>" "-j" "DROP"];
                   after = "24h";
                   ipv6only = true;
                 };
@@ -88,6 +88,6 @@
   systemd.services.reaction.unitConfig.ConditionCapability = "CAP_NET_ADMIN";
   systemd.services.reaction.serviceConfig = {
     CapabilityBoundingSet = ["CAP_NET_ADMIN"];
-    AmbientCapabilities   = ["CAP_NET_ADMIN"];
+    AmbientCapabilities = ["CAP_NET_ADMIN"];
   };
 }
