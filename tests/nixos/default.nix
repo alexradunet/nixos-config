@@ -98,7 +98,7 @@ in {
             privateKeyFile = toString (pkgs.writeText "wg-client-private-key" snakeoilKeys.client.privateKey);
             client = {
               publicKey = snakeoilKeys.hub.publicKey;
-              endpoint = "192.168.1.1:51820";
+              endpoint = "192.168.1.2:51820";
               allowedIPs = ["10.77.0.0/24"];
               persistentKeepalive = 25;
             };
@@ -124,8 +124,8 @@ in {
           print(machine.succeed("journalctl -u systemd-networkd --no-pager -n 200 || true"))
 
       with subtest("underlay network is reachable"):
-          client.succeed("ping -c 3 192.168.1.1")
-          hub.succeed("ping -c 3 192.168.1.2")
+          client.succeed("ping -c 3 192.168.1.2")
+          hub.succeed("ping -c 3 192.168.1.1")
 
       with subtest("wireguard interfaces are configured"):
           hub.wait_until_succeeds("ip addr show dev wg0 | grep -F '10.77.0.1/24'")
