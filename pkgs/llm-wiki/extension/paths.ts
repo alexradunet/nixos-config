@@ -2,7 +2,28 @@ import os from "node:os";
 import path from "node:path";
 
 export function getWikiRoot(): string {
-	return process.env.PI_LLM_WIKI_DIR ?? path.join(os.homedir(), "Sync", "llm-wiki");
+	return process.env.PI_LLM_WIKI_DIR ?? path.join(os.homedir(), "Sync", "Wiki", "NixPI");
+}
+
+/**
+ * Returns the list of domains the current session is allowed to read/write,
+ * or undefined if there is no restriction (operator / full-access session).
+ * Driven by PI_LLM_WIKI_ALLOWED_DOMAINS (comma-separated, e.g. "technical").
+ */
+export function getAllowedDomains(): string[] | undefined {
+	const raw = process.env.PI_LLM_WIKI_ALLOWED_DOMAINS;
+	if (!raw || raw.trim() === "" || raw.trim() === "*") return undefined;
+	return raw.split(",").map((d) => d.trim().toLowerCase()).filter(Boolean);
+}
+
+/**
+ * Returns true when a page with the given domain is accessible in this session.
+ * Pages without a domain are always allowed (they are global/unscoped).
+ */
+export function isDomainAllowed(domain: string | undefined, allowedDomains: string[] | undefined): boolean {
+	if (!allowedDomains) return true;
+	if (!domain) return true;
+	return allowedDomains.includes(domain.toLowerCase());
 }
 
 function normalizeLabel(value: string): string {

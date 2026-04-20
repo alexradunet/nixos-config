@@ -2,11 +2,13 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { atomicWriteFile } from "./lib/filesystem.js";
 import { stringifyFrontmatter } from "./lib/frontmatter.js";
-import { nowIso, ok } from "./lib/utils.js";
+import { err, nowIso, ok } from "./lib/utils.js";
 import { appendEvent, loadRegistry } from "./actions-meta.js";
 import {
 	buildPagePath,
 	dedupeSlug,
+	getAllowedDomains,
+	isDomainAllowed,
 	normalizeAreas,
 	normalizeDomain,
 	normalizeHosts,
@@ -33,6 +35,15 @@ export function handleEnsurePage(wikiRoot: string, params: EnsurePageParams): Ac
 	const normalizedTitle = params.title.trim().toLowerCase();
 	const normalizedAliases = new Set((params.aliases ?? []).map((alias) => alias.trim().toLowerCase()));
 	const normalizedDomain = normalizeDomain(params.domain);
+
+	const allowedDomains = getAllowedDomains();
+	if (!isDomainAllowed(normalizedDomain, allowedDomains)) {
+		return err(
+			`Domain "${normalizedDomain ?? "unspecified"}" is not accessible in this session. ` +
+				`Allowed domains: ${allowedDomains?.join(", ") ?? "all"}.`,
+		);
+	}
+
 	const normalizedFolder = normalizePageFolder(params.folder) ?? (params.type === "journal" ? "journal/daily" : normalizedDomain);
 
 	const matches = registry.pages.filter((page) => {

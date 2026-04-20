@@ -22,6 +22,14 @@
         export GITHUB_TOKEN="$(< /run/secrets/github-token)"
         export GH_TOKEN="$GITHUB_TOKEN"
       fi
+
+      # Nazar — personal AI operator (private GDPR-native LLM, full wiki access)
+      # Mirrors the HomeManager layer: personal, user-facing, private.
+      nazar() {
+        PI_LLM_WIKI_DIR="$HOME/Sync/Wiki/Personal" \
+        PI_LLM_WIKI_ALLOWED_DOMAINS="" \
+          pi --cwd "$HOME/Sync/Wiki/Personal" "$@"
+      }
     '';
   };
 

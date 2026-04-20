@@ -7,8 +7,17 @@
     };
 
     folders = {
-      "sync" = {
-        path = "/home/alex/Sync";
+      # Technical wiki — NixOS, PI agent, infra, architecture.
+      # Visible to the smart LLM. domain: technical only.
+      "nixpi-wiki" = {
+        path = "/home/alex/Sync/Wiki/NixPI";
+        devices = ["evo-nixos"];
+      };
+
+      # Personal wiki — journal, tasks, notes, health, plans.
+      # Nazar (private GDPR-native LLM) only. Never seen by the technical LLM.
+      "personal-wiki" = {
+        path = "/home/alex/Sync/Wiki/Personal";
         devices = ["evo-nixos"];
       };
     };

@@ -6,7 +6,9 @@ import {
 	formatAreasSuffix,
 	formatDomainSuffix,
 	formatHostsSuffix,
+	getAllowedDomains,
 	getCurrentHost,
+	isDomainAllowed,
 	normalizeAreas,
 	normalizeDomain,
 	normalizePageFolder,
@@ -149,9 +151,11 @@ export function searchRegistry(registry: RegistryData, query: string, options: S
 		};
 	}
 
+	const allowedDomains = getAllowedDomains();
 	const matches = registry.pages
 		.filter((entry) => !options.type || entry.type === options.type)
 		.filter((entry) => hostScope === "all" || appliesToHost(entry.hosts, host))
+		.filter((entry) => isDomainAllowed(entry.domain, allowedDomains))
 		.filter((entry) => !domain || entry.domain === domain)
 		.filter((entry) => matchesAreas(entry, areas))
 		.filter((entry) => folderMatches(entry.folder, folder))

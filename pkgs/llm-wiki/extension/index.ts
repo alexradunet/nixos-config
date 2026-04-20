@@ -13,7 +13,7 @@ import { buildWikiDigest, handleWikiStatus, loadRegistry, rebuildAllMeta } from 
 import { handleEnsurePage } from "./actions-pages.js";
 import { handleWikiSearch } from "./actions-search.js";
 import { EmptyToolParams, ok, type RegisteredExtensionTool, registerTools, toToolResult, type ActionResult } from "./lib/utils.js";
-import { getCurrentHost, getWikiRoot, isProtectedPath, isWikiPagePath } from "./paths.js";
+import { getCurrentHost, getAllowedDomains, getWikiRoot, isProtectedPath, isWikiPagePath } from "./paths.js";
 import type { CanonicalPageType } from "./types.js";
 
 const PageTypeEnum = StringEnum([
@@ -92,6 +92,7 @@ async function runWikiMutation<TDetails extends object>(wikiRoot: string, operat
 function buildWikiContextPrompt(): string {
 	const wikiRoot = getWikiRoot();
 	const host = getCurrentHost();
+	const allowedDomains = getAllowedDomains();
 	return [
 		"",
 		"",
@@ -107,6 +108,11 @@ function buildWikiContextPrompt(): string {
 		"- Pages with a frontmatter hosts list apply only to those hosts.",
 		"- Pages without hosts are global and apply across all hosts.",
 		`- When knowledge is host-specific, set hosts: [${host}] or another explicit host list.`,
+		...(allowedDomains
+			? [
+					`- Domain access is restricted to: [${allowedDomains.join(", ")}]. Do not read, reference, or search for pages outside these domains. Personal and journal data is not accessible in this session.`,
+			  ]
+			: []),
 	].join("\n");
 }
 

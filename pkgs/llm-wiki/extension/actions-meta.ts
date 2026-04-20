@@ -11,9 +11,11 @@ import {
 	formatAreasSuffix,
 	formatDomainSuffix,
 	formatHostsSuffix,
+	getAllowedDomains,
 	getCurrentHost,
 	getPageFolder,
 	inferDomainFromFolder,
+	isDomainAllowed,
 	normalizeAreas,
 	normalizeDomain,
 	normalizeHosts,
@@ -342,6 +344,7 @@ export function buildWikiDigest(wikiRoot: string): string {
 		.filter((page) => !["source", "identity", "journal"].includes(page.type))
 		.filter((page) => page.status === "active")
 		.filter((page) => appliesToHost(page.hosts, host))
+		.filter((page) => isDomainAllowed(page.domain, getAllowedDomains()))
 		.sort((a, b) => b.wordCount - a.wordCount)
 		.slice(0, 15);
 

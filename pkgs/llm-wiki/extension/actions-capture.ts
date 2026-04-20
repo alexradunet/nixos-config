@@ -5,7 +5,7 @@ import { appendEvent } from "./actions-meta.js";
 import { atomicWriteFile } from "./lib/filesystem.js";
 import { stringifyFrontmatter } from "./lib/frontmatter.js";
 import { err, ok } from "./lib/utils.js";
-import { makeSourceId, normalizeAreas, normalizeDomain, normalizeHosts } from "./paths.js";
+import { makeSourceId, getAllowedDomains, isDomainAllowed, normalizeAreas, normalizeDomain, normalizeHosts } from "./paths.js";
 import type { ActionResult, CaptureDetails, SourceManifest, SourcePageFrontmatter } from "./types.js";
 
 function sha256(value: string | Buffer): string {
@@ -110,6 +110,14 @@ function decodeUtf8FileContent(absoluteFilePath: string, ext: string): string | 
 }
 
 function createCapture(wikiRoot: string, descriptor: CaptureDescriptor, now = new Date()): ActionResult<CaptureDetails> {
+	const allowedDomains = getAllowedDomains();
+	if (!isDomainAllowed(normalizeDomain(descriptor.domain), allowedDomains)) {
+		return err(
+			`Domain "${descriptor.domain ?? "unspecified"}" is not accessible in this session. ` +
+				`Allowed domains: ${allowedDomains?.join(", ") ?? "all"}.`,
+		);
+	}
+
 	const existingIds = listExistingSourceIds(wikiRoot);
 	const sourceId = makeSourceId(existingIds, now);
 	const absPacket = path.join(wikiRoot, "raw", sourceId);
