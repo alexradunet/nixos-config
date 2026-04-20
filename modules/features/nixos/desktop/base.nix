@@ -1,5 +1,10 @@
 {...}: {
-  services.displayManager.sddm.enable = true;
+  services.displayManager.sddm = {
+    enable = true;
+    # Use the native Wayland compositor instead of X11 for the greeter.
+    # Required for Plasma 6 HDR / variable refresh rate support at login.
+    wayland.enable = true;
+  };
   services.desktopManager.plasma6.enable = true;
 
   hardware.graphics.enable = true;
