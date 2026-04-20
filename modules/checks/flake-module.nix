@@ -41,10 +41,7 @@
           test -d "$extension_source"
 
           printf '%s\n' "$activation_script" | grep -F 'pages/projects/technical' >/dev/null
-          printf '%s\n' "$activation_script" | grep -F 'pages/areas/personal' >/dev/null
           printf '%s\n' "$activation_script" | grep -F 'pages/resources/technical/system-landscape.md' >/dev/null
-          printf '%s\n' "$activation_script" | grep -F 'pages/journal/daily' >/dev/null
-          printf '%s\n' "$activation_script" | grep -F 'templates/obsidian/daily-journal.md' >/dev/null
           printf '%s\n' "$activation_script" | grep -F 'templates/obsidian/page.md' >/dev/null
 
           touch $out

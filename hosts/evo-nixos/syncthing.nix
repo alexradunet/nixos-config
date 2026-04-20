@@ -19,13 +19,6 @@
         path = "/home/alex/Sync/Wiki/NixPI";
         devices = ["pad-nixos"];
       };
-
-      # Personal wiki — journal, tasks, notes, health, plans.
-      # Nazar (private GDPR-native LLM) only. Never seen by the technical LLM.
-      "personal-wiki" = {
-        path = "/home/alex/Sync/Wiki/Personal";
-        devices = ["pad-nixos"];
-      };
     };
   };
 }

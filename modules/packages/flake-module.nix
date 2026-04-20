@@ -1,4 +1,13 @@
-{inputs, ...}: {
+{inputs, ...}: let
+  mkQmd = pkgs: system:
+    inputs.qmd.packages.${system}.default.overrideAttrs (_old: {
+      postFixup = ''
+        substituteInPlace $out/bin/qmd \
+          --replace-fail "export DYLD_LIBRARY_PATH='${pkgs.sqlite.out}/lib'" "export DYLD_LIBRARY_PATH='${pkgs.lib.makeLibraryPath [pkgs.sqlite pkgs.stdenv.cc.cc.lib]}'" \
+          --replace-fail "export LD_LIBRARY_PATH='${pkgs.sqlite.out}/lib'" "export LD_LIBRARY_PATH='${pkgs.lib.makeLibraryPath [pkgs.sqlite pkgs.stdenv.cc.cc.lib]}'"
+      '';
+    });
+in {
   perSystem = {
     pkgs,
     system,
@@ -12,7 +21,7 @@
           pi-web-access = final.callPackage ../../pkgs/pi-web-access {};
           llm-wiki = final.callPackage ../../pkgs/llm-wiki {};
           wg-admin = final.callPackage ../../pkgs/wg-admin {};
-          qmd = inputs.qmd.packages.${system}.default;
+          qmd = mkQmd final system;
         })
       ];
     };
@@ -70,6 +79,6 @@
     pi-web-access = final.callPackage ../../pkgs/pi-web-access {};
     llm-wiki = final.callPackage ../../pkgs/llm-wiki {};
     wg-admin = final.callPackage ../../pkgs/wg-admin {};
-    qmd = inputs.qmd.packages.${final.stdenv.hostPlatform.system}.default;
+    qmd = mkQmd final final.stdenv.hostPlatform.system;
   };
 }
