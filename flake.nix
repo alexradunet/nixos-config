@@ -138,43 +138,46 @@
         pkgs = pkgsFor system;
         alexHome = self.nixosConfigurations.pad-nixos.config.home-manager.users.alex.home;
         llmWikiActivation = self.nixosConfigurations.pad-nixos.config.home-manager.users.alex.home.activation.llmWikiStarter;
-      in {
-        formatting =
-          pkgs.runCommand "formatting-check" {
-            nativeBuildInputs = [pkgs.alejandra];
-          } ''
-            cd ${self}
+        nixosTests = pkgs.callPackage ./tests/nixos {};
+      in
+        {
+          formatting =
+            pkgs.runCommand "formatting-check" {
+              nativeBuildInputs = [pkgs.alejandra];
+            } ''
+              cd ${self}
 
-            # CI/read-only formatting check.
-            # `alejandra --check` fails if a file needs formatting but does not
-            # rewrite anything.
-            find . -type f -name '*.nix' -print0 \
-              | xargs -0 alejandra --check
+              # CI/read-only formatting check.
+              # `alejandra --check` fails if a file needs formatting but does not
+              # rewrite anything.
+              find . -type f -name '*.nix' -print0 \
+                | xargs -0 alejandra --check
 
-            # runCommand derivations must produce an output path on success.
+              # runCommand derivations must produce an output path on success.
+              touch $out
+            '';
+
+          llm-wiki-tests = pkgs.callPackage ./pkgs/llm-wiki/tests.nix {};
+
+          llm-wiki-home = pkgs.runCommand "llm-wiki-home-check" {} ''
+            session_var='${alexHome.sessionVariables.PI_LLM_WIKI_DIR}'
+            extension_source='${alexHome.file.".pi/agent/extensions/llm-wiki".source}'
+            activation_script='${llmWikiActivation.data}'
+
+            test "$session_var" = "/home/alex/Sync/llm-wiki"
+            test -d "$extension_source"
+
+            printf '%s\n' "$activation_script" | grep -F 'pages/projects/technical' >/dev/null
+            printf '%s\n' "$activation_script" | grep -F 'pages/areas/personal' >/dev/null
+            printf '%s\n' "$activation_script" | grep -F 'pages/resources/technical/system-landscape.md' >/dev/null
+            printf '%s\n' "$activation_script" | grep -F 'pages/journal/daily' >/dev/null
+            printf '%s\n' "$activation_script" | grep -F 'templates/obsidian/daily-journal.md' >/dev/null
+            printf '%s\n' "$activation_script" | grep -F 'templates/obsidian/page.md' >/dev/null
+
             touch $out
           '';
-
-        llm-wiki-tests = pkgs.callPackage ./pkgs/llm-wiki/tests.nix {};
-
-        llm-wiki-home = pkgs.runCommand "llm-wiki-home-check" {} ''
-          session_var='${alexHome.sessionVariables.PI_LLM_WIKI_DIR}'
-          extension_source='${alexHome.file.".pi/agent/extensions/llm-wiki".source}'
-          activation_script='${llmWikiActivation.data}'
-
-          test "$session_var" = "/home/alex/Sync/llm-wiki"
-          test -d "$extension_source"
-
-          printf '%s\n' "$activation_script" | grep -F 'pages/projects/technical' >/dev/null
-          printf '%s\n' "$activation_script" | grep -F 'pages/areas/personal' >/dev/null
-          printf '%s\n' "$activation_script" | grep -F 'pages/resources/technical/system-landscape.md' >/dev/null
-          printf '%s\n' "$activation_script" | grep -F 'pages/journal/daily' >/dev/null
-          printf '%s\n' "$activation_script" | grep -F 'templates/obsidian/daily-journal.md' >/dev/null
-          printf '%s\n' "$activation_script" | grep -F 'templates/obsidian/page.md' >/dev/null
-
-          touch $out
-        '';
-      }
+        }
+        // nixosTests
     );
 
     packages = forAllSystems (
