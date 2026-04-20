@@ -8,6 +8,76 @@
   llmWikiRoot = "${pkgs.llm-wiki}/share/llm-wiki";
   llmWikiDir = "${config.home.homeDirectory}/Sync/llm-wiki";
 
+  llmRouterBase = {
+    _comment = "LLM Router config — managed by NixOS (modules/features/home/pi/resources.nix). Manual edits are overwritten on rebuild.";
+    private = {
+      provider = "cortecs";
+      model = "minimax-m2.7";
+      label = "Private";
+    };
+    technical = {
+      provider = "github-copilot";
+      model = "claude-sonnet-4.6";
+      label = "Technical";
+    };
+    providers = {
+      cortecs = {
+        baseUrl = "https://api.cortecs.ai/v1";
+        # apiKey is injected at activation time from /run/secrets/cortecs-api-key
+        apiKey = "SOPS_PLACEHOLDER";
+        api = "openai-completions";
+        models = [
+          {
+            # eu_native: true is injected per-request via the before_provider_request extension hook
+            id = "minimax-m2.7";
+            name = "MiniMax M2.7 (via Cortecs)";
+            reasoning = false;
+            input = ["text"];
+            cost = {input = 0.3; output = 1.2; cacheRead = 0; cacheWrite = 0;};
+            contextWindow = 204800;
+            maxTokens = 131072;
+          }
+        ];
+      };
+    };
+    rules = {
+      private = {
+        cwdContains = ["/Sync/llm-wiki"];
+        filePathContains = [
+          "pages/journal"
+          "pages/personal"
+          "pages/areas/personal"
+          "journal/daily"
+          "areas/personal"
+        ];
+        keywords = [
+          "journal entry"
+          "my journal"
+          "personal note"
+          "health update"
+          "how i feel"
+          "diary"
+          "private note"
+        ];
+      };
+      technical = {
+        cwdContains = ["/Repos" "/nixos-config" "/code" "/src" "/projects"];
+        filePathContains = [
+          "pages/technical"
+          "pages/resources/technical"
+          "pages/areas/infrastructure"
+          "areas/infrastructure"
+        ];
+        keywords = [];
+      };
+    };
+    defaultMode = "technical";
+    autoSwitch = true;
+    showNotifications = true;
+  };
+
+  llmRouterBaseJson = pkgs.writeText "llm-router-base.json" (builtins.toJSON llmRouterBase);
+
   starterConfig = builtins.toJSON {
     provider = "exa";
     workflow = "summary-review";
@@ -384,5 +454,20 @@ in {
     [ -e "$wiki_root/pages/areas/personal/personal-identity.md" ] || cp ${llmWikiPersonalStarter} "$wiki_root/pages/areas/personal/personal-identity.md"
     [ -e "$wiki_root/templates/obsidian/daily-journal.md" ] || cp ${llmWikiDailyJournalTemplate} "$wiki_root/templates/obsidian/daily-journal.md"
     [ -e "$wiki_root/templates/obsidian/page.md" ] || cp ${llmWikiPageTemplate} "$wiki_root/templates/obsidian/page.md"
+  '';
+
+  # Write llm-router.json and inject cortecs API key from sops secret
+  home.activation.llmRouter = lib.hm.dag.entryAfter ["writeBoundary"] ''
+    llm_router_path="$HOME/.pi/agent/llm-router.json"
+    secret_path="/run/secrets/cortecs-api-key"
+    mkdir -p "$(dirname "$llm_router_path")"
+    if [ -r "$secret_path" ]; then
+      api_key=$(cat "$secret_path")
+      ${pkgs.jq}/bin/jq --arg key "$api_key" \
+        '.providers.cortecs.apiKey = $key' \
+        ${llmRouterBaseJson} > "$llm_router_path"
+    else
+      cp ${llmRouterBaseJson} "$llm_router_path"
+    fi
   '';
 }

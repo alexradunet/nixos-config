@@ -9,4 +9,12 @@ in
       group = "users";
       mode = "0400";
     };
+
+    sops.secrets.cortecs-api-key = {
+      sopsFile = secretFile;
+      key = "cortecs.apiKey";
+      owner = "alex";
+      group = "users";
+      mode = "0400";
+    };
   }
