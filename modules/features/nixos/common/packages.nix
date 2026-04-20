@@ -7,5 +7,8 @@
     curl
     zellij
     pi
+    age
+    ssh-to-age
+    sops
   ];
 }
