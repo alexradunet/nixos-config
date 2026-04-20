@@ -30,6 +30,20 @@
         PI_LLM_WIKI_ALLOWED_DOMAINS="" \
           pi --cwd "$HOME/Sync/Wiki/Personal" "$@"
       }
+
+      # Obsidian vault shortcuts
+      obsidian-nixpi() { obsidian "$HOME/Sync/Wiki/NixPI" &! }
+      obsidian-personal() { obsidian "$HOME/Sync/Wiki/Personal" &! }
+
+      # Wiki shortcuts for the AI assistant context
+      wiki-technical() {
+        export PI_LLM_WIKI_DIR="$HOME/Sync/Wiki/NixPI"
+        echo "Wiki context: Technical (NixPI)"
+      }
+      wiki-personal() {
+        export PI_LLM_WIKI_DIR="$HOME/Sync/Wiki/Personal"
+        echo "Wiki context: Personal (Nazar)"
+      }
     '';
   };
 

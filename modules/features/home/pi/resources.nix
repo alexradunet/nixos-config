@@ -596,7 +596,6 @@
     appropriate areas and tags. Keep it brief and factual.
   '';
 in {
-
   home.file.".pi/agent/prompts/.keep".text = "";
   home.file.".pi/agent/skills/.keep".text = "";
   home.file.".pi/agent/themes/.keep".text = "";
