@@ -16,10 +16,12 @@
         ../../hosts/evo-nixos/hardware-configuration.nix
         config.flake.nixosModules.profile-desktop-workstation
         config.flake.nixosModules.profile-gaming-nvidia
+        config.flake.nixosModules.service-llama-cpp
         config.flake.nixosModules.sops-common
         config.flake.nixosModules.sops-shared-common
         config.flake.nixosModules.sops-evo-nixos
         ../../hosts/evo-nixos/syncthing.nix
+        ../../hosts/evo-nixos/llama-cpp.nix
         inputs.home-manager.nixosModules.home-manager
         {
           home-manager.useGlobalPkgs = true;

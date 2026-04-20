@@ -56,6 +56,7 @@
         ./modules/features/nixos/service-wireguard/flake-module.nix
         ./modules/features/nixos/service-wg-admin/flake-module.nix
         ./modules/features/nixos/service-netbird/flake-module.nix
+        ./modules/features/nixos/service-llama-cpp/flake-module.nix
 
         ./modules/features/home/git/flake-module.nix
         ./modules/features/home/packages/flake-module.nix
