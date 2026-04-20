@@ -257,6 +257,33 @@ Run the flake checks:
 nix flake check --accept-flake-config
 ```
 
+### Current test coverage
+
+The flake checks currently cover:
+
+- formatting for all Nix files
+- `llm-wiki` unit tests and coverage-oriented package checks
+- host contract checks for `evo-nixos`, `pad-nixos`, and `vps-nixos`
+- host build contract checks for all exported NixOS systems
+- VM smoke tests for:
+  - `server-base`
+  - `desktop-workstation`
+  - `laptop-workstation`
+  - `gaming-nvidia`
+  - `wg-admin`
+  - WireGuard hub/client overlay connectivity
+
+Run an individual smoke test:
+
+```bash
+nix build .#checks.x86_64-linux.server-base-smoke -L
+nix build .#checks.x86_64-linux.desktop-workstation-smoke -L
+nix build .#checks.x86_64-linux.laptop-workstation-smoke -L
+nix build .#checks.x86_64-linux.gaming-nvidia-smoke -L
+nix build .#checks.x86_64-linux.wg-admin-basic -L
+nix build .#checks.x86_64-linux.wireguard-hub-client -L
+```
+
 Run the llm-wiki unit + coverage suite only:
 
 ```bash

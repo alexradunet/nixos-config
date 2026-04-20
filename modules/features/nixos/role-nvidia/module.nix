@@ -19,11 +19,19 @@
 
   hardware.nvidia = {
     modesetting.enable = true;
-    open = false;
+    open = true;
     powerManagement.enable = false;
     powerManagement.finegrained = false;
     nvidiaSettings = true;
     package = config.boot.kernelPackages.nvidiaPackages.stable;
+
+    prime = {
+      offload.enable = true;
+      offload.enableOffloadCmd = true;
+      allowExternalGpu = true;
+      nvidiaBusId = "PCI:101@0:0:0";
+      amdgpuBusId = "PCI:103@0:0:0";
+    };
   };
 
   boot.blacklistedKernelModules = [

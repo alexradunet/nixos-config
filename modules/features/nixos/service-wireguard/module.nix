@@ -207,6 +207,8 @@ in {
       }
     ];
 
+    networking.useNetworkd = lib.mkDefault true;
+
     networking.wireguard = {
       enable = true;
       useNetworkd = true;

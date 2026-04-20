@@ -80,6 +80,23 @@
             then "1"
             else "0"
           }' = '1'
+          test '${
+            if evoConfig.programs.steam.enable
+            then "1"
+            else "0"
+          }' = '1'
+          test '${
+            if evoConfig.programs.steam.remotePlay.openFirewall
+            then "1"
+            else "0"
+          }' = '1'
+          test '${
+            if evoConfig.hardware.nvidia.open
+            then "1"
+            else "0"
+          }' = '1'
+          test '${builtins.concatStringsSep "," evoConfig.services.xserver.videoDrivers}' = 'nvidia'
+          test '${builtins.concatStringsSep "," evoConfig.boot.blacklistedKernelModules}' = 'nouveau,nvidiafb'
 
           test '${
             if padConfig.services."power-profiles-daemon".enable
@@ -96,6 +113,11 @@
             then "1"
             else "0"
           }' = '1'
+          test '${
+            if padConfig.services."wg-admin".enable
+            then "1"
+            else "0"
+          }' = '0'
 
           test '${
             if vpsConfig.services."wg-admin".enable
@@ -108,6 +130,11 @@
             then "1"
             else "0"
           }' = '1'
+          test '${
+            if vpsConfig.networking.networkmanager.enable
+            then "1"
+            else "0"
+          }' = '0'
 
           test '${
             if evoConfig.services.openssh.enable
@@ -120,6 +147,13 @@
             else "0"
           }' = '1'
 
+          touch $out
+        '';
+
+        host-build-contracts = pkgs.runCommand "host-build-contracts-check" {} ''
+          test -n '${config.flake.nixosConfigurations.evo-nixos.config.system.build.toplevel.drvPath}'
+          test -n '${config.flake.nixosConfigurations.pad-nixos.config.system.build.toplevel.drvPath}'
+          test -n '${config.flake.nixosConfigurations.vps-nixos.config.system.build.toplevel.drvPath}'
           touch $out
         '';
       }

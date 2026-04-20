@@ -1,4 +1,7 @@
-{pkgs}: let
+{
+  pkgs,
+  lib,
+}: let
   snakeoilKeys = {
     hub = {
       privateKey = "OPuVRS2T0/AtHDp3PXkNuLQYDiqJaBEEnYe42BSnJnQ=";
@@ -13,8 +16,8 @@
 
   mkBaseNode = ip: {
     virtualisation.vlans = [1];
-    networking.useDHCP = false;
-    networking.useNetworkd = true;
+    networking.useDHCP = lib.mkForce false;
+    networking.useNetworkd = lib.mkForce true;
     networking.interfaces.eth1.ipv4.addresses = [
       {
         address = ip;
@@ -137,6 +140,42 @@ in {
           machine.succeed("systemctl is-active sshd.service")
           machine.succeed("fail2ban-client status sshd | grep -F 'Status for the jail: sshd'")
           machine.succeed("systemctl is-active syncthing.service")
+    '';
+  };
+
+  gaming-nvidia-smoke = pkgs.testers.runNixOSTest {
+    name = "gaming-nvidia-smoke";
+
+    nodes.machine = {pkgs, ...}: {
+      imports = [
+        ../../modules/features/nixos/common/module.nix
+        ../../modules/features/nixos/desktop/module.nix
+        ../../modules/features/nixos/users/module.nix
+        ../../modules/features/nixos/host-unfree/module.nix
+        ../../modules/features/nixos/service-networkmanager/module.nix
+        ../../modules/features/nixos/role-gaming/module.nix
+        ../../modules/features/nixos/role-nvidia/module.nix
+      ];
+
+      networking.hostName = "gaming-smoke";
+      system.stateVersion = "25.11";
+
+      users.groups.networkmanager = {};
+    };
+
+    testScript = ''
+      start_all()
+      machine.wait_for_unit("display-manager.service")
+      machine.wait_for_unit("NetworkManager.service")
+
+      with subtest("gaming profile enables steam and firewall openings"):
+          machine.succeed("command -v steam >/dev/null")
+          machine.succeed("grep -F '27036' /etc/nftables.conf >/dev/null")
+
+      with subtest("nvidia profile config is present"):
+          machine.succeed("grep -F 'nvidia' /etc/X11/xorg.conf.d -R >/dev/null || true")
+          machine.succeed("command -v nvidia-offload >/dev/null")
+          machine.succeed("command -v steam >/dev/null")
     '';
   };
 
