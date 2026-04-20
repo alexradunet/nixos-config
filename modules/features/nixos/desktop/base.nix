@@ -24,6 +24,13 @@
 
   programs.firefox.enable = true;
 
+  # Plymouth boot splash — clean spinner theme, works with NVIDIA modesetting.
+  boot.plymouth.enable = true;
+
+  # nix-ld: stub dynamic linker so pre-built Linux binaries run without patching.
+  # Useful for vendor SDKs, downloaded tools, and VSCode native extensions.
+  programs.nix-ld.enable = true;
+
   # nohang (new in 26.05): user-space OOM prevention daemon.
   # Intervenes before the kernel OOM killer fires, keeping the desktop
   # responsive under heavy load (gaming, compilation, etc.).

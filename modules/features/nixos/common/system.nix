@@ -5,6 +5,9 @@
 
   programs.zsh.enable = true;
 
+  # whois (new NixOS module in 26.05) — intelligent WHOIS client.
+  programs.whois.enable = true;
+
   # nh — a modern nix CLI helper with beautiful build diffs (via nvd).
   # NH_FLAKE is picked up automatically by `nh os switch`, `nh os boot`, etc.
   programs.nh = {

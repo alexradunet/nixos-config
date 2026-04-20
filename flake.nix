@@ -46,7 +46,7 @@
         ./modules/features/nixos/host-unfree/flake-module.nix
         ./modules/features/nixos/service-networkmanager/flake-module.nix
         ./modules/features/nixos/service-openssh/flake-module.nix
-        ./modules/features/nixos/service-fail2ban/flake-module.nix
+        ./modules/features/nixos/service-reaction/flake-module.nix
         ./modules/features/nixos/service-syncthing/flake-module.nix
         ./modules/features/nixos/service-wireguard/flake-module.nix
         ./modules/features/nixos/service-wg-admin/flake-module.nix

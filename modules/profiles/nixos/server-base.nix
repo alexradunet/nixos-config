@@ -6,7 +6,7 @@
       config.flake.nixosModules.users
       config.flake.nixosModules.host-unfree
       config.flake.nixosModules.service-openssh
-      config.flake.nixosModules.service-fail2ban
+      config.flake.nixosModules.service-reaction
       config.flake.nixosModules.service-wireguard
     ];
   };

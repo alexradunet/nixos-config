@@ -10,7 +10,7 @@
       config.flake.nixosModules.service-networkmanager
       config.flake.nixosModules.service-wireguard
       config.flake.nixosModules.service-openssh
-      config.flake.nixosModules.service-fail2ban
+      config.flake.nixosModules.service-reaction
       config.flake.nixosModules.service-syncthing
     ];
   };
