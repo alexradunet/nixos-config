@@ -23,4 +23,9 @@
   hardware.bluetooth.powerOnBoot = true;
 
   programs.firefox.enable = true;
+
+  # nohang (new in 26.05): user-space OOM prevention daemon.
+  # Intervenes before the kernel OOM killer fires, keeping the desktop
+  # responsive under heavy load (gaming, compilation, etc.).
+  services.nohang.enable = true;
 }
