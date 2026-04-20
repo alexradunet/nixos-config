@@ -17,18 +17,21 @@ Use this skill for the lightweight WireGuard onboarding flow in this repo.
 
 ## Preferred tool path
 
-If the `wg_admin` extension tool is available, prefer it over raw shell commands.
+If the `wg_onboard` or `wg_admin` extension tools are available, prefer them over raw shell commands.
 
 Common actions:
 
+- `wg_onboard` - preferred high-level flow for adding a mobile or desktop peer, with optional rebuild
 - `list` - inspect peers before changing anything
 - `add <name> [ip]` - create a new peer and generate config
 - `show <name>` - inspect peer metadata
 - `conf <name>` - print the generated client config
 - `qr <name>` - show terminal QR or emit PNG path
+- `mobile-page <name>` - emit a tiny static HTML onboarding page path for mobile sharing
 - `nix-snippet <name>` - print the peer block for inspection or manual copy
 - `enable|disable <name>` - toggle the peer in the runtime registry and regenerate the dedicated Nix peer inventory file
 - `sync-nix` - regenerate the dedicated Nix peer inventory file from all enabled peers
+- `rebuild` - run the configured `nixos-rebuild` for `vps-nixos`
 
 ## Workflow
 
@@ -42,14 +45,28 @@ Common actions:
 
 ### Mobile devices
 
-Prefer QR onboarding:
+Prefer the high-level onboarding flow (`wg_onboard mode=mobile`) so the assistant gets:
+
+- peer creation
+- QR PNG path
+- tiny HTML onboarding page path
+- config path
+- optional hub rebuild
+
+If only low-level commands are needed, use QR onboarding:
 
 - terminal QR for immediate scanning
 - PNG path when the user wants a file to send or view elsewhere
 
 ### Desktop devices
 
-Prefer the generated `.conf` output/path.
+Prefer the high-level onboarding flow (`wg_onboard mode=desktop`) so the assistant gets:
+
+- peer creation
+- config path
+- optional hub rebuild
+
+If only low-level commands are needed, prefer the generated `.conf` output/path.
 
 ## Safety / caveats
 

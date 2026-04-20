@@ -4,6 +4,7 @@ import { Type } from "@sinclair/typebox";
 import { spawn } from "node:child_process";
 
 const ACTIONS = ["list", "add", "show", "conf", "qr", "nix_snippet", "enable", "disable", "sync_nix"] as const;
+const ONBOARD_MODES = ["mobile", "desktop"] as const;
 
 function buildArgs(params: {
   action: (typeof ACTIONS)[number];
@@ -35,6 +36,20 @@ function buildArgs(params: {
 
 function requiresName(action: (typeof ACTIONS)[number]) {
   return action !== "list" && action !== "sync_nix";
+}
+
+function buildOnboardArgs(params: {
+  mode: (typeof ONBOARD_MODES)[number];
+  name: string;
+  ip?: string;
+  rebuild?: boolean;
+}) {
+  return [
+    params.mode === "mobile" ? "onboard-mobile" : "onboard-desktop",
+    params.name,
+    ...(params.ip ? [params.ip] : []),
+    ...(params.rebuild ? ["--rebuild"] : []),
+  ];
 }
 
 async function runWgAdmin(args: string[], cwd: string, signal: AbortSignal) {
@@ -130,6 +145,88 @@ export default function wireguardAdminExtension(pi: ExtensionAPI) {
           details: { ok: false, error: true },
         };
       }
+    },
+  });
+
+  pi.registerTool({
+    name: "wg_onboard",
+    label: "WireGuard Onboard",
+    description:
+      "High-level WireGuard onboarding helper for the canonical hub. Use this when the user wants to add a mobile device and get a QR path, add a desktop and get a config path, and optionally rebuild vps-nixos afterwards.",
+    promptSnippet:
+      "Use wg_onboard for the common workflows: add a phone peer and emit QR artifacts, add a desktop peer and emit config artifacts, and optionally rebuild the vps-nixos hub.",
+    promptGuidelines: [
+      "Use mode=mobile for phones and tablets; it returns QR and config artifact paths.",
+      "Use mode=desktop for laptops and desktops; it returns the generated config path.",
+      "Set rebuild=true when the user explicitly wants the hub rebuilt after onboarding.",
+    ],
+    parameters: Type.Object({
+      mode: StringEnum(ONBOARD_MODES, { description: "Whether the new peer is a mobile or desktop-style device" }),
+      name: Type.String({ description: "Stable peer name, for example iphone-alex or macbook-air" }),
+      ip: Type.Optional(Type.String({ description: "Optional explicit IPv4 address to assign" })),
+      rebuild: Type.Optional(Type.Boolean({ description: "Whether to rebuild vps-nixos after the peer and Nix inventory are updated" })),
+    }),
+    async execute(_toolCallId, params, signal, _onUpdate, ctx) {
+      try {
+        const args = buildOnboardArgs(params);
+        const result = await runWgAdmin(args, ctx.cwd, signal);
+        const output = [result.stdout, result.stderr].filter(Boolean).join("\n\n").trim();
+
+        if (result.exitCode !== 0) {
+          return {
+            content: [{ type: "text", text: output || `wg-admin exited with code ${result.exitCode}` }],
+            details: { ok: false, exitCode: result.exitCode, args },
+          };
+        }
+
+        return {
+          content: [{ type: "text", text: output || "wg-admin onboarding completed successfully." }],
+          details: { ok: true, exitCode: result.exitCode, args },
+        };
+      } catch (error: any) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to run wg-admin onboarding. Ensure it is installed on vps-nixos. Error: ${error.message}`,
+            },
+          ],
+          details: { ok: false, error: true },
+        };
+      }
+    },
+  });
+
+  pi.registerCommand("wg-onboard", {
+    description: "Onboard a peer via wg-admin: /wg-onboard <mobile|desktop> <name> [ip] [--rebuild]",
+    handler: async (args, ctx) => {
+      const parts = args.trim().split(/\s+/).filter(Boolean);
+      if (parts.length < 2) {
+        ctx.ui.notify("Usage: /wg-onboard <mobile|desktop> <name> [ip] [--rebuild]", "warning");
+        return;
+      }
+
+      const mode = parts[0] as (typeof ONBOARD_MODES)[number];
+      if (!ONBOARD_MODES.includes(mode)) {
+        ctx.ui.notify("First argument must be mobile or desktop", "warning");
+        return;
+      }
+
+      const rebuild = parts.includes("--rebuild");
+      const name = parts[1];
+      const ip = parts[2] && parts[2] !== "--rebuild" ? parts[2] : undefined;
+      const result = await runWgAdmin(buildOnboardArgs({ mode, name, ip, rebuild }), ctx.cwd, AbortSignal.timeout(10 * 60 * 1000));
+      const output = [result.stdout, result.stderr].filter(Boolean).join("\n\n").trim();
+      ctx.ui.notify(output || `wg-admin exited with code ${result.exitCode}`, result.exitCode === 0 ? "success" : "error");
+    },
+  });
+
+  pi.registerCommand("wg-rebuild", {
+    description: "Rebuild the canonical vps-nixos hub after wg-admin changes",
+    handler: async (_args, ctx) => {
+      const result = await runWgAdmin(["rebuild"], ctx.cwd, AbortSignal.timeout(20 * 60 * 1000));
+      const output = [result.stdout, result.stderr].filter(Boolean).join("\n\n").trim();
+      ctx.ui.notify(output || `wg-admin exited with code ${result.exitCode}`, result.exitCode === 0 ? "success" : "error");
     },
   });
 }

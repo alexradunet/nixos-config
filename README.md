@@ -115,7 +115,7 @@ On `vps-nixos` it keeps peer metadata under:
 - generated Nix peer inventory under `/home/alex/.local/state/wg-admin/nix/peers.nix`
 - shared defaults in `/etc/wg-admin/config.env`
 
-Typical flow:
+Typical low-level flow:
 
 ```bash
 wg-admin list
@@ -125,14 +125,23 @@ wg-admin qr iphone-alex
 sudo nixos-rebuild switch --flake ~/nixos-config#vps-nixos
 ```
 
+Higher-level shortcuts:
+
+```bash
+wg-admin onboard-mobile iphone-alex --rebuild
+wg-admin mobile-page iphone-alex
+wg-admin onboard-desktop macbook-alex --rebuild
+wg-admin rebuild
+```
+
 This helper is intentionally conservative but cleaner than manual copy/paste:
 
-- it generates client configs and QR codes quickly
+- it generates client configs, QR codes, and a tiny static HTML mobile onboarding page quickly
 - it automatically regenerates the dedicated Nix peer inventory file consumed by `hosts/vps-nixos/wireguard.private.nix`
 - you still need to rebuild `vps-nixos` after changes so the WireGuard hub picks them up
 - `wg-admin nix-snippet <name>` still exists for inspection or manual copy when needed
 
-Pi also gets a bundled `wg-admin` extension + skill so the assistant can use the helper directly on hosts where it is installed.
+Pi also gets a bundled `wg-admin` extension + skill so the assistant can use the helper directly on hosts where it is installed, including a higher-level `wg_onboard` tool and `/wg-onboard` command.
 
 ## Current conventions
 

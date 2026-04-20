@@ -91,6 +91,13 @@ in {
       default = "${cfg.stateDir}/nix/peers.nix";
       description = "Path to the generated Nix peer inventory file written by wg-admin sync operations.";
     };
+
+    rebuildFlake = mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      example = "/home/alex/Repos/nixos-config#vps-nixos";
+      description = "Optional flake reference used by `wg-admin rebuild` and the higher-level onboarding helpers.";
+    };
   };
 
   config = mkIf cfg.enable {
@@ -107,9 +114,10 @@ in {
         (renderLine "WG_ADMIN_IP_START" (toString cfg.ipStart))
         (renderLine "WG_ADMIN_NIX_PEERS_FILE" cfg.nixPeersFile)
       ]
-      ++ lib.optionals (cfg.serverEndpoint != null) [renderLine "WG_ADMIN_SERVER_ENDPOINT" cfg.serverEndpoint]
-      ++ lib.optionals (cfg.serverPublicKey != null) [renderLine "WG_ADMIN_SERVER_PUBLIC_KEY" cfg.serverPublicKey]
-      ++ lib.optionals (cfg.mtu != null) [renderLine "WG_ADMIN_MTU" (toString cfg.mtu)]
+      ++ lib.optionals (cfg.serverEndpoint != null) [(renderLine "WG_ADMIN_SERVER_ENDPOINT" cfg.serverEndpoint)]
+      ++ lib.optionals (cfg.serverPublicKey != null) [(renderLine "WG_ADMIN_SERVER_PUBLIC_KEY" cfg.serverPublicKey)]
+      ++ lib.optionals (cfg.rebuildFlake != null) [(renderLine "WG_ADMIN_REBUILD_FLAKE" cfg.rebuildFlake)]
+      ++ lib.optionals (cfg.mtu != null) [(renderLine "WG_ADMIN_MTU" (toString cfg.mtu))]
     );
 
     systemd.tmpfiles.rules = [

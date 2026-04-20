@@ -23,6 +23,7 @@ WG_ADMIN_ALLOWED_IPS="${WG_ADMIN_ALLOWED_IPS:-$WG_ADMIN_SUBNET}"
 WG_ADMIN_PERSISTENT_KEEPALIVE="${WG_ADMIN_PERSISTENT_KEEPALIVE:-25}"
 WG_ADMIN_INTERFACE="${WG_ADMIN_INTERFACE:-wg0}"
 WG_ADMIN_NIX_PEERS_FILE="${WG_ADMIN_NIX_PEERS_FILE:-$WG_ADMIN_HOME/nix/peers.nix}"
+WG_ADMIN_REBUILD_FLAKE="${WG_ADMIN_REBUILD_FLAKE:-}"
 
 ensure_state_dirs() {
   mkdir -p "$PEERS_DIR" "$GENERATED_DIR" "$ARCHIVE_DIR" "$(dirname "$WG_ADMIN_NIX_PEERS_FILE")"
@@ -39,10 +40,14 @@ Commands:
   show <name>
   conf <name>
   qr <name> [--png]
+  mobile-page <name>
   nix-snippet <name>
   enable <name>
   disable <name>
   sync-nix
+  rebuild
+  onboard-mobile <name> [ip] [--rebuild]
+  onboard-desktop <name> [ip] [--rebuild]
   help
 
 Config is loaded from:
@@ -68,6 +73,10 @@ require_cmd() {
 require_runtime_config() {
   [[ -n "${WG_ADMIN_SERVER_PUBLIC_KEY:-}" ]] || die "WG_ADMIN_SERVER_PUBLIC_KEY is not set"
   [[ -n "${WG_ADMIN_SERVER_ENDPOINT:-}" ]] || die "WG_ADMIN_SERVER_ENDPOINT is not set"
+}
+
+require_rebuild_config() {
+  [[ -n "${WG_ADMIN_REBUILD_FLAKE:-}" ]] || die "WG_ADMIN_REBUILD_FLAKE is not set"
 }
 
 normalize_name() {
@@ -342,6 +351,92 @@ cmd_qr() {
   esac
 }
 
+cmd_mobile_page() {
+  local name share_dir html_path bundle_conf bundle_png qr_path config_path
+  name="$(normalize_name "$1")"
+
+  if [[ ! -f "$(conf_file "$name")" ]]; then
+    write_conf "$name"
+  fi
+
+  qr_path="$(cmd_qr "$name" --png)"
+  config_path="$(conf_file "$name")"
+  share_dir="$(mktemp -d "$GENERATED_DIR/${name}-share-XXXXXX")"
+  bundle_conf="$share_dir/${name}.conf"
+  bundle_png="$share_dir/${name}.png"
+  html_path="$share_dir/index.html"
+
+  cp "$config_path" "$bundle_conf"
+  cp "$qr_path" "$bundle_png"
+  chmod 600 "$bundle_conf" "$bundle_png"
+
+  cat >"$html_path" <<EOF
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WireGuard Onboarding - ${name}</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: system-ui, sans-serif;
+      }
+      body {
+        max-width: 42rem;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        line-height: 1.5;
+      }
+      .card {
+        border: 1px solid #8884;
+        border-radius: 12px;
+        padding: 1rem;
+        margin: 1rem 0;
+      }
+      img {
+        width: min(100%, 320px);
+        height: auto;
+        image-rendering: pixelated;
+      }
+      code, pre {
+        font-family: ui-monospace, monospace;
+      }
+      .warn {
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>WireGuard onboarding: ${name}</h1>
+    <p>Use the official WireGuard app on your phone, then either scan this QR code or download the config file below.</p>
+
+    <div class="card">
+      <h2>Scan QR code</h2>
+      <img src="./${name}.png" alt="WireGuard QR code for ${name}" />
+    </div>
+
+    <div class="card">
+      <h2>Download config</h2>
+      <p><a href="./${name}.conf" download>Download ${name}.conf</a></p>
+    </div>
+
+    <div class="card">
+      <h2>Notes</h2>
+      <ul>
+        <li>Peer name: <code>${name}</code></li>
+        <li>Endpoint: <code>${WG_ADMIN_SERVER_ENDPOINT:-unknown}</code></li>
+      </ul>
+      <p class="warn">Sensitive bundle: delete this share directory after onboarding.</p>
+    </div>
+  </body>
+</html>
+EOF
+
+  chmod 600 "$html_path"
+  printf '%s\n' "$html_path"
+}
+
 cmd_nix_snippet() {
   local name
   name="$(normalize_name "$1")"
@@ -366,6 +461,61 @@ toggle_enabled() {
   sync_nix_inventory
   echo "${name}: ENABLED=${enabled}"
   echo "Nix peers file updated: ${WG_ADMIN_NIX_PEERS_FILE}"
+}
+
+cmd_rebuild() {
+  require_cmd sudo
+  require_cmd nixos-rebuild
+  require_rebuild_config
+  sudo -n nixos-rebuild switch --flake "$WG_ADMIN_REBUILD_FLAKE"
+}
+
+cmd_onboard_mobile() {
+  local name ip do_rebuild png_path html_path
+  name="$1"
+  ip="${2:-}"
+  do_rebuild="${3:-0}"
+
+  cmd_add "$name" "$ip"
+  png_path="$(cmd_qr "$name" --png)"
+  html_path="$(cmd_mobile_page "$name")"
+
+  echo
+  echo "Mobile onboarding artifacts:"
+  echo "PNG QR: ${png_path}"
+  echo "HTML share page: ${html_path}"
+  echo "Config: $(conf_file "$name")"
+
+  if [[ "$do_rebuild" == "1" ]]; then
+    echo
+    echo "Rebuilding hub..."
+    cmd_rebuild
+  else
+    echo
+    echo "Remember to rebuild the hub: sudo nixos-rebuild switch --flake ${WG_ADMIN_REBUILD_FLAKE:-<flake>}"
+  fi
+}
+
+cmd_onboard_desktop() {
+  local name ip do_rebuild
+  name="$1"
+  ip="${2:-}"
+  do_rebuild="${3:-0}"
+
+  cmd_add "$name" "$ip"
+
+  echo
+  echo "Desktop onboarding artifacts:"
+  echo "Config: $(conf_file "$name")"
+
+  if [[ "$do_rebuild" == "1" ]]; then
+    echo
+    echo "Rebuilding hub..."
+    cmd_rebuild
+  else
+    echo
+    echo "Remember to rebuild the hub: sudo nixos-rebuild switch --flake ${WG_ADMIN_REBUILD_FLAKE:-<flake>}"
+  fi
 }
 
 main() {
@@ -397,6 +547,11 @@ main() {
       [[ $# -ge 2 ]] || die "Usage: wg-admin qr <name> [--png]"
       cmd_qr "$2" "${3:-terminal}"
       ;;
+    mobile-page)
+      ensure_state_dirs
+      [[ $# -ge 2 ]] || die "Usage: wg-admin mobile-page <name>"
+      cmd_mobile_page "$2"
+      ;;
     nix-snippet)
       ensure_state_dirs
       [[ $# -ge 2 ]] || die "Usage: wg-admin nix-snippet <name>"
@@ -416,6 +571,36 @@ main() {
       ensure_state_dirs
       sync_nix_inventory
       echo "$WG_ADMIN_NIX_PEERS_FILE"
+      ;;
+    rebuild)
+      ensure_state_dirs
+      cmd_rebuild
+      ;;
+    onboard-mobile)
+      ensure_state_dirs
+      [[ $# -ge 2 ]] || die "Usage: wg-admin onboard-mobile <name> [ip] [--rebuild]"
+      local mobile_ip="${3:-}"
+      local mobile_rebuild="0"
+      if [[ "$mobile_ip" == "--rebuild" ]]; then
+        mobile_ip=""
+        mobile_rebuild="1"
+      elif [[ "${4:-}" == "--rebuild" ]]; then
+        mobile_rebuild="1"
+      fi
+      cmd_onboard_mobile "$2" "$mobile_ip" "$mobile_rebuild"
+      ;;
+    onboard-desktop)
+      ensure_state_dirs
+      [[ $# -ge 2 ]] || die "Usage: wg-admin onboard-desktop <name> [ip] [--rebuild]"
+      local desktop_ip="${3:-}"
+      local desktop_rebuild="0"
+      if [[ "$desktop_ip" == "--rebuild" ]]; then
+        desktop_ip=""
+        desktop_rebuild="1"
+      elif [[ "${4:-}" == "--rebuild" ]]; then
+        desktop_rebuild="1"
+      fi
+      cmd_onboard_desktop "$2" "$desktop_ip" "$desktop_rebuild"
       ;;
     help|-h|--help)
       usage
