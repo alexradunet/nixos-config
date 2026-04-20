@@ -32,7 +32,11 @@ Each host folder contains:
 Current hosts:
 
 - `evo-nixos` - mini PC / desktop workstation
+- `vps-nixos` - canonical VPS / WireGuard hub
 - `pad-nixos` - laptop
+
+Each host can also import an optional untracked `wireguard.private.nix` file for local WireGuard role/peer data.
+See `hosts/*/wireguard.private.example.nix`.
 
 ### `modules/`
 
@@ -43,6 +47,7 @@ Reusable NixOS modules grouped by purpose.
 - `modules/laptop` - laptop-specific behavior
 - `modules/users` - shared user definitions
 - `modules/services/*` - reusable service modules
+  - includes `wireguard`, a simple hub-and-spoke overlay built on `networking.wireguard` with the networkd backend
 - `modules/hosts/*` - reusable host-policy modules like boot and unfree
 
 ### `pkgs/`
@@ -62,6 +67,41 @@ Shared Home Manager config for `alex`.
 - `home/*.nix` splits user config by concern
 - `home/hosts/*.nix` holds host-specific Home Manager additions
 - `home/pi/` holds Pi-specific user infrastructure
+
+## WireGuard hub-and-spoke overlay
+
+This repo now includes a small WireGuard module for a simple private overlay:
+
+- one host is the **hub**
+- other hosts are **clients/spokes**
+- clients route only the overlay subnet through the hub
+- the hub keeps the peer inventory
+
+Recommended flow:
+
+1. Copy the example file for a host:
+   - `hosts/vps-nixos/wireguard.private.example.nix` for the hub
+   - `hosts/evo-nixos/wireguard.private.example.nix` for a desktop spoke
+   - `hosts/pad-nixos/wireguard.private.example.nix` for a laptop spoke
+2. Save it as `wireguard.private.nix`
+3. Generate the host key on the host itself:
+
+```bash
+sudo install -d -m 700 /var/lib/wireguard
+sudo sh -c 'umask 077 && wg genkey > /var/lib/wireguard/<host>.key'
+sudo wg pubkey < /var/lib/wireguard/<host>.key
+```
+
+4. Put the public key into the hub's peer list and the client's hub config
+5. Rebuild the host
+
+This setup intentionally stays simple:
+
+- no full-tunnel `0.0.0.0/0`
+- no NAT for internet egress
+- no raw full mesh
+- `vps-nixos` is the canonical hub in the current layout
+- SSH can optionally be exposed only on `wg0`
 
 ## Current conventions
 
@@ -88,6 +128,12 @@ Mini PC:
 
 ```bash
 sudo nixos-rebuild switch --flake ~/nixos-config#evo-nixos
+```
+
+VPS:
+
+```bash
+sudo nixos-rebuild switch --flake ~/nixos-config#vps-nixos
 ```
 
 Laptop:

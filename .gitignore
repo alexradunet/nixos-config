@@ -5,3 +5,6 @@ result-*
 # Node / test artifacts
 node_modules
 coverage
+
+# Host-local private overlays / secrets
+hosts/*/wireguard.private.nix

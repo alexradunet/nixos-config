@@ -201,6 +201,9 @@
       # Mini PC / desktop workstation.
       evo-nixos = mkHost "x86_64-linux" ./hosts/evo-nixos ./home/hosts/evo-nixos.nix;
 
+      # Canonical VPS / WireGuard hub.
+      vps-nixos = mkHost "x86_64-linux" ./hosts/vps-nixos ./home/hosts/vps-nixos.nix;
+
       # Laptop profile.
       pad-nixos = mkHost "x86_64-linux" ./hosts/pad-nixos ./home/hosts/pad-nixos.nix;
     };
