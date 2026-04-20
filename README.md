@@ -76,6 +76,7 @@ This repo now includes a small WireGuard module for a simple private overlay:
 - other hosts are **clients/spokes**
 - clients route only the overlay subnet through the hub
 - the hub keeps the peer inventory
+- `vps-nixos` is the canonical hub
 
 Recommended flow:
 
@@ -102,6 +103,36 @@ This setup intentionally stays simple:
 - no raw full mesh
 - `vps-nixos` is the canonical hub in the current layout
 - SSH can optionally be exposed only on `wg0`
+
+## wg-admin helper
+
+`vps-nixos` also installs `wg-admin`, a small shell-based helper for runtime peer onboarding.
+
+On `vps-nixos` it keeps peer metadata under:
+
+- `/home/alex/.local/state/wg-admin/peers/`
+- generated configs and QR artifacts under `/home/alex/.local/state/wg-admin/generated/`
+- generated Nix peer inventory under `/home/alex/.local/state/wg-admin/nix/peers.nix`
+- shared defaults in `/etc/wg-admin/config.env`
+
+Typical flow:
+
+```bash
+wg-admin list
+wg-admin add iphone-alex
+wg-admin conf iphone-alex
+wg-admin qr iphone-alex
+sudo nixos-rebuild switch --flake ~/nixos-config#vps-nixos
+```
+
+This helper is intentionally conservative but cleaner than manual copy/paste:
+
+- it generates client configs and QR codes quickly
+- it automatically regenerates the dedicated Nix peer inventory file consumed by `hosts/vps-nixos/wireguard.private.nix`
+- you still need to rebuild `vps-nixos` after changes so the WireGuard hub picks them up
+- `wg-admin nix-snippet <name>` still exists for inspection or manual copy when needed
+
+Pi also gets a bundled `wg-admin` extension + skill so the assistant can use the helper directly on hosts where it is installed.
 
 ## Current conventions
 

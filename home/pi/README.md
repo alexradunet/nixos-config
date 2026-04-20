@@ -11,7 +11,9 @@ Bundled resources currently include:
 
 - `pi-web-access` at `~/.pi/agent/extensions/pi-web-access`
 - `llm-wiki` at `~/.pi/agent/extensions/llm-wiki`
+- `wg-admin` at `~/.pi/agent/extensions/wg-admin`
 - the bundled `librarian` skill at `~/.pi/agent/skills/librarian/SKILL.md`
+- the bundled `wg-admin` skill at `~/.pi/agent/skills/wg-admin/SKILL.md`
 
 ## llm-wiki notes
 

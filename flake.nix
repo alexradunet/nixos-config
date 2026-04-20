@@ -41,6 +41,7 @@
       pi = final.callPackage ./pkgs/pi {};
       pi-web-access = final.callPackage ./pkgs/pi-web-access {};
       llm-wiki = final.callPackage ./pkgs/llm-wiki {};
+      wg-admin = final.callPackage ./pkgs/wg-admin {};
     };
 
     # Import nixpkgs for a specific target system with our local overlay applied.
@@ -183,6 +184,7 @@
         pi = pkgs.pi;
         pi-web-access = pkgs.pi-web-access;
         llm-wiki = pkgs.llm-wiki;
+        wg-admin = pkgs.wg-admin;
         default = pkgs.pi;
       }
     );
