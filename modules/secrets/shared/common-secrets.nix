@@ -4,7 +4,7 @@ in
   lib.mkIf (builtins.pathExists secretFile) {
     sops.secrets.github-token = {
       sopsFile = secretFile;
-      key = "github.token";
+      key = "github/token";
       owner = "alex";
       group = "users";
       mode = "0400";
@@ -12,7 +12,7 @@ in
 
     sops.secrets.cortecs-api-key = {
       sopsFile = secretFile;
-      key = "cortecs.apiKey";
+      key = "cortecs/apiKey";
       owner = "alex";
       group = "users";
       mode = "0400";
