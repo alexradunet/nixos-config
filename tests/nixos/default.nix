@@ -111,18 +111,6 @@ in {
       hub.wait_for_unit("multi-user.target")
       client.wait_for_unit("multi-user.target")
 
-      def dump_wg_debug(machine, name):
-          print(f"===== {name}: ip addr =====")
-          print(machine.succeed("ip addr"))
-          print(f"===== {name}: ip route =====")
-          print(machine.succeed("ip route"))
-          print(f"===== {name}: wg show =====")
-          print(machine.succeed("wg show"))
-          print(f"===== {name}: networkd wg0 =====")
-          print(machine.succeed("networkctl status wg0 || true"))
-          print(f"===== {name}: networkd journal =====")
-          print(machine.succeed("journalctl -u systemd-networkd --no-pager -n 200 || true"))
-
       with subtest("underlay network is reachable"):
           client.succeed("ping -c 3 192.168.1.2")
           hub.succeed("ping -c 3 192.168.1.1")
@@ -134,14 +122,9 @@ in {
           client.succeed("wg show wg0 | grep -F '${snakeoilKeys.hub.publicKey}'")
 
       with subtest("handshake is established"):
-          try:
-              client.wait_until_succeeds("ping -c 1 -W 1 10.77.0.1", timeout=30)
-              client.wait_until_succeeds("wg show wg0 latest-handshakes | awk '{print $2}' | grep -v '^0$'", timeout=10)
-              hub.wait_until_succeeds("wg show wg0 latest-handshakes | awk '{print $2}' | grep -v '^0$'", timeout=10)
-          except Exception:
-              dump_wg_debug(client, "client")
-              dump_wg_debug(hub, "hub")
-              raise
+          client.wait_until_succeeds("ping -c 1 -W 1 10.77.0.1")
+          client.wait_until_succeeds("wg show wg0 latest-handshakes | awk '{print $2}' | grep -v '^0$'")
+          hub.wait_until_succeeds("wg show wg0 latest-handshakes | awk '{print $2}' | grep -v '^0$'")
 
       with subtest("overlay connectivity works both directions"):
           client.succeed("ping -c 3 10.77.0.1")
