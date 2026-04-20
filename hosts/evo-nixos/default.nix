@@ -7,6 +7,7 @@
       ./hardware-configuration.nix
       ../../modules/common
       ../../modules/desktop
+      ../../modules/roles/gaming
       ../../modules/users
       ../../modules/hosts/efi-systemd-boot
       ../../modules/hosts/unfree
