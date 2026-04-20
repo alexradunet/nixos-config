@@ -14,6 +14,7 @@
   mkBaseNode = ip: {
     virtualisation.vlans = [1];
     networking.useDHCP = false;
+    networking.useNetworkd = true;
     networking.interfaces.eth1.ipv4.addresses = [
       {
         address = ip;
@@ -55,6 +56,125 @@ in {
       with subtest("sync-nix keeps the generated Nix inventory readable"):
           hub.succeed("wg-admin sync-nix >/tmp/peers-path")
           hub.succeed("test -f \"$(cat /tmp/peers-path)\"")
+    '';
+  };
+
+  server-base-smoke = pkgs.testers.runNixOSTest {
+    name = "server-base-smoke";
+
+    nodes.machine = {pkgs, ...}: {
+      imports = [
+        ../../modules/features/nixos/common/module.nix
+        ../../modules/features/nixos/users/module.nix
+        ../../modules/features/nixos/service-openssh/module.nix
+        ../../modules/features/nixos/service-fail2ban/module.nix
+      ];
+
+      networking.hostName = "server-smoke";
+      system.stateVersion = "25.11";
+
+      users.groups.networkmanager = {};
+    };
+
+    testScript = ''
+      start_all()
+      machine.wait_for_unit("multi-user.target")
+      machine.wait_for_unit("sshd.service")
+      machine.wait_for_unit("fail2ban.service")
+
+      with subtest("server profile enables hardened ssh"):
+          machine.succeed("sshd -T | grep -F 'permitrootlogin no'")
+          machine.succeed("sshd -T | grep -F 'passwordauthentication no'")
+
+      with subtest("server profile provisions base user and shell"):
+          machine.succeed("id alex")
+          machine.succeed("id -nG alex | tr ' ' '\n' | grep -Fx wheel")
+          machine.succeed("id -nG alex | tr ' ' '\n' | grep -Fx networkmanager")
+          machine.succeed("getent passwd alex | cut -d: -f7 | grep -F 'zsh'")
+
+      with subtest("fail2ban and common system settings are active"):
+          machine.succeed("fail2ban-client status sshd | grep -F 'Status for the jail: sshd'")
+          machine.succeed("timedatectl show -p Timezone --value | grep -Fx Europe/Bucharest")
+    '';
+  };
+
+  desktop-workstation-smoke = pkgs.testers.runNixOSTest {
+    name = "desktop-workstation-smoke";
+
+    nodes.machine = {pkgs, ...}: {
+      imports = [
+        ../../modules/features/nixos/common/module.nix
+        ../../modules/features/nixos/desktop/module.nix
+        ../../modules/features/nixos/users/module.nix
+        ../../modules/features/nixos/service-networkmanager/module.nix
+        ../../modules/features/nixos/service-openssh/module.nix
+        ../../modules/features/nixos/service-fail2ban/module.nix
+        ../../modules/features/nixos/service-syncthing/module.nix
+      ];
+
+      networking.hostName = "desktop-smoke";
+      system.stateVersion = "25.11";
+
+      users.groups.networkmanager = {};
+    };
+
+    testScript = ''
+      start_all()
+      machine.wait_for_unit("display-manager.service")
+      machine.wait_for_unit("NetworkManager.service")
+      machine.wait_for_unit("sshd.service")
+      machine.wait_for_unit("fail2ban.service")
+      machine.wait_for_unit("syncthing.service")
+
+      with subtest("desktop profile enables graphical and audio stack"):
+          machine.succeed("systemctl is-active display-manager.service")
+          machine.succeed("command -v pw-cli >/dev/null")
+          machine.succeed("systemctl cat bluetooth.service >/dev/null")
+          machine.succeed("command -v firefox >/dev/null")
+
+      with subtest("desktop profile keeps core workstation services up"):
+          machine.succeed("systemctl is-active NetworkManager.service")
+          machine.succeed("systemctl is-active sshd.service")
+          machine.succeed("fail2ban-client status sshd | grep -F 'Status for the jail: sshd'")
+          machine.succeed("systemctl is-active syncthing.service")
+    '';
+  };
+
+  laptop-workstation-smoke = pkgs.testers.runNixOSTest {
+    name = "laptop-workstation-smoke";
+
+    nodes.machine = {pkgs, ...}: {
+      imports = [
+        ../../modules/features/nixos/common/module.nix
+        ../../modules/features/nixos/desktop/module.nix
+        ../../modules/features/nixos/laptop/module.nix
+        ../../modules/features/nixos/users/module.nix
+        ../../modules/features/nixos/service-networkmanager/module.nix
+        ../../modules/features/nixos/service-openssh/module.nix
+        ../../modules/features/nixos/service-fail2ban/module.nix
+        ../../modules/features/nixos/service-syncthing/module.nix
+      ];
+
+      networking.hostName = "laptop-smoke";
+      system.stateVersion = "25.11";
+
+      users.groups.networkmanager = {};
+    };
+
+    testScript = ''
+      start_all()
+      machine.wait_for_unit("display-manager.service")
+      machine.wait_for_unit("NetworkManager.service")
+      machine.wait_for_unit("syncthing.service")
+
+      with subtest("laptop profile inherits desktop stack"):
+          machine.succeed("systemctl is-active display-manager.service")
+          machine.succeed("systemctl is-active NetworkManager.service")
+          machine.succeed("systemctl is-active syncthing.service")
+
+      with subtest("laptop-specific power management is configured"):
+          machine.succeed("systemctl cat power-profiles-daemon.service >/dev/null")
+          machine.succeed("command -v powerprofilesctl >/dev/null")
     '';
   };
 

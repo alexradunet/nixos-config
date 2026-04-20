@@ -8,8 +8,12 @@
     system,
     ...
   }: let
-    alexHome = config.flake.nixosConfigurations.pad-nixos.config.home-manager.users.alex.home;
-    llmWikiActivation = config.flake.nixosConfigurations.pad-nixos.config.home-manager.users.alex.home.activation.llmWikiStarter;
+    padConfig = config.flake.nixosConfigurations.pad-nixos.config;
+    evoConfig = config.flake.nixosConfigurations.evo-nixos.config;
+    vpsConfig = config.flake.nixosConfigurations.vps-nixos.config;
+
+    alexHome = padConfig.home-manager.users.alex.home;
+    llmWikiActivation = padConfig.home-manager.users.alex.home.activation.llmWikiStarter;
     nixosTests = lib.filterAttrs (_: lib.isDerivation) (pkgs.callPackage ../../tests/nixos {});
   in {
     checks =
@@ -42,6 +46,79 @@
           printf '%s\n' "$activation_script" | grep -F 'pages/journal/daily' >/dev/null
           printf '%s\n' "$activation_script" | grep -F 'templates/obsidian/daily-journal.md' >/dev/null
           printf '%s\n' "$activation_script" | grep -F 'templates/obsidian/page.md' >/dev/null
+
+          touch $out
+        '';
+
+        host-contracts = pkgs.runCommand "host-contracts-check" {} ''
+          test '${evoConfig.networking.hostName}' = 'evo-nixos'
+          test '${padConfig.networking.hostName}' = 'pad-nixos'
+          test '${vpsConfig.networking.hostName}' = 'vps-nixos'
+
+          test '${
+            if evoConfig.networking.networkmanager.enable
+            then "1"
+            else "0"
+          }' = '1'
+          test '${
+            if evoConfig.services.syncthing.enable
+            then "1"
+            else "0"
+          }' = '1'
+          test '${
+            if evoConfig.services.displayManager.sddm.enable
+            then "1"
+            else "0"
+          }' = '1'
+          test '${
+            if evoConfig.services.desktopManager.plasma6.enable
+            then "1"
+            else "0"
+          }' = '1'
+          test '${
+            if evoConfig.services.pipewire.enable
+            then "1"
+            else "0"
+          }' = '1'
+
+          test '${
+            if padConfig.services."power-profiles-daemon".enable
+            then "1"
+            else "0"
+          }' = '1'
+          test '${
+            if padConfig.services.fail2ban.enable
+            then "1"
+            else "0"
+          }' = '1'
+          test '${
+            if padConfig.hardware.bluetooth.enable
+            then "1"
+            else "0"
+          }' = '1'
+
+          test '${
+            if vpsConfig.services."wg-admin".enable
+            then "1"
+            else "0"
+          }' = '1'
+          test '${vpsConfig.services."wg-admin".stateDir}' = '/home/alex/.local/state/wg-admin'
+          test '${
+            if vpsConfig.services.openssh.openFirewall
+            then "1"
+            else "0"
+          }' = '1'
+
+          test '${
+            if evoConfig.services.openssh.enable
+            then "1"
+            else "0"
+          }' = '1'
+          test '${
+            if vpsConfig.users.users.alex.isNormalUser
+            then "1"
+            else "0"
+          }' = '1'
 
           touch $out
         '';
