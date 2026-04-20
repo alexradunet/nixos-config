@@ -30,21 +30,21 @@ in {
     package = pkgs.llama-cpp.override {cudaSupport = true;};
 
     hfRepo = "bartowski/google_gemma-4-26B-A4B-it-GGUF";
-    hfFile = "google_gemma-4-26B-A4B-it-IQ4_XS.gguf"; # 14.2 GB, fits in 15.8 GB VRAM
+    hfFile = "google_gemma-4-26B-A4B-it-IQ4_XS.gguf"; # 14.2 GB
 
     # MoE model: push all layers to GPU, extra CPU threads for expert routing
     nGpuLayers = 99;
     threads = 8;
 
-    # 32 K context — good balance of memory headroom and usability
+    # Vision encoder disabled — frees ~1.1 GB VRAM, allowing larger context
+    # Re-enable by removing --no-mmproj when vision is needed
     contextSize = 32768;
 
     host = "127.0.0.1";
     port = 8080;
 
-    # Flash-attention saves VRAM during long-context inference.
-    # Use the env var form to avoid CLI optional-value parsing ambiguity.
     environmentVariables.LLAMA_ARG_FLASH_ATTN = "on";
+    extraArgs = ["--no-mmproj"];
 
     # HF_TOKEN injected at runtime from sops — never in the Nix store.
     # Guard with pathExists so the config evaluates cleanly on machines
