@@ -596,45 +596,6 @@
     appropriate areas and tags. Keep it brief and factual.
   '';
 in {
-  # ── qmd collection configuration ────────────────────────────────────────────
-  # Managed declaratively — edit this file and rebuild to change collections.
-  # After a rebuild run `qmd embed` once to (re-)generate embeddings.
-  # The YAML is read-only from the nix store; use `qmd search` / `qmd query`
-  # freely — those only write to ~/.cache/qmd/index.sqlite.
-  home.file.".config/qmd/index.yml".text = ''
-    # QMD Collections — managed by NixOS (modules/features/home/pi/resources.nix)
-    # Manual edits are overwritten on rebuild. Use `qmd embed` after switching.
-
-    global_context: >-
-      Technical and personal knowledge base. If you see a [[WikiLink]], search
-      for that exact term to get more context on it.
-
-    collections:
-      nixpi:
-        path: ${nixpiWikiDir}
-        pattern: "pages/**/*.md"
-        ignore:
-          - "pages/sources/**"
-        context:
-          "/": "NixPI technical wiki — NixOS config, Pi agent, infrastructure, AI, and architecture"
-          "/pages/journal": "Technical journal entries"
-          "/pages/technical": "Direct technical notes"
-          "/pages/resources/technical": "Technical reference pages"
-          "/pages/areas/technical": "Long-lived technical areas"
-
-      personal:
-        path: ${nazarWikiDir}
-        pattern: "pages/**/*.md"
-        ignore:
-          - "pages/sources/**"
-        includeByDefault: false
-        context:
-          "/": "Personal wiki (Nazar operator) — journal, tasks, health, personal areas"
-          "/pages/journal/daily": "Daily journal entries"
-          "/pages/tasks": "Task tracking"
-          "/pages/areas/health": "Health and wellness notes"
-  '';
-
 
   home.file.".pi/agent/prompts/.keep".text = "";
   home.file.".pi/agent/skills/.keep".text = "";

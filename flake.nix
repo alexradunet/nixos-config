@@ -25,7 +25,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    qmd.url = "github:tobi/qmd";
   };
 
   outputs = inputs @ {flake-parts, ...}:

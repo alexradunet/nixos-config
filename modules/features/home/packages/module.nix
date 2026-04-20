@@ -16,6 +16,5 @@
     dua # interactive disk-usage analyser — faster than `du`
     procs # colourised `ps` with tree view and search
     bottom # GPU-aware `htop` replacement with charts
-    qmd # hybrid BM25/vector search for markdown (llm-wiki search backend)
   ];
 }
