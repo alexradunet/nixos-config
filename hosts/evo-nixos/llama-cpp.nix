@@ -11,15 +11,26 @@
 # Monitor:
 #   journalctl -u llama-server -f
 #   curl http://127.0.0.1:8080/health
-{pkgs, ...}: {
+{config, lib, pkgs, ...}: let
+  secretFile = ../../secrets/evo-nixos.yaml;
+  hasSecrets = builtins.pathExists secretFile;
+in {
+  # Render HF_TOKEN into an EnvironmentFile that systemd loads at runtime.
+  # Only active when secrets/evo-nixos.yaml is git-tracked and present.
+  sops.templates."llama-server-env" = lib.mkIf hasSecrets {
+    content = ''HF_TOKEN=${config.sops.placeholder."hf-token"}'';    owner = "llama-server";
+    group = "llama-server";
+    mode = "0400";
+  };
+
   services.llama-server = {
     enable = true;
 
     # Build llama-cpp with CUDA support for the RTX 5060 Ti (sm_120 / Blackwell)
     package = pkgs.llama-cpp.override {cudaSupport = true;};
 
-    hfRepo = "bartowski/gemma-4-27b-it-GGUF";
-    hfFile = "gemma-4-27b-it-Q4_K_M.gguf";
+    hfRepo = "bartowski/google_gemma-4-26B-A4B-it-GGUF";
+    hfFile = "google_gemma-4-26B-A4B-it-IQ4_XS.gguf"; # 14.2 GB, fits in 15.8 GB VRAM
 
     # MoE model: push all layers to GPU, extra CPU threads for expert routing
     nGpuLayers = 99;
@@ -31,7 +42,16 @@
     host = "127.0.0.1";
     port = 8080;
 
-    # Flash-attention saves VRAM during long-context inference
-    extraArgs = ["--flash-attn"];
+    # Flash-attention saves VRAM during long-context inference.
+    # Use the env var form to avoid CLI optional-value parsing ambiguity.
+    environmentVariables.LLAMA_ARG_FLASH_ATTN = "on";
+
+    # HF_TOKEN injected at runtime from sops — never in the Nix store.
+    # Guard with pathExists so the config evaluates cleanly on machines
+    # that haven't staged secrets/evo-nixos.yaml yet.
+    environmentFile =
+      if hasSecrets
+      then config.sops.templates."llama-server-env".path
+      else null;
   };
 }

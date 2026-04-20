@@ -110,6 +110,17 @@ in {
       default = {};
       description = "Extra environment variables for the service.";
     };
+
+    environmentFile = lib.mkOption {
+      type = lib.types.nullOr lib.types.path;
+      default = null;
+      example = lib.literalExpression "config.sops.templates.\"llama-server-env\".path";
+      description = ''
+        Path to a systemd EnvironmentFile (KEY=VALUE format).
+        Use this to inject secrets such as HF_TOKEN without
+        putting them in the Nix store.
+      '';
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -157,6 +168,9 @@ in {
         ExecStart = "${cfg.package}/bin/llama-server ${lib.concatStringsSep " " serverArgs}";
         Restart = "on-failure";
         RestartSec = "10s";
+
+        # Secrets injected via an environment file (e.g. HF_TOKEN)
+        EnvironmentFile = lib.mkIf (cfg.environmentFile != null) [ cfg.environmentFile ];
 
         # Persistent state: downloaded models, HF cache
         StateDirectory = "llama-server";
