@@ -63,6 +63,15 @@
         ./modules/features/home/host-pad-nixos/flake-module.nix
         ./modules/features/home/host-vps-nixos/flake-module.nix
 
+        ./modules/profiles/nixos/desktop-workstation.nix
+        ./modules/profiles/nixos/laptop-workstation.nix
+        ./modules/profiles/nixos/server-base.nix
+        ./modules/profiles/nixos/gaming-nvidia.nix
+        ./modules/profiles/home/base.nix
+        ./modules/profiles/home/host-evo-nixos.nix
+        ./modules/profiles/home/host-pad-nixos.nix
+        ./modules/profiles/home/host-vps-nixos.nix
+
         ./modules/users/alex.nix
         ./modules/hosts/evo-nixos.nix
         ./modules/hosts/pad-nixos.nix

@@ -50,8 +50,10 @@ This repo now follows a dendritic pattern with flake-parts.
 
 - `modules/features/nixos/*` - reusable exported NixOS features
 - `modules/features/home/*` - reusable exported Home Manager features
-- `modules/hosts/*.nix` - host composition using exported features
+- `modules/hosts/*.nix` - host composition using exported features and profiles
 - `modules/users/*.nix` - user composition using exported home features
+- `modules/profiles/nixos/*.nix` - higher-level system profile bundles
+- `modules/profiles/home/*.nix` - higher-level home profile bundles
 - `modules/secrets/flake-module.nix` - exported `sops-nix` modules
 - `modules/packages/flake-module.nix` - overlay, packages, apps, formatter, dev shell
 - `modules/checks/flake-module.nix` - flake checks
@@ -63,6 +65,17 @@ Notable exported features include:
 - `service-networkmanager`, `service-openssh`, `service-fail2ban`, `service-syncthing`
 - `service-wireguard`, a simple hub-and-spoke overlay built on `networking.wireguard` with the networkd backend
 - `service-wg-admin`
+
+Current higher-level profiles include:
+
+- `profile-desktop-workstation`
+- `profile-laptop-workstation`
+- `profile-server-base`
+- `profile-gaming-nvidia`
+- `profile-base`
+- `profile-host-evo-nixos`
+- `profile-host-pad-nixos`
+- `profile-host-vps-nixos`
 
 ### `pkgs/`
 

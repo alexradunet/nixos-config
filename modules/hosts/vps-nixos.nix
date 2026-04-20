@@ -28,13 +28,7 @@
           };
         }
         ../../hosts/vps-nixos/hardware-configuration.nix
-        config.flake.nixosModules.sops
-        config.flake.nixosModules.common
-        config.flake.nixosModules.users
-        config.flake.nixosModules.host-unfree
-        config.flake.nixosModules.service-openssh
-        config.flake.nixosModules.service-fail2ban
-        config.flake.nixosModules.service-wireguard
+        config.flake.nixosModules.profile-server-base
         config.flake.nixosModules.service-wg-admin
         inputs.home-manager.nixosModules.home-manager
         {
@@ -42,7 +36,7 @@
           home-manager.useUserPackages = true;
           home-manager.users.alex.imports = [
             config.flake.homeModules.alex
-            config.flake.homeModules.host-vps-nixos
+            config.flake.homeModules.profile-host-vps-nixos
           ];
         }
       ]
