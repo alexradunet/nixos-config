@@ -13,6 +13,8 @@
     extraConfig = ''
       set -g set-clipboard on
       set -g renumber-windows on
+      set -g extended-keys on
+      set -g extended-keys-format csi-u
       set -as terminal-features ',xterm-256color:RGB'
       set -as terminal-features ',ghostty:RGB'
 
