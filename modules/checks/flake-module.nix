@@ -15,6 +15,7 @@
 
     alexHome = padConfig.home-manager.users.alex.home;
     llmWikiActivation = padConfig.home-manager.users.alex.home.activation.wikiStarter;
+    piGuardrailsActivation = padConfig.home-manager.users.alex.home.activation.piGuardrails;
     nixosTests = lib.filterAttrs (_: lib.isDerivation) (pkgs.callPackage ../../tests/nixos {inherit config inputs;});
   in {
     checks =
@@ -36,15 +37,42 @@
         llm-wiki-home = pkgs.runCommand "llm-wiki-home-check" {} ''
           session_var=${lib.escapeShellArg alexHome.sessionVariables.PI_LLM_WIKI_DIR}
           extension_source=${lib.escapeShellArg (toString alexHome.file.".pi/agent/extensions/llm-wiki".source)}
+          persona_extension=${lib.escapeShellArg (toString alexHome.file.".pi/agent/extensions/persona".source)}
+          os_extension=${lib.escapeShellArg (toString alexHome.file.".pi/agent/extensions/os".source)}
+          nixpi_extension=${lib.escapeShellArg (toString alexHome.file.".pi/agent/extensions/nixpi".source)}
+          os_skill=${lib.escapeShellArg (toString alexHome.file.".pi/agent/skills/os-operations/SKILL.md".source)}
+          self_evolution_skill=${lib.escapeShellArg (toString alexHome.file.".pi/agent/skills/self-evolution/SKILL.md".source)}
+          provisioning_skill=${lib.escapeShellArg (toString alexHome.file.".pi/agent/skills/provisioning/SKILL.md".source)}
+          first_boot_skill=${lib.escapeShellArg (toString alexHome.file.".pi/agent/skills/first-boot/SKILL.md".source)}
           activation_script=${lib.escapeShellArg llmWikiActivation.data}
+          guardrails_activation=${lib.escapeShellArg piGuardrailsActivation.data}
           llm_router_activation=${lib.escapeShellArg padConfig.home-manager.users.alex.home.activation.llmRouter.data}
 
           test "$session_var" = "/home/alex/Workspace/Knowledge"
           test -d "$extension_source"
+          test -d "$persona_extension"
+          test -d "$os_extension"
+          test -d "$nixpi_extension"
+          test -f "$os_skill"
+          test -f "$self_evolution_skill"
+          test -f "$provisioning_skill"
+          test -f "$first_boot_skill"
 
           printf '%s\n' "$activation_script" | grep -F 'pages/projects' >/dev/null
           printf '%s\n' "$activation_script" | grep -F 'pages/resources/technical' >/dev/null
           printf '%s\n' "$activation_script" | grep -F 'templates/markdown' >/dev/null
+
+          printf '%s\n' "$guardrails_activation" | grep -F '.pi/agent/guardrails.yaml' >/dev/null
+          printf '%s\n' "$guardrails_activation" | grep -F 'extensions/persona/guardrails.yaml' >/dev/null
+
+          grep -F 'session_before_compact' "$persona_extension/index.ts" >/dev/null
+          grep -F 'tool_call' "$persona_extension/index.ts" >/dev/null
+          grep -F 'system_health' "$os_extension/index.ts" >/dev/null
+          grep -F 'nixos_update' "$os_extension/index.ts" >/dev/null
+          grep -F 'systemd_control' "$os_extension/index.ts" >/dev/null
+          grep -F 'nixpi_status' "$nixpi_extension/index.ts" >/dev/null
+          grep -F 'Choose the Lightest Mechanism' "$self_evolution_skill" >/dev/null
+          grep -F 'Standard Triage Flow' "$os_skill" >/dev/null
 
           printf '%s\n' "$llm_router_activation" | grep -F 'with_entries(select(.key != "cortecs"))' >/dev/null
           printf '%s\n' "$llm_router_activation" | grep -F 'Private (secret missing; using technical provider)' >/dev/null

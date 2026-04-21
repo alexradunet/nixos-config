@@ -144,6 +144,7 @@ in {
   home.file.".pi/agent/extensions/wg-admin".source = ./extensions/wg-admin;
   home.file.".pi/agent/extensions/persona".source = ./extensions/persona;
   home.file.".pi/agent/extensions/os".source = ./extensions/os;
+  home.file.".pi/agent/extensions/nixpi".source = ./extensions/nixpi;
 
   # ── PI skills ─────────────────────────────────────────────────────────────
   home.file.".pi/agent/skills/librarian/SKILL.md".source = "${piWebAccessRoot}/skills/librarian/SKILL.md";
