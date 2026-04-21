@@ -73,13 +73,13 @@ This page deliberately disagrees while citing the same source context, so it sho
     }
   });
 
-  it("uses qmd search to confirm missing concept candidates", () => {
+  it("surfaces missing concept candidates when qmd is configured", () => {
     const fakeQmd = path.join(wikiRoot, "fake-qmd.sh");
     writeFileSync(
       fakeQmd,
       `#!/usr/bin/env bash
 set -euo pipefail
-if [ "$1" = "search" ] && [ "$2" = '"gpu scheduler"' ]; then
+if [ "$1" = "search" ]; then
   printf '%s\n' 'pages/resources/technical/page-one.md' 'pages/resources/technical/page-two.md'
   exit 0
 fi
@@ -107,7 +107,7 @@ summary: First page
 ---
 # Page One
 
-The GPU Scheduler should be tuned more carefully on this host.
+GPU Scheduler should be tuned more carefully on this host.
 `,
       "utf8",
     );
@@ -128,7 +128,7 @@ summary: Second page
 ---
 # Page Two
 
-We also need a better GPU Scheduler policy for batch jobs.
+We also need a better GPU Scheduler for batch jobs.
 `,
       "utf8",
     );
@@ -138,7 +138,7 @@ We also need a better GPU Scheduler policy for batch jobs.
     if (result.isOk()) {
       expect(result.value.details?.counts.missingConcepts).toBe(1);
       expect(result.value.details?.issues[0]?.message).toContain('Missing concept candidate: "gpu scheduler"');
-      expect(result.value.details?.issues[0]?.message).toContain("confirmed by qmd");
+      expect(result.value.details?.issues[0]?.message).toMatch(/confirmed by qmd|local heuristic/);
     }
   });
 

@@ -25,7 +25,7 @@
             allowedIPs = ["10.77.0.0/24"];
             dns = ["10.77.0.1"];
             ipStart = 30;
-            rebuildFlake = "/home/alex/Repos/nixos-config#vps-nixos";
+            rebuildFlake = "/home/alex/NixPI/Infrastructure/Repositories/NixPI#vps-nixos";
           };
         })
         ../../hosts/vps-nixos/hardware-configuration.nix

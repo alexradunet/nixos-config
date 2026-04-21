@@ -12,10 +12,10 @@ The structure is intentionally shallow and tool-agnostic.
 ## Root
 
 ```text
-Wiki/
+Knowledge/
 ├── README.md
 ├── WIKI_CANONICAL_STRUCTURE.md
-├── WIKI_SCHEMA.md          # schema v2
+├── WIKI_SCHEMA.md          # current schema reference
 ├── WIKI_RULES.md
 ├── WIKI_OBJECT_MODEL.md
 ├── meta/

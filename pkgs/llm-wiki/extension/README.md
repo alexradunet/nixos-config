@@ -13,14 +13,14 @@ It provides these tools:
 
 ## Storage path
 
-By default it stores wiki data under `~/Sync/llm-wiki`.
+By default it stores wiki data under `~/NixPI/Knowledge`.
 You can override that with `PI_LLM_WIKI_DIR`.
 
 ## Obsidian support
 
-Open `~/Sync/llm-wiki` directly as an Obsidian vault.
-The extension uses plain markdown, frontmatter, and wikilinks, so manual edits work naturally.
-The starter also seeds `templates/obsidian/` with simple page and daily-journal templates.
+Open `~/NixPI/Knowledge` directly as an Obsidian vault.
+The extension uses plain markdown and frontmatter, so manual edits work naturally.
+The starter seeds the canonical `templates/markdown/` structure used by the workspace wiki.
 
 ## Domain separation and PARA
 

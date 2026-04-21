@@ -1,4 +1,4 @@
-# Wiki Schema — v2
+# Wiki Schema
 
 Plain Markdown + YAML frontmatter.
 Designed for humans, LLMs, and generic tooling.
@@ -7,7 +7,7 @@ Schema version: `1`
 
 ---
 
-## What changed in v2
+## What changed in the current schema
 
 | field | status | change |
 |---|---|---|

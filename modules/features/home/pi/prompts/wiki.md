@@ -7,7 +7,7 @@ Start a wiki session.
 
 1. Call `wiki_status` to check the current state.
 2. Read the planner digest already in context — it shows today's note, overdue tasks, upcoming events, and open reminders.
-3. Read `/home/alex/Wiki/WIKI_SCHEMA.md` briefly to confirm the schema version.
+3. Read `/home/alex/NixPI/Knowledge/WIKI_SCHEMA.md` briefly to confirm the schema version.
 4. If the user provided an argument, focus on that: $@
 5. Otherwise ask: "What would you like to do today — daily note, capture, review, or something else?"
 

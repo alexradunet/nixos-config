@@ -3,7 +3,7 @@ name: wiki-migration
 description: >
   Migrate personal knowledge notes from ~/Wiki_backup into the new
   plain-Markdown wiki at ~/NixPI/Knowledge. Use when asked to migrate notes, convert
-  legacy frontmatter to the v2 schema with stable ids and object_type, or
+  legacy frontmatter to the current schema with stable ids and object_type, or
   move files from the old structure. Uses qmd for local hybrid retrieval to
   narrow candidates before reading. Works in small ordered batches suited to
   a local or weak model. Covers projects, areas, people, knowledge, sources,

@@ -2,7 +2,7 @@ import os from "node:os";
 import path from "node:path";
 
 export function getWikiRoot(): string {
-	return process.env.PI_LLM_WIKI_DIR ?? path.join(os.homedir(), "Sync", "Wiki", "NixPI");
+	return process.env.PI_LLM_WIKI_DIR ?? path.join(os.homedir(), "NixPI", "Knowledge");
 }
 
 /**

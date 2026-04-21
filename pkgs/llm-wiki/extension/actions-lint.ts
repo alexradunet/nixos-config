@@ -54,9 +54,28 @@ function overlapCount(a: string[], b: string[]): number {
 	return [...new Set(a)].filter((token) => bSet.has(token)).length;
 }
 
+function normalizeCandidatePhrase(value: string): string {
+	return value.trim().replace(/^(?:The|A|An)\s+/, "");
+}
+
 function extractCandidatePhrases(text: string): string[] {
 	const matches = text.match(/\b(?:[A-Z][a-z0-9]+|[A-Z]{2,})(?:\s+(?:[A-Z][a-z0-9]+|[A-Z]{2,})){1,3}\b/g) ?? [];
-	return [...new Set(matches.map((value) => value.trim()).filter((value) => value.length >= 6))];
+	const phrases = new Set<string>();
+
+	for (const match of matches) {
+		const normalized = normalizeCandidatePhrase(match);
+		if (normalized.length >= 6) phrases.add(normalized);
+
+		const tokens = normalized.split(/\s+/).filter(Boolean);
+		for (let size = 2; size <= Math.min(3, tokens.length); size += 1) {
+			for (let start = 0; start <= tokens.length - size; start += 1) {
+				const subphrase = tokens.slice(start, start + size).join(" ");
+				if (subphrase.length >= 6) phrases.add(subphrase);
+			}
+		}
+	}
+
+	return [...phrases];
 }
 
 function getQmdBin(): string {
@@ -64,19 +83,23 @@ function getQmdBin(): string {
 }
 
 function queryQmdFiles(phrase: string): string[] | undefined {
-	try {
-		const stdout = execFileSync(getQmdBin(), ["search", `\"${phrase}\"`, "-c", QMD_COLLECTION, "--files", "-n", "20"], {
-			encoding: "utf8",
-			stdio: ["ignore", "pipe", "ignore"],
-		});
-		return stdout
-			.split("\n")
-			.map((line) => line.trim())
-			.filter(Boolean)
-			.filter((line) => line.endsWith(".md"));
-	} catch {
-		return undefined;
+	for (const query of [phrase, `"${phrase}"`]) {
+		try {
+			const stdout = execFileSync(getQmdBin(), ["search", query, "-c", QMD_COLLECTION, "--files", "-n", "20"], {
+				encoding: "utf8",
+				stdio: ["ignore", "pipe", "ignore"],
+			});
+			const files = stdout
+				.split("\n")
+				.map((line) => line.trim())
+				.filter(Boolean)
+				.filter((line) => line.endsWith(".md"));
+			if (files.length > 0) return files;
+		} catch {
+			// Try the next query variant before falling back to the local heuristic.
+		}
 	}
+	return undefined;
 }
 
 function extractMarkdownLinks(markdown: string): string[] {
@@ -552,11 +575,22 @@ function lintMissingConcepts(pages: ReturnType<typeof scanPages>, registry: Regi
 		registry.pages.flatMap((page) => [page.title, ...page.aliases]).map(normalizePhrase).filter(Boolean),
 	);
 	const localMentions = collectLocalPhraseMentions(pages);
+	const repeatedMentions = [...localMentions.entries()].filter(([, mentionPaths]) => mentionPaths.length >= MISSING_CONCEPT_MENTION_THRESHOLD);
 	const issues: LintIssue[] = [];
 
-	for (const [phrase, mentionPaths] of localMentions) {
+	for (const [phrase, mentionPaths] of repeatedMentions) {
 		if (existingNames.has(phrase)) continue;
-		if (mentionPaths.length < MISSING_CONCEPT_MENTION_THRESHOLD) continue;
+
+		const phraseTokens = phrase.split(" ").filter(Boolean);
+		const coveredByMoreSpecificPhrase = repeatedMentions.some(([otherPhrase, otherPaths]) => {
+			if (otherPhrase === phrase) return false;
+			if (otherPaths.length !== mentionPaths.length) return false;
+			if (otherPhrase.split(" ").length <= phraseTokens.length) return false;
+			if (!otherPhrase.includes(phrase)) return false;
+			return otherPaths.every((pathValue, index) => pathValue === mentionPaths[index]);
+		});
+		if (coveredByMoreSpecificPhrase) continue;
+
 		const qmdFiles = queryQmdFiles(phrase);
 		const confirmedPaths = qmdFiles ? [...new Set(qmdFiles)] : mentionPaths;
 		if (confirmedPaths.length < MISSING_CONCEPT_MENTION_THRESHOLD) continue;

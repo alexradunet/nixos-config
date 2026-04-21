@@ -79,7 +79,7 @@ areas: [knowledge-system, organisation]
 status: open
 validation_level: seed
 remind_at: 2026-05-21 09:00
-for: Check whether the v2 schema still feels natural after real use.
+for: Check whether the current schema still feels natural after real use.
 created: 2026-04-21
 updated: 2026-04-21
 related: [home/start-here, concept/object-based-knowledge-system]

@@ -170,7 +170,7 @@ in {
         RestartSec = "10s";
 
         # Secrets injected via an environment file (e.g. HF_TOKEN)
-        EnvironmentFile = lib.mkIf (cfg.environmentFile != null) [ cfg.environmentFile ];
+        EnvironmentFile = lib.mkIf (cfg.environmentFile != null) [cfg.environmentFile];
 
         # Persistent state: downloaded models, HF cache
         StateDirectory = "llama-server";

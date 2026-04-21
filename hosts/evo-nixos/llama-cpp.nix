@@ -11,14 +11,20 @@
 # Monitor:
 #   journalctl -u llama-server -f
 #   curl http://127.0.0.1:8080/health
-{config, lib, pkgs, ...}: let
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}: let
   secretFile = ../../secrets/evo-nixos.yaml;
   hasSecrets = builtins.pathExists secretFile;
 in {
   # Render HF_TOKEN into an EnvironmentFile that systemd loads at runtime.
   # Only active when secrets/evo-nixos.yaml is git-tracked and present.
   sops.templates."llama-server-env" = lib.mkIf hasSecrets {
-    content = ''HF_TOKEN=${config.sops.placeholder."hf-token"}'';    owner = "llama-server";
+    content = ''HF_TOKEN=${config.sops.placeholder."hf-token"}'';
+    owner = "llama-server";
     group = "llama-server";
     mode = "0400";
   };

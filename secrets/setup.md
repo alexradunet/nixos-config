@@ -70,7 +70,7 @@ from that file when it exists.
 ## 5. Rebuild the target host
 
 ```bash
-sudo nixos-rebuild switch --flake ~/nixos-config#evo-nixos
+sudo nixos-rebuild switch --flake ~/NixPI/Infrastructure/Repositories/NixPI#evo-nixos
 ```
 
 ## Notes

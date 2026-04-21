@@ -1,4 +1,9 @@
-{config, lib, pkgs, ...}: let
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}: let
   kwriteconfig = "${pkgs.kdePackages.kconfig}/bin/kwriteconfig6";
   kdeglobals = "${config.home.homeDirectory}/.config/kdeglobals";
 in {
@@ -40,7 +45,7 @@ in {
     '';
   };
 
-  home.activation.weztermDefaultTerminal = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+  home.activation.weztermDefaultTerminal = lib.hm.dag.entryAfter ["writeBoundary"] ''
     $DRY_RUN_CMD mkdir -p "${config.home.homeDirectory}/.config"
     $DRY_RUN_CMD ${kwriteconfig} --file "${kdeglobals}" --group General --key TerminalApplication "wezterm"
     $DRY_RUN_CMD ${kwriteconfig} --file "${kdeglobals}" --group General --key TerminalService "org.wezfurlong.wezterm.desktop"

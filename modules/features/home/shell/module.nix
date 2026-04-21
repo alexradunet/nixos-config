@@ -23,15 +23,15 @@
         export GH_TOKEN="$GITHUB_TOKEN"
       fi
 
-      # Obsidian vault shortcut
+      # Knowledge wiki shortcut
       obsidian-wiki() {
-        nohup obsidian "$HOME/Wiki" >/dev/null 2>&1 &
+        nohup obsidian "$HOME/NixPI/Knowledge" >/dev/null 2>&1 &
       }
 
       # Wiki shortcut for the AI assistant context
       wiki-technical() {
-        export PI_LLM_WIKI_DIR="$HOME/Wiki"
-        echo "Wiki context: Unified (technical + personal)"
+        export PI_LLM_WIKI_DIR="$HOME/NixPI/Knowledge"
+        echo "Wiki context: Knowledge ($PI_LLM_WIKI_DIR)"
       }
     '';
   };

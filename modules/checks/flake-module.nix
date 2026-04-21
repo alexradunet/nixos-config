@@ -40,9 +40,9 @@
           test "$session_var" = "/home/alex/NixPI/Knowledge"
           test -d "$extension_source"
 
-          printf '%s\n' "$activation_script" | grep -F 'pages/projects/technical' >/dev/null
-          printf '%s\n' "$activation_script" | grep -F 'pages/resources/technical/system-landscape.md' >/dev/null
-          printf '%s\n' "$activation_script" | grep -F 'templates/obsidian/page.md' >/dev/null
+          printf '%s\n' "$activation_script" | grep -F 'pages/projects' >/dev/null
+          printf '%s\n' "$activation_script" | grep -F 'pages/resources/technical' >/dev/null
+          printf '%s\n' "$activation_script" | grep -F 'templates/markdown' >/dev/null
 
           touch $out
         '';

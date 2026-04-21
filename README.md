@@ -1,4 +1,4 @@
-# nixos-config
+# NixPI infrastructure
 
 Personal multi-host NixOS fleet config.
 
@@ -7,7 +7,7 @@ Personal multi-host NixOS fleet config.
 - Keep one repo for all machines
 - Reuse shared modules across device types
 - Keep host-specific differences small and explicit
-- Prepare infrastructure first, so nixpi can be added later cleanly
+- Keep the infrastructure repo aligned with the canonical `~/NixPI` workspace layout
 
 ## Structure
 
@@ -169,7 +169,7 @@ wg-admin list
 wg-admin add iphone-alex
 wg-admin conf iphone-alex
 wg-admin qr iphone-alex
-sudo nixos-rebuild switch --flake ~/nixos-config#vps-nixos
+sudo nixos-rebuild switch --flake ~/NixPI/Infrastructure/Repositories/NixPI#vps-nixos
 ```
 
 Higher-level shortcuts:
@@ -196,18 +196,18 @@ Pi also gets a bundled `wg-admin` extension + skill so the assistant can use the
 
 These are created declaratively:
 
-- `~/Sync`
-- `~/Sync/llm-wiki`
-- `~/Repos`
+- `~/NixPI`
+- `~/NixPI/Knowledge`
+- `~/NixPI/Infrastructure/Repositories`
 
 ### Syncing
 
 Syncthing currently syncs:
 
-- `~/Sync`
+- `~/NixPI/Knowledge`
 
-Git repos under `~/Repos` are **not** synced with Syncthing.
-Use Git/GitHub for those.
+The infrastructure repo under `~/NixPI/Infrastructure/Repositories` is **not** synced with Syncthing.
+Use Git/GitHub for code and infrastructure history.
 
 ## Secrets
 
@@ -248,19 +248,19 @@ The dev shell now includes:
 Mini PC:
 
 ```bash
-sudo nixos-rebuild switch --flake ~/nixos-config#evo-nixos
+sudo nixos-rebuild switch --flake ~/NixPI/Infrastructure/Repositories/NixPI#evo-nixos
 ```
 
 VPS:
 
 ```bash
-sudo nixos-rebuild switch --flake ~/nixos-config#vps-nixos
+sudo nixos-rebuild switch --flake ~/NixPI/Infrastructure/Repositories/NixPI#vps-nixos
 ```
 
 Laptop:
 
 ```bash
-sudo nixos-rebuild switch --flake ~/nixos-config#pad-nixos
+sudo nixos-rebuild switch --flake ~/NixPI/Infrastructure/Repositories/NixPI#pad-nixos
 ```
 
 ## Quality checks
@@ -328,4 +328,4 @@ npm run test:coverage
 - shared user config lives in Home Manager
 - machine-specific overrides should stay small and obvious
 - repo-specific binary cache settings live in `flake.nix` via `nixConfig`
-- nixpi is intentionally not integrated yet; this repo is preparing the infrastructure first
+- this repo is the canonical infrastructure layer inside the `~/NixPI` workspace
