@@ -34,9 +34,10 @@
         llm-wiki-tests = pkgs.callPackage ../../pkgs/llm-wiki/tests.nix {};
 
         llm-wiki-home = pkgs.runCommand "llm-wiki-home-check" {} ''
-          session_var='${alexHome.sessionVariables.PI_LLM_WIKI_DIR}'
-          extension_source='${alexHome.file.".pi/agent/extensions/llm-wiki".source}'
-          activation_script='${llmWikiActivation.data}'
+          session_var=${lib.escapeShellArg alexHome.sessionVariables.PI_LLM_WIKI_DIR}
+          extension_source=${lib.escapeShellArg (toString alexHome.file.".pi/agent/extensions/llm-wiki".source)}
+          activation_script=${lib.escapeShellArg llmWikiActivation.data}
+          llm_router_activation=${lib.escapeShellArg padConfig.home-manager.users.alex.home.activation.llmRouter.data}
 
           test "$session_var" = "/home/alex/Workspace/Knowledge"
           test -d "$extension_source"
@@ -44,6 +45,9 @@
           printf '%s\n' "$activation_script" | grep -F 'pages/projects' >/dev/null
           printf '%s\n' "$activation_script" | grep -F 'pages/resources/technical' >/dev/null
           printf '%s\n' "$activation_script" | grep -F 'templates/markdown' >/dev/null
+
+          printf '%s\n' "$llm_router_activation" | grep -F 'with_entries(select(.key != "cortecs"))' >/dev/null
+          printf '%s\n' "$llm_router_activation" | grep -F 'Private (secret missing; using technical provider)' >/dev/null
 
           touch $out
         '';

@@ -241,7 +241,11 @@ in {
         '.providers.cortecs.apiKey = $key' \
         ${llmRouterBaseJson} > "$llm_router_path"
     else
-      cp ${llmRouterBaseJson} "$llm_router_path"
+      ${pkgs.jq}/bin/jq \
+        '.private = (.technical + {label: "Private (secret missing; using technical provider)"})
+         | .providers |= with_entries(select(.key != "cortecs"))
+         | ._warning = "cortecs-api-key missing at activation time; private mode fell back to the technical provider"' \
+        ${llmRouterBaseJson} > "$llm_router_path"
     fi
   '';
 }
