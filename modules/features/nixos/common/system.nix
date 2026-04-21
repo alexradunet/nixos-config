@@ -15,7 +15,7 @@
   # NH_FLAKE is picked up automatically by `nh os switch`, `nh os boot`, etc.
   programs.nh = {
     enable = true;
-    flake = "/home/alex/Repos/nixos-config";
+    flake = "/home/alex/NixPI/Infrastructure/Repositories/NixPI";
 
     # Weekly automatic garbage collection — keeps the store tidy without
     # manual intervention.

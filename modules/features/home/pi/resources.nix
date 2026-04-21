@@ -8,7 +8,7 @@
   llmWikiRoot = "${pkgs.llm-wiki}/share/llm-wiki";
 
   # Wiki root — unified personal + technical vault, synced via Syncthing
-  wikiDir = "${config.home.homeDirectory}/Wiki";
+  wikiDir = "${config.home.homeDirectory}/NixPI/Knowledge";
 
   # Seed directory committed to the repo — provides the canonical structure on
   # fresh devices before Syncthing has had a chance to sync.
@@ -56,7 +56,7 @@
     };
     rules = {
       technical = {
-        cwdContains = ["/Repos" "/nixos-config" "/code" "/src" "/projects" "/Wiki"];
+        cwdContains = ["/NixPI" "/code" "/src" "/projects"];
         filePathContains = [
           "pages/technical"
           "pages/resources/technical"

@@ -3,7 +3,7 @@
 # Usage: bash scan.sh [verify]
 
 BACKUP=/home/alex/Wiki_backup/pages
-NEW=/home/alex/Wiki/pages
+NEW=/home/alex/NixPI/Knowledge/pages
 
 if [ "${1:-}" = "verify" ]; then
   printf '=== Post-batch verification ===\n'

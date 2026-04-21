@@ -1,4 +1,3 @@
 {...}: {
-  home.file."Wiki/.keep".text = "";
-  home.file."Repos/.keep".text = "";
+  home.file."NixPI/.keep".text = "";
 }
