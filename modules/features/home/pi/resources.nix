@@ -215,6 +215,8 @@ in {
       "$wiki_root/pages/planner/reminders" \
       "$wiki_root/pages/planner/reviews" \
       "$wiki_root/pages/projects" \
+      "$wiki_root/pages/projects/nixpi/persona" \
+      "$wiki_root/pages/projects/nixpi/evolution" \
       "$wiki_root/pages/areas" \
       "$wiki_root/pages/resources/knowledge" \
       "$wiki_root/pages/resources/people" \

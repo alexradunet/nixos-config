@@ -3,6 +3,13 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { dirname, join } from "node:path";
 
+const PERSONA_LAYERS = [
+  { title: "Soul", file: "soul.md" },
+  { title: "Body", file: "body.md" },
+  { title: "Faculty", file: "faculty.md" },
+  { title: "Skill", file: "skill.md" },
+] as const;
+
 type Guardrail = { tool: string; pattern: RegExp; label: string };
 type SavedContext = { savedAt: string; host?: string; cwd?: string };
 type BlueprintVersions = {
@@ -183,6 +190,33 @@ function restoredContextBlock(data: SavedContext) {
   return lines.join("\n");
 }
 
+function knowledgeDir() {
+  return join(homeDir(), "Workspace", "Knowledge");
+}
+
+function personaDir() {
+  return join(knowledgeDir(), "pages", "projects", "nixpi", "persona");
+}
+
+function stripFrontmatter(markdown: string) {
+  if (!markdown.startsWith("---\n")) return markdown.trim();
+  const end = markdown.indexOf("\n---\n", 4);
+  if (end === -1) return markdown.trim();
+  return markdown.slice(end + 5).trim();
+}
+
+function loadPersonaPromptBlock() {
+  const sections: string[] = [];
+  for (const layer of PERSONA_LAYERS) {
+    const path = join(personaDir(), layer.file);
+    if (!existsSync(path)) continue;
+    const content = stripFrontmatter(readFileSync(path, "utf-8"));
+    sections.push(`### ${layer.title}\n\n${content}`);
+  }
+  if (sections.length === 0) return "";
+  return `\n\n[PI PERSONA]\n${sections.join("\n\n")}`;
+}
+
 export default function personaExtension(pi: ExtensionAPI) {
   let guardrails: Guardrail[] | null = null;
   let restoredContext = loadContext();
@@ -207,9 +241,11 @@ export default function personaExtension(pi: ExtensionAPI) {
   });
 
   pi.on("before_agent_start", async (event) => {
-    if (!restoredContext) return;
-    const systemPrompt = event.systemPrompt + restoredContextBlock(restoredContext);
-    restoredContext = null;
+    let systemPrompt = event.systemPrompt + loadPersonaPromptBlock();
+    if (restoredContext) {
+      systemPrompt += restoredContextBlock(restoredContext);
+      restoredContext = null;
+    }
     return { systemPrompt };
   });
 

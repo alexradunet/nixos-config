@@ -210,6 +210,25 @@ async function handleSystemdControl(service: string, action: (typeof SYSTEMD_ACT
   };
 }
 
+async function handleScheduleReboot(delayMinutes: number, signal: AbortSignal | undefined, ctx: any) {
+  const delay = Math.max(1, Math.min(7 * 24 * 60, Math.round(delayMinutes)));
+  const denied = await confirm(ctx, `Schedule reboot in ${delay} minute(s)`);
+  if (denied) {
+    return { content: [{ type: "text" as const, text: denied }], details: { ok: false }, isError: true };
+  }
+
+  const result = await run("sudo", ["shutdown", "-r", `+${delay}`], signal);
+  const text = result.exitCode === 0
+    ? `Reboot scheduled in ${delay} minute(s).`
+    : result.stdout || result.stderr || "Failed to schedule reboot.";
+
+  return {
+    content: [{ type: "text" as const, text: truncate(text) }],
+    details: { ok: result.exitCode === 0, exitCode: result.exitCode, delay_minutes: delay },
+    ...(result.exitCode !== 0 ? { isError: true } : {}),
+  };
+}
+
 export default function osExtension(pi: ExtensionAPI) {
   pi.registerTool({
     name: "system_health",
@@ -242,6 +261,23 @@ export default function osExtension(pi: ExtensionAPI) {
     }),
     async execute(_toolCallId, params, signal, _onUpdate, ctx) {
       return handleNixosUpdate(params.action, signal, ctx);
+    },
+  });
+
+  pi.registerTool({
+    name: "schedule_reboot",
+    label: "Schedule Reboot",
+    description: "Schedule a system reboot after a delay in minutes.",
+    promptSnippet: "Use schedule_reboot when a rebuild or maintenance flow needs a delayed restart with explicit confirmation.",
+    promptGuidelines: [
+      "Only use schedule_reboot after the user requests or approves a reboot.",
+      "Prefer a short explicit delay like 1-5 minutes unless the user requests otherwise.",
+    ],
+    parameters: Type.Object({
+      delay_minutes: Type.Number({ description: "Minutes to wait before rebooting", default: 1 }),
+    }),
+    async execute(_toolCallId, params, signal, _onUpdate, ctx) {
+      return handleScheduleReboot(params.delay_minutes, signal, ctx);
     },
   });
 

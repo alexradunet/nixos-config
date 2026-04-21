@@ -1,16 +1,34 @@
-# llama-server configuration for evo-nixos (RTX 5060 Ti, 16 GB VRAM)
+# llama-server configuration for evo-nixos
 #
-# Model: Gemma 4 27B-IT (MoE, ~4B active params)
-#   HF:  bartowski/gemma-4-27b-it-GGUF  /  gemma-4-27b-it-Q4_K_M.gguf
-#   VRAM: ~14 GB at Q4_K_M — fits comfortably in 16 GB
-#   API:  http://127.0.0.1:8080/v1  (OpenAI-compatible)
+# Two independent inference instances, each pinned to its own GPU:
 #
-# On first start the service downloads the model (~14 GB) from HuggingFace
-# into /var/lib/llama-server/hf-cache. Subsequent starts use the cache.
+#   cuda   → NVIDIA RTX 5060 Ti (16 GB VRAM, CUDA)   port 8080
+#            Model: Gemma 4 27B-IT (MoE, ~4B active, Q4_K_M ~12.4 GB)
+#            Fast dense inference, 128K context, flash-attn
+#
+#   vulkan → AMD Radeon 890M iGPU (64 GB unified RAM, Vulkan) port 8081
+#            Model: Qwen3-30B-A3B (MoE, ~3B active, Q4_K_M ~17 GB)
+#            Huge context / long-document work, flash-attn
+#
+# Vulkan device mapping (confirmed via vulkaninfo --summary):
+#   GPU0 = AMD Radeon 890M  (RADV)   ← GGML_VK_VISIBLE_DEVICES=0
+#   GPU1 = NVIDIA RTX 5060 Ti        ← hidden from vulkan instance via CUDA_VISIBLE_DEVICES=-1
+#
+# First-start model downloads (~12 GB CUDA, ~17 GB Vulkan) land in each
+# instance's own HF cache:
+#   /var/lib/llama-server-cuda/hf-cache
+#   /var/lib/llama-server-vulkan/hf-cache
+#
+# Migration note — if upgrading from the old singleton llama-server:
+#   sudo systemctl stop llama-server
+#   sudo mv /var/lib/llama-server /var/lib/llama-server-cuda
+#   sudo chown -R llama-server-cuda:llama-server-cuda /var/lib/llama-server-cuda
 #
 # Monitor:
-#   journalctl -u llama-server -f
+#   journalctl -u llama-server-cuda   -f
+#   journalctl -u llama-server-vulkan -f
 #   curl http://127.0.0.1:8080/health
+#   curl http://127.0.0.1:8081/health
 {
   config,
   lib,
@@ -19,53 +37,103 @@
 }: let
   secretFile = ../../secrets/evo-nixos.yaml;
   hasSecrets = builtins.pathExists secretFile;
-  llamaPkg = pkgs.llama-cpp.override {cudaSupport = true;};
-in {
-  # Expose all llama-* CLI tools (llama-cli, llama-bench, etc.) in PATH.
-  # Uses the same CUDA-enabled build as the service so no extra compilation.
-  environment.systemPackages = [llamaPkg];
 
-  # Render HF_TOKEN into an EnvironmentFile that systemd loads at runtime.
-  # Only active when secrets/evo-nixos.yaml is git-tracked and present.
-  sops.templates."llama-server-env" = lib.mkIf hasSecrets {
+  cudaPkg   = pkgs.llama-cpp.override {cudaSupport = true;};
+  vulkanPkg = pkgs.llama-cpp.override {vulkanSupport = true;};
+in {
+  # Expose llama-* CLI tools for both backends in PATH
+  environment.systemPackages = [cudaPkg vulkanPkg];
+
+  # Give the AMD iGPU access to a large slice of the 64 GB unified RAM pool.
+  # ttm.pages_limit is in 4K pages; 14155776 pages = ~54 GB.
+  # The remaining ~10 GB stays available for the OS and CPU workloads.
+  boot.kernelParams = [
+    "ttm.pages_limit=14155776"
+    "ttm.page_pool_size=14155776"
+  ];
+
+  # Ensure amdgpu is loaded early so the iGPU is ready before the service starts
+  boot.initrd.kernelModules = ["amdgpu"];
+
+  # Sops environment files — one per instance, each owned by its service user
+  sops.templates."llama-server-cuda-env" = lib.mkIf hasSecrets {
     content = ''HF_TOKEN=${config.sops.placeholder."hf-token"}'';
-    owner = "llama-server";
-    group = "llama-server";
+    owner = "llama-server-cuda";
+    group = "llama-server-cuda";
     mode = "0400";
   };
 
-  services.llama-server = {
-    enable = true;
+  sops.templates."llama-server-vulkan-env" = lib.mkIf hasSecrets {
+    content = ''HF_TOKEN=${config.sops.placeholder."hf-token"}'';
+    owner = "llama-server-vulkan";
+    group = "llama-server-vulkan";
+    mode = "0400";
+  };
 
-    # Build llama-cpp with CUDA support for the RTX 5060 Ti (sm_120 / Blackwell)
-    package = llamaPkg;
+  services.llama-servers = {
+    # ── NVIDIA RTX 5060 Ti — CUDA ─────────────────────────────────────────
+    cuda = {
+      enable  = true;
+      package = cudaPkg;
+      port    = 8080;
 
-    hfRepo = "bartowski/google_gemma-4-26B-A4B-it-GGUF";
-    hfFile = "google_gemma-4-26B-A4B-it-IQ3_XS.gguf"; # 12.4 GB — smaller quant frees VRAM for large KV cache
+      hfRepo = "bartowski/google_gemma-4-26B-A4B-it-GGUF";
+      hfFile = "google_gemma-4-26B-A4B-it-IQ3_XS.gguf";
 
-    # MoE model: push all layers to GPU, extra CPU threads for expert routing
-    nGpuLayers = 99;
-    threads = 8;
+      nGpuLayers  = 99;
+      threads     = 8;
+      contextSize = 131072; # 128K — within Gemma 4's 256K window
 
-    # 128K context — within the model's native 256K window
-    # q8_0 KV cache halves KV VRAM vs default f16, enabling this context size
-    contextSize = 131072;
+      environmentVariables = {
+        # Pin this instance to the NVIDIA card only
+        CUDA_VISIBLE_DEVICES       = "0";
+        LLAMA_ARG_FLASH_ATTN       = "on";
+      };
 
-    host = "127.0.0.1";
-    port = 8080;
+      extraArgs = [
+        "--no-mmproj"        # skip vision encoder (~1.1 GB saved)
+        "--cache-type-k" "q8_0"
+        "--cache-type-v" "q8_0"
+      ];
 
-    environmentVariables.LLAMA_ARG_FLASH_ATTN = "on";
+      environmentFile =
+        if hasSecrets
+        then config.sops.templates."llama-server-cuda-env".path
+        else null;
+    };
 
-    # --no-mmproj: skip vision encoder (~1.1 GB saved), text-only for now
-    # --cache-type-k/v q8_0: halve KV cache VRAM vs default f16
-    extraArgs = ["--no-mmproj" "--cache-type-k" "q8_0" "--cache-type-v" "q8_0"];
+    # ── AMD Radeon 890M — Vulkan ───────────────────────────────────────────
+    vulkan = {
+      enable  = true;
+      package = vulkanPkg;
+      port    = 8081;
 
-    # HF_TOKEN injected at runtime from sops — never in the Nix store.
-    # Guard with pathExists so the config evaluates cleanly on machines
-    # that haven't staged secrets/evo-nixos.yaml yet.
-    environmentFile =
-      if hasSecrets
-      then config.sops.templates."llama-server-env".path
-      else null;
+      # Qwen3-30B-A3B: 30B total / 3B active MoE — ideal for unified RAM
+      # ~17 GB at Q4_K_M, leaving ~47 GB for KV cache and OS
+      hfRepo = "bartowski/Qwen3-30B-A3B-Instruct-GGUF";
+      hfFile = "Qwen3-30B-A3B-Instruct-Q4_K_M.gguf";
+
+      nGpuLayers  = 99;
+      threads     = 12; # more CPU threads — expert routing on MoE
+      contextSize = 65536; # 64K — comfortable within unified RAM budget
+
+      environmentVariables = {
+        # Hide NVIDIA from CUDA detection so it doesn't interfere
+        CUDA_VISIBLE_DEVICES    = "-1";
+        # AMD 890M is Vulkan device 0 (confirmed via vulkaninfo --summary)
+        GGML_VK_VISIBLE_DEVICES = "0";
+        LLAMA_ARG_FLASH_ATTN    = "on";
+      };
+
+      extraArgs = [
+        "--cache-type-k" "q8_0"
+        "--cache-type-v" "q8_0"
+      ];
+
+      environmentFile =
+        if hasSecrets
+        then config.sops.templates."llama-server-vulkan-env".path
+        else null;
+    };
   };
 }

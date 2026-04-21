@@ -95,6 +95,30 @@ Shared Home Manager config for `alex` is now composed from dendritic home featur
 - `modules/features/home/host-*` holds host-specific Home Manager additions
 - `modules/features/home/pi/` holds Pi-specific user infrastructure
 
+### Restored PI runtime capabilities
+
+The Pi runtime now restores several capabilities that previously lived in `NixPI-old`, adapted to the current multi-host repo:
+
+- `persona` extension
+  - enforces `guardrails.yaml` for dangerous bash commands
+  - preserves compacted session context across compaction cycles
+  - tracks blueprint state for seeded PI runtime files
+- `os` extension
+  - `system_health`
+  - `nixos_update`
+  - `systemd_control`
+- `nixpi` extension
+  - `nixpi_status` tool
+  - `/nixpi status`
+  - `/nixpi update-blueprints`
+- restored PI skills
+  - `os-operations`
+  - `self-evolution`
+  - `provisioning`
+  - `first-boot`
+
+These runtime files are installed under `~/.pi/agent/` by Home Manager and validated by flake checks plus the dedicated `pi-runtime-smoke` VM test.
+
 ### `evo-nixos` AI coding CLIs
 
 `evo-nixos` integrates `github:numtide/llm-agents.nix` through the dedicated Home Manager feature `modules/features/home/llm-agents/` and installs these tools for `alex`:

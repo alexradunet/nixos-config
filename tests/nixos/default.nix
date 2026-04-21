@@ -467,12 +467,17 @@ in {
           machine.wait_until_succeeds("test -f /home/alex/.pi/agent/extensions/persona/index.ts")
           machine.wait_until_succeeds("test -f /home/alex/.pi/agent/extensions/os/index.ts")
           machine.wait_until_succeeds("test -f /home/alex/.pi/agent/extensions/nixpi/index.ts")
+          machine.wait_until_succeeds("grep -F 'nixpi_status' /home/alex/.pi/agent/extensions/nixpi/index.ts")
+          machine.wait_until_succeeds("grep -F 'nixpi_evolution_note' /home/alex/.pi/agent/extensions/nixpi/index.ts")
+          machine.wait_until_succeeds("grep -F 'update-blueprints' /home/alex/.pi/agent/extensions/nixpi/index.ts")
+          machine.wait_until_succeeds("grep -F 'schedule_reboot' /home/alex/.pi/agent/extensions/os/index.ts")
           machine.wait_until_succeeds("test -f /home/alex/.pi/agent/skills/os-operations/SKILL.md")
           machine.wait_until_succeeds("test -f /home/alex/.pi/agent/skills/self-evolution/SKILL.md")
 
       with subtest("pi runtime seed files are present"):
           machine.wait_until_succeeds("test -f /home/alex/.pi/agent/guardrails.yaml")
           machine.wait_until_succeeds("grep -F 'tool: bash' /home/alex/.pi/agent/guardrails.yaml")
+          machine.wait_until_succeeds("grep -F 'rm -rf /' /home/alex/.pi/agent/guardrails.yaml")
           machine.wait_until_succeeds("test -f /home/alex/.pi/agent/prompts/wiki.md")
           machine.wait_until_succeeds("test -f /home/alex/.pi/agent/settings.json")
           machine.wait_until_succeeds("grep -F '\"qmd\"' /home/alex/.pi/agent/settings.json")
@@ -481,6 +486,9 @@ in {
           machine.wait_until_succeeds("test -d /home/alex/Workspace/Knowledge/pages/home")
           machine.wait_until_succeeds("test -f /home/alex/Workspace/Knowledge/pages/home/start-here.md")
           machine.wait_until_succeeds("test -f /home/alex/Workspace/Knowledge/meta/registry.json")
+          machine.wait_until_succeeds("test -f /home/alex/Workspace/Knowledge/pages/projects/nixpi/persona/soul.md")
+          machine.wait_until_succeeds("test -f /home/alex/Workspace/Knowledge/pages/projects/nixpi/persona/faculty.md")
+          machine.wait_until_succeeds("test -f /home/alex/Workspace/Knowledge/pages/projects/nixpi/evolution/README.md")
     '';
   };
 }

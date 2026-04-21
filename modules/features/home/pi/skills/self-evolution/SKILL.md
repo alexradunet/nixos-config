@@ -21,12 +21,13 @@ Prefer the lightest viable option: **Skill → Extension → Service**.
 
 1. Detect the gap
 2. Search for existing related context in the wiki
-3. Create or resolve an evolution page with `wiki_ensure_page`
-4. Plan the implementation
-5. Implement locally in the repo
-6. Validate with tests or checks
-7. Prepare the diff for human review
-8. Only publish or apply externally with human approval
+3. Create or resolve an evolution note with `nixpi_evolution_note`
+4. Store it under `~/Workspace/Knowledge/pages/projects/nixpi/evolution/`
+5. Plan the implementation
+6. Implement locally in the repo
+7. Validate with tests or checks
+8. Prepare the diff for human review
+9. Only publish or apply externally with human approval
 
 ## Safety Rules
 
