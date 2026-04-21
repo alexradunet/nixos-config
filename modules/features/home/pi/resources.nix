@@ -248,6 +248,43 @@ in {
     fi
   '';
 
+  # ── Update status timer — checks if NixPI repo is behind origin ────────
+  systemd.user.services.nixpi-update-check = {
+    Unit.Description = "NixPI repo update check";
+    Service = {
+      Type = "oneshot";
+      ExecStart = let
+        script = pkgs.writeShellScript "nixpi-update-check" ''
+          set -euo pipefail
+          repo="${config.home.homeDirectory}/Workspace/NixPI"
+          status_file="${config.home.homeDirectory}/.pi/agent/update-status.json"
+          mkdir -p "$(dirname "$status_file")"
+
+          branch=$(git -C "$repo" branch --show-current 2>/dev/null || echo "main")
+          git -C "$repo" fetch --quiet origin 2>/dev/null || true
+
+          behind=$(git -C "$repo" rev-list "HEAD..origin/$branch" --count 2>/dev/null || echo "0")
+          available="false"
+          [ "$behind" -gt 0 ] && available="true"
+
+          printf '{"available":%s,"behindBy":%s,"checked":"%s","branch":"%s","notified":false}\n' \
+            "$available" "$behind" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$branch" \
+            > "$status_file"
+        '';
+      in "${script}";
+    };
+  };
+
+  systemd.user.timers.nixpi-update-check = {
+    Unit.Description = "NixPI repo update check timer";
+    Timer = {
+      OnBootSec = "5min";
+      OnUnitActiveSec = "12h";
+      Persistent = true;
+    };
+    Install.WantedBy = ["timers.target"];
+  };
+
   # ── Activation: LLM router (always refreshed — injects SOPS secret) ──────
   home.activation.llmRouter = lib.hm.dag.entryAfter ["writeBoundary"] ''
     llm_router_path="$HOME/.pi/agent/llm-router.json"

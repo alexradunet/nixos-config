@@ -38,7 +38,7 @@
   secretFile = ../../secrets/evo-nixos.yaml;
   hasSecrets = builtins.pathExists secretFile;
 
-  cudaPkg   = pkgs.llama-cpp.override {cudaSupport = true;};
+  cudaPkg = pkgs.llama-cpp.override {cudaSupport = true;};
   vulkanPkg = pkgs.llama-cpp.override {vulkanSupport = true;};
 in {
   # Expose llama-* CLI tools for both backends in PATH
@@ -73,27 +73,31 @@ in {
   services.llama-servers = {
     # ── NVIDIA RTX 5060 Ti — CUDA ─────────────────────────────────────────
     cuda = {
-      enable  = true;
+      enable = true;
       package = cudaPkg;
-      port    = 8080;
+      port = 8080;
 
       hfRepo = "bartowski/google_gemma-4-26B-A4B-it-GGUF";
       hfFile = "google_gemma-4-26B-A4B-it-IQ3_XS.gguf";
 
-      nGpuLayers  = 99;
-      threads     = 8;
+      nGpuLayers = 99;
+      threads = 8;
       contextSize = 131072; # 128K — within Gemma 4's 256K window
 
       environmentVariables = {
         # Pin this instance to the NVIDIA card only
-        CUDA_VISIBLE_DEVICES       = "0";
-        LLAMA_ARG_FLASH_ATTN       = "on";
+        CUDA_VISIBLE_DEVICES = "0";
+        LLAMA_ARG_FLASH_ATTN = "on";
       };
 
       extraArgs = [
-        "--no-mmproj"        # skip vision encoder (~1.1 GB saved)
-        "--cache-type-k" "q8_0"
-        "--cache-type-v" "q8_0"
+        "--no-mmproj" # skip vision encoder (~1.1 GB saved)
+        "--cache-type-k"
+        "q8_0"
+        "--cache-type-v"
+        "q8_0"
+        "--metrics" # enable Prometheus /metrics endpoint
+        "--slots" # enable /slots monitoring endpoint
       ];
 
       environmentFile =
@@ -104,30 +108,34 @@ in {
 
     # ── AMD Radeon 890M — Vulkan ───────────────────────────────────────────
     vulkan = {
-      enable  = true;
+      enable = true;
       package = vulkanPkg;
-      port    = 8081;
+      port = 8081;
 
       # Qwen3-30B-A3B: 30B total / 3B active MoE — ideal for unified RAM
       # ~17 GB at Q4_K_M, leaving ~47 GB for KV cache and OS
       hfRepo = "Qwen/Qwen3-30B-A3B-GGUF";
       hfFile = "Qwen3-30B-A3B-Q4_K_M.gguf";
 
-      nGpuLayers  = 99;
-      threads     = 12; # more CPU threads — expert routing on MoE
+      nGpuLayers = 99;
+      threads = 12; # more CPU threads — expert routing on MoE
       contextSize = 65536; # 64K — comfortable within unified RAM budget
 
       environmentVariables = {
         # Hide NVIDIA from CUDA detection so it doesn't interfere
-        CUDA_VISIBLE_DEVICES    = "-1";
+        CUDA_VISIBLE_DEVICES = "-1";
         # AMD 890M is Vulkan device 0 (confirmed via vulkaninfo --summary)
         GGML_VK_VISIBLE_DEVICES = "0";
-        LLAMA_ARG_FLASH_ATTN    = "on";
+        LLAMA_ARG_FLASH_ATTN = "on";
       };
 
       extraArgs = [
-        "--cache-type-k" "q8_0"
-        "--cache-type-v" "q8_0"
+        "--cache-type-k"
+        "q8_0"
+        "--cache-type-v"
+        "q8_0"
+        "--metrics" # enable Prometheus /metrics endpoint
+        "--slots" # enable /slots monitoring endpoint
       ];
 
       environmentFile =

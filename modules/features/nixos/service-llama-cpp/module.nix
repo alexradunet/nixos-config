@@ -177,15 +177,16 @@ in {
 
   config = lib.mkIf (enabledInstances != {}) {
     assertions = lib.concatLists (lib.mapAttrsToList (name: cfg: [
-      {
-        assertion = (cfg.hfRepo != null) != (cfg.modelPath != null);
-        message = "services.llama-servers.${name}: set exactly one of hfRepo+hfFile or modelPath.";
-      }
-      {
-        assertion = cfg.hfRepo == null || cfg.hfFile != null;
-        message = "services.llama-servers.${name}: hfFile must be set when hfRepo is set.";
-      }
-    ]) enabledInstances);
+        {
+          assertion = (cfg.hfRepo != null) != (cfg.modelPath != null);
+          message = "services.llama-servers.${name}: set exactly one of hfRepo+hfFile or modelPath.";
+        }
+        {
+          assertion = cfg.hfRepo == null || cfg.hfFile != null;
+          message = "services.llama-servers.${name}: hfFile must be set when hfRepo is set.";
+        }
+      ])
+      enabledInstances);
 
     users.users = lib.mapAttrs' (name: _:
       lib.nameValuePair "llama-server-${name}" {

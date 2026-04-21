@@ -20,17 +20,16 @@
         cwd = cfg.cwd;
         timeoutMs = cfg.piTimeoutMs;
       };
-      transports =
-        lib.optionalAttrs cfg.signal.enable {
-          signal = {
-            enabled = true;
-            account = cfg.signal.account;
-            httpUrl = cfg.signal.httpUrl;
-            allowedNumbers = cfg.signal.allowedNumbers;
-            adminNumbers = cfg.signal.adminNumbers;
-            directMessagesOnly = cfg.signal.directMessagesOnly;
-          };
+      transports = lib.optionalAttrs cfg.signal.enable {
+        signal = {
+          enabled = true;
+          account = cfg.signal.account;
+          httpUrl = cfg.signal.httpUrl;
+          allowedNumbers = cfg.signal.allowedNumbers;
+          adminNumbers = cfg.signal.adminNumbers;
+          directMessagesOnly = cfg.signal.directMessagesOnly;
         };
+      };
     }
   );
 in {

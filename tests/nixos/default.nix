@@ -210,7 +210,7 @@ in {
         ../../hosts/evo-nixos/syncthing.nix
         inputs.home-manager.nixosModules.home-manager
         {
-          services.llama-server = {
+          services.llama-servers.default = {
             enable = true;
             modelPath = "/tmp/test-model.gguf";
           };
@@ -239,7 +239,7 @@ in {
       with subtest("evo host enables expected desktop workstation stack"):
           machine.succeed("systemctl is-active display-manager.service")
           machine.succeed("systemctl is-active NetworkManager.service")
-          machine.succeed("systemctl cat llama-server.service >/dev/null")
+          machine.succeed("systemctl cat llama-server-default.service >/dev/null")
 
       with subtest("evo host keeps syncthing and ssh active"):
           machine.succeed("systemctl is-active syncthing.service")

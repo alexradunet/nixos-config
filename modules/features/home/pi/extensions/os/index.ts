@@ -3,12 +3,13 @@ import { Type } from "@sinclair/typebox";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { join, dirname } from "node:path";
 
 const execFileAsync = promisify(execFile);
 const NIXOS_UPDATE_ACTIONS = ["status", "apply", "rollback"] as const;
 const SYSTEMD_ACTIONS = ["start", "stop", "restart", "status"] as const;
+const PROPOSAL_ACTIONS = ["status", "validate", "diff", "commit", "push", "apply"] as const;
 const ALLOWED_SYSTEMD_UNITS = new Set(["sshd", "syncthing", "reaction"]);
 
 async function run(cmd: string, args: string[], signal?: AbortSignal, cwd?: string) {
@@ -229,7 +230,203 @@ async function handleScheduleReboot(delayMinutes: number, signal: AbortSignal | 
   };
 }
 
+function updateStatusPath() {
+  return join(process.env.HOME || "/tmp", ".pi", "agent", "update-status.json");
+}
+
+type UpdateStatus = {
+  available: boolean;
+  behindBy: number;
+  checked: string;
+  branch?: string;
+  notified?: boolean;
+};
+
+function readUpdateStatus(): UpdateStatus | null {
+  try {
+    return JSON.parse(readFileSync(updateStatusPath(), "utf-8")) as UpdateStatus;
+  } catch {
+    return null;
+  }
+}
+
+function writeUpdateStatus(status: UpdateStatus) {
+  const p = updateStatusPath();
+  mkdirSync(dirname(p), { recursive: true });
+  writeFileSync(p, JSON.stringify(status, null, 2) + "\n", "utf-8");
+}
+
+async function handleUpdateStatus() {
+  const status = readUpdateStatus();
+  if (!status) {
+    return {
+      content: [{ type: "text" as const, text: "No update status available yet. The update timer may not have run." }],
+      details: { ok: false },
+    };
+  }
+  const lines = [
+    `Available: ${status.available}`,
+    `Behind by: ${status.behindBy} commit(s)`,
+    `Checked: ${status.checked}`,
+  ];
+  if (status.branch) lines.push(`Branch: ${status.branch}`);
+  return {
+    content: [{ type: "text" as const, text: lines.join("\n") }],
+    details: { ok: true, ...status },
+  };
+}
+
+async function handleNixConfigProposal(
+  action: (typeof PROPOSAL_ACTIONS)[number],
+  signal: AbortSignal | undefined,
+  ctx: any,
+) {
+  const repoDir = systemFlakeDir();
+  if (!existsSync(join(repoDir, ".git"))) {
+    return {
+      content: [{ type: "text" as const, text: `NixPI repo not found at ${repoDir}. Expected a git checkout there.` }],
+      details: { ok: false, repoDir },
+      isError: true,
+    };
+  }
+
+  if (action === "status") {
+    const [branch, remote, status, log] = await Promise.all([
+      run("git", ["branch", "--show-current"], signal, repoDir),
+      run("git", ["remote", "-v"], signal, repoDir),
+      run("git", ["status", "--short"], signal, repoDir),
+      run("git", ["log", "--oneline", "-8"], signal, repoDir),
+    ]);
+    const lines = [
+      `Repo: ${repoDir}`,
+      `Branch: ${branch.stdout.trim() || "(unknown)"}`,
+      `Remote: ${remote.stdout.split("\n")[0]?.trim() || "(none)"}`,
+      "",
+      "Working tree:",
+      status.stdout.trim() || "Clean",
+      "",
+      "Recent commits:",
+      log.stdout.trim() || "(none)",
+    ];
+    return {
+      content: [{ type: "text" as const, text: truncate(lines.join("\n")) }],
+      details: { ok: true, repoDir, clean: !status.stdout.trim() },
+    };
+  }
+
+  if (action === "diff") {
+    const [unstaged, staged] = await Promise.all([
+      run("git", ["diff", "--stat", "HEAD"], signal, repoDir),
+      run("git", ["diff", "--stat", "--cached"], signal, repoDir),
+    ]);
+    return {
+      content: [{ type: "text" as const, text: truncate(
+        `Unstaged diff:\n${unstaged.stdout.trim() || "(none)"}
+
+Staged diff:\n${staged.stdout.trim() || "(none)"}`
+      )}],
+      details: { ok: true },
+    };
+  }
+
+  if (action === "validate") {
+    const result = await run("nix", ["flake", "check", "--no-build"], signal, repoDir);
+    const ok = result.exitCode === 0;
+    return {
+      content: [{ type: "text" as const, text: ok
+        ? `Flake check passed for ${repoDir}.`
+        : truncate(`Flake check failed:\n${result.stderr || result.stdout}`),
+      }],
+      details: { ok, exitCode: result.exitCode },
+      ...(ok ? {} : { isError: true }),
+    };
+  }
+
+  if (action === "commit") {
+    const statusResult = await run("git", ["status", "--short"], signal, repoDir);
+    if (!statusResult.stdout.trim()) {
+      return {
+        content: [{ type: "text" as const, text: "Nothing to commit — working tree is clean." }],
+        details: { ok: true, noop: true },
+      };
+    }
+    const denied = await confirm(ctx, `git commit all changes in ${repoDir}`);
+    if (denied) return { content: [{ type: "text" as const, text: denied }], details: { ok: false }, isError: true };
+
+    const msg = `Update NixPI — ${new Date().toISOString().slice(0, 10)}`;
+    await run("git", ["add", "-A"], signal, repoDir);
+    const commit = await run("git", ["commit", "-m", msg], signal, repoDir);
+    const ok = commit.exitCode === 0;
+    return {
+      content: [{ type: "text" as const, text: truncate(ok ? `Committed:\n${commit.stdout.trim()}` : commit.stderr || commit.stdout) }],
+      details: { ok, exitCode: commit.exitCode },
+      ...(ok ? {} : { isError: true }),
+    };
+  }
+
+  if (action === "push") {
+    const denied = await confirm(ctx, `git push from ${repoDir}`);
+    if (denied) return { content: [{ type: "text" as const, text: denied }], details: { ok: false }, isError: true };
+
+    const branch = await run("git", ["branch", "--show-current"], signal, repoDir);
+    const branchName = branch.stdout.trim();
+    const result = await run("git", ["push", "origin", branchName], signal, repoDir);
+    const ok = result.exitCode === 0;
+    return {
+      content: [{ type: "text" as const, text: truncate(result.stdout || result.stderr || `Pushed ${branchName}.`) }],
+      details: { ok, exitCode: result.exitCode },
+      ...(ok ? {} : { isError: true }),
+    };
+  }
+
+  // apply
+  const denied = await confirm(ctx, `nixos-rebuild switch --flake ${repoDir}#${currentHostName()}`);
+  if (denied) return { content: [{ type: "text" as const, text: denied }], details: { ok: false }, isError: true };
+
+  const flakeRef = `${repoDir}#${currentHostName()}`;
+  const applyResult = await run("sudo", ["nixos-rebuild", "switch", "--flake", flakeRef], signal);
+  const applyOk = applyResult.exitCode === 0;
+  return {
+    content: [{ type: "text" as const, text: truncate(applyResult.stdout || applyResult.stderr || `Applied ${flakeRef}.`) }],
+    details: { ok: applyOk, exitCode: applyResult.exitCode, flakeRef },
+    ...(applyOk ? {} : { isError: true }),
+  };
+}
+
 export default function osExtension(pi: ExtensionAPI) {
+  pi.registerTool({
+    name: "update_status",
+    label: "Update Status",
+    description: "Read the NixPI update status — whether the local repo is behind its remote.",
+    promptSnippet: "Use update_status to check whether there are upstream NixPI commits not yet pulled.",
+    parameters: Type.Object({}),
+    async execute() {
+      return handleUpdateStatus();
+    },
+  });
+
+  pi.registerTool({
+    name: "nix_config_proposal",
+    label: "Nix Config Proposal",
+    description: "Inspect, validate, commit, push, and apply changes in the local NixPI repo at ~/Workspace/NixPI.",
+    promptSnippet: "Use nix_config_proposal to manage the NixPI repo lifecycle — status, validate, commit, push, apply.",
+    promptGuidelines: [
+      "Use action=status first to understand the working tree.",
+      "Use action=validate before commit or apply.",
+      "Use action=commit then action=push to publish changes.",
+      "Use action=apply to rebuild the current host from the repo.",
+      "Always confirm with the user before commit, push, or apply.",
+    ],
+    parameters: Type.Object({
+      action: StringEnum(PROPOSAL_ACTIONS, {
+        description: "status: repo state. validate: nix flake check. diff: working tree diff. commit: stage+commit. push: push branch. apply: nixos-rebuild switch.",
+      }),
+    }),
+    async execute(_toolCallId, params, signal, _onUpdate, ctx) {
+      return handleNixConfigProposal(params.action, signal, ctx);
+    },
+  });
+
   pi.registerTool({
     name: "system_health",
     label: "System Health",
@@ -302,7 +499,14 @@ export default function osExtension(pi: ExtensionAPI) {
   pi.on("before_agent_start", async (event) => {
     const host = currentHostName();
     const flakeDir = systemFlakeDir();
-    const note = `\n\n[OS CONTEXT]\nCurrent host: ${host}\nCanonical flake repo: ${flakeDir}\nUse system_health for diagnosis and nixos_update for declarative rebuilds.`;
+    let note = `\n\n[OS CONTEXT]\nCurrent host: ${host}\nCanonical flake repo: ${flakeDir}\nUse system_health for diagnosis and nixos_update for declarative rebuilds.`;
+
+    const updateStatus = readUpdateStatus();
+    if (updateStatus?.available && !updateStatus.notified) {
+      writeUpdateStatus({ ...updateStatus, notified: true });
+      note += `\n\n[UPDATE AVAILABLE] The NixPI repo is ${updateStatus.behindBy} commit(s) behind origin/${updateStatus.branch ?? "main"}. Inform the user and offer to pull and apply.`;
+    }
+
     return { systemPrompt: event.systemPrompt + note };
   });
 }
