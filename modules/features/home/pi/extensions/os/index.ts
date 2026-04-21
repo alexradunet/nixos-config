@@ -186,7 +186,7 @@ if [ "$status" -eq 0 ]; then
   echo "[pi-sudo] status: $STATUS" | tee -a "$LOG"
   echo "[pi-sudo] auto-closing pane in 15 seconds." | tee -a "$LOG"
   sleep 15
-  tmux kill-pane -t "${TMUX_PANE:-}" 2>/dev/null || exit 0
+  tmux kill-pane -t "\${TMUX_PANE:-}" 2>/dev/null || exit 0
 else
   echo "[pi-sudo] command failed with exit $status" | tee -a "$LOG"
   echo "[pi-sudo] log: $LOG" | tee -a "$LOG"
