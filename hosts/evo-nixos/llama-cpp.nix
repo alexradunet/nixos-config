@@ -19,7 +19,12 @@
 }: let
   secretFile = ../../secrets/evo-nixos.yaml;
   hasSecrets = builtins.pathExists secretFile;
+  llamaPkg = pkgs.llama-cpp.override {cudaSupport = true;};
 in {
+  # Expose all llama-* CLI tools (llama-cli, llama-bench, etc.) in PATH.
+  # Uses the same CUDA-enabled build as the service so no extra compilation.
+  environment.systemPackages = [llamaPkg];
+
   # Render HF_TOKEN into an EnvironmentFile that systemd loads at runtime.
   # Only active when secrets/evo-nixos.yaml is git-tracked and present.
   sops.templates."llama-server-env" = lib.mkIf hasSecrets {
@@ -33,7 +38,7 @@ in {
     enable = true;
 
     # Build llama-cpp with CUDA support for the RTX 5060 Ti (sm_120 / Blackwell)
-    package = pkgs.llama-cpp.override {cudaSupport = true;};
+    package = llamaPkg;
 
     hfRepo = "bartowski/google_gemma-4-26B-A4B-it-GGUF";
     hfFile = "google_gemma-4-26B-A4B-it-IQ3_XS.gguf"; # 12.4 GB — smaller quant frees VRAM for large KV cache

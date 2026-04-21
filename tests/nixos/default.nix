@@ -434,4 +434,58 @@ in {
           hub.succeed("ping -c 3 10.77.0.10")
     '';
   };
+
+  pi-runtime-smoke = pkgs.testers.runNixOSTest {
+    name = "pi-runtime-smoke";
+
+    nodes.machine = {...}: {
+      imports = [
+        config.flake.nixosModules.common
+        config.flake.nixosModules.users
+        inputs.home-manager.nixosModules.home-manager
+        {
+          nixpkgs.overlays = [
+            config.flake.overlays.default
+            inputs.llm-agents.overlays.default
+          ];
+
+          networking.hostName = "pi-runtime-smoke";
+          system.stateVersion = "25.11";
+
+          home-manager.useGlobalPkgs = true;
+          home-manager.useUserPackages = true;
+          home-manager.backupFileExtension = "hm-backup";
+          home-manager.users.alex.imports = [
+            config.flake.homeModules.alex
+            config.flake.homeModules.profile-base
+          ];
+        }
+      ];
+    };
+
+    testScript = ''
+      start_all()
+      machine.wait_for_unit("multi-user.target")
+      machine.wait_for_unit("home-manager-alex.service")
+
+      with subtest("pi agent runtime extensions and skills are installed"):
+          machine.wait_until_succeeds("test -f /home/alex/.pi/agent/extensions/persona/index.ts")
+          machine.wait_until_succeeds("test -f /home/alex/.pi/agent/extensions/os/index.ts")
+          machine.wait_until_succeeds("test -f /home/alex/.pi/agent/extensions/nixpi/index.ts")
+          machine.wait_until_succeeds("test -f /home/alex/.pi/agent/skills/os-operations/SKILL.md")
+          machine.wait_until_succeeds("test -f /home/alex/.pi/agent/skills/self-evolution/SKILL.md")
+
+      with subtest("pi runtime seed files are present"):
+          machine.wait_until_succeeds("test -f /home/alex/.pi/agent/guardrails.yaml")
+          machine.wait_until_succeeds("grep -F 'tool: bash' /home/alex/.pi/agent/guardrails.yaml")
+          machine.wait_until_succeeds("test -f /home/alex/.pi/agent/prompts/wiki.md")
+          machine.wait_until_succeeds("test -f /home/alex/.pi/agent/settings.json")
+          machine.wait_until_succeeds("grep -F '\"qmd\"' /home/alex/.pi/agent/settings.json")
+
+      with subtest("wiki starter seeds canonical structure"):
+          machine.wait_until_succeeds("test -d /home/alex/Workspace/Knowledge/pages/home")
+          machine.wait_until_succeeds("test -f /home/alex/Workspace/Knowledge/pages/home/start-here.md")
+          machine.wait_until_succeeds("test -f /home/alex/Workspace/Knowledge/meta/registry.json")
+    '';
+  };
 }
