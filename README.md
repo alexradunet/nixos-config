@@ -95,6 +95,26 @@ Shared Home Manager config for `alex` is now composed from dendritic home featur
 - `modules/features/home/host-*` holds host-specific Home Manager additions
 - `modules/features/home/pi/` holds Pi-specific user infrastructure
 
+### `evo-nixos` AI coding CLIs
+
+`evo-nixos` integrates `github:numtide/llm-agents.nix` through the dedicated Home Manager feature `modules/features/home/llm-agents/` and installs these tools for `alex`:
+
+- `claude-code`
+- `codex`
+- `copilot-cli`
+
+They are intended to be used with OAuth/subscription login on this host.
+Host-specific zsh wrappers unset API-key/token environment variables before launching them so OAuth takes precedence over token-based auth.
+This is especially relevant for `copilot`, because the shared shell config exports `GITHUB_TOKEN` / `GH_TOKEN` when present.
+
+Typical first-time login flow after rebuild:
+
+```bash
+claude
+codex login
+copilot login
+```
+
 ## WireGuard hub-and-spoke overlay
 
 This repo now includes a small WireGuard module for a simple private overlay:

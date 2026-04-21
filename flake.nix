@@ -29,6 +29,8 @@
       url = "github:tobi/qmd";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    llm-agents.url = "github:numtide/llm-agents.nix";
   };
 
   outputs = inputs @ {flake-parts, ...}:
@@ -59,6 +61,7 @@
         ./modules/features/nixos/service-llama-cpp/flake-module.nix
 
         ./modules/features/home/git/flake-module.nix
+        ./modules/features/home/llm-agents/flake-module.nix
         ./modules/features/home/packages/flake-module.nix
         ./modules/features/home/paths/flake-module.nix
         ./modules/features/home/pi/flake-module.nix

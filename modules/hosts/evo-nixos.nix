@@ -9,7 +9,10 @@
     modules =
       [
         {
-          nixpkgs.overlays = [config.flake.overlays.default];
+          nixpkgs.overlays = [
+            config.flake.overlays.default
+            inputs.llm-agents.overlays.default
+          ];
           networking.hostName = "evo-nixos";
           system.stateVersion = "25.11";
         }
