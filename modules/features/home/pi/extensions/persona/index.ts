@@ -2,6 +2,8 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { dirname, join } from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 
 const PERSONA_LAYERS = [
   { title: "Soul", file: "soul.md" },
@@ -20,6 +22,7 @@ type BlueprintVersions = {
 };
 
 const DEFAULT_PACKAGE_VERSION = "1";
+const execFileAsync = promisify(execFile);
 
 function homeDir() {
   return process.env.HOME || "/tmp";
@@ -43,6 +46,27 @@ function guardrailsDestPath() {
 
 function normalizeCommand(command: string) {
   return command.replace(/\s+/g, " ").trim();
+}
+
+async function isGitDirty(repoDir: string) {
+  try {
+    const result = await execFileAsync("git", ["status", "--short"], {
+      cwd: repoDir,
+      env: process.env,
+      maxBuffer: 1024 * 1024,
+    });
+    return (result.stdout ?? "").trim().length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function nixpiRepoDir() {
+  return join(homeDir(), "Workspace", "NixPI");
+}
+
+function isProtectedApplyCommand(command: string) {
+  return /\bnixos-rebuild\s+switch\b/.test(command) && command.includes(nixpiRepoDir());
 }
 
 function hashContent(content: string) {
@@ -250,9 +274,39 @@ export default function personaExtension(pi: ExtensionAPI) {
   });
 
   pi.on("tool_call", async (event) => {
-    if (!guardrails || event.toolName !== "bash") return;
+    const repoDir = nixpiRepoDir();
+
+    if (event.toolName === "nix_config_proposal") {
+      const input = event.input as { action?: string };
+      if (input.action === "apply" && (await isGitDirty(repoDir))) {
+        return {
+          block: true as const,
+          reason: "Blocked apply: commit PI runtime changes before rebuild/apply.",
+        };
+      }
+    }
+
+    if (event.toolName === "nixos_update") {
+      const input = event.input as { action?: string };
+      if (input.action === "apply" && (await isGitDirty(repoDir))) {
+        return {
+          block: true as const,
+          reason: "Blocked apply: commit NixPI changes before rebuilding the host.",
+        };
+      }
+    }
+
+    if (event.toolName !== "bash" || !guardrails) return;
     const input = event.input as { command?: string };
     const command = normalizeCommand(input.command ?? "");
+
+    if (isProtectedApplyCommand(command) && (await isGitDirty(repoDir))) {
+      return {
+        block: true as const,
+        reason: "Blocked nixos-rebuild apply from dirty NixPI repo: commit changes before apply.",
+      };
+    }
+
     for (const rule of guardrails) {
       if (rule.tool !== event.toolName) continue;
       if (rule.pattern.test(command)) {
