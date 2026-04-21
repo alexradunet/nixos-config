@@ -110,8 +110,8 @@ in {
 
       # Qwen3-30B-A3B: 30B total / 3B active MoE — ideal for unified RAM
       # ~17 GB at Q4_K_M, leaving ~47 GB for KV cache and OS
-      hfRepo = "bartowski/Qwen3-30B-A3B-Instruct-GGUF";
-      hfFile = "Qwen3-30B-A3B-Instruct-Q4_K_M.gguf";
+      hfRepo = "Qwen/Qwen3-30B-A3B-GGUF";
+      hfFile = "Qwen3-30B-A3B-Q4_K_M.gguf";
 
       nGpuLayers  = 99;
       threads     = 12; # more CPU threads — expert routing on MoE

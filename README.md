@@ -82,9 +82,36 @@ Current higher-level profiles include:
 Locally maintained package definitions.
 
 - `pkgs/pi` builds the Pi binary under our control
-- local packages are exported through `overlays.default` and reused everywhere as `pkgs.pi` / `pkgs.pi-web-access`
+- `pkgs/pi-gateway` is the generic transport gateway (Signal and future transports)
+- local packages are exported through `overlays.default` and reused everywhere
 - package version/dependency hashes are pinned in this repo
 - see `pkgs/pi/README.md` for the Pi update workflow
+
+### `service-pi-gateway`
+
+The `modules/features/nixos/service-pi-gateway/` NixOS module manages the pi-gateway service.
+
+It provides:
+- `services.pi-gateway.enable`
+- `services.pi-gateway.signal.*` — Signal transport config
+- `services.pi-gateway.maxReplyChars` / `maxReplyChunks`
+- runs as the primary user so it inherits pi auth credentials
+
+Typical usage (e.g. in a host file):
+
+```nix
+services.pi-gateway = {
+  enable = true;
+  signal = {
+    enable = true;
+    account = "+15550001111";
+    allowedNumbers = [ "+15550002222" ];
+    adminNumbers = [ "+15550002222" ];
+  };
+};
+```
+
+The Signal transport requires `signal-cli-rest-api` running at `http://127.0.0.1:8080` (configurable).
 
 ### Home Manager
 
@@ -101,21 +128,27 @@ The Pi runtime now restores several capabilities that previously lived in `NixPI
 
 - `persona` extension
   - enforces `guardrails.yaml` for dangerous bash commands
+  - injects persona layers from `Knowledge/pages/projects/nixpi/persona/` into every session
   - preserves compacted session context across compaction cycles
   - tracks blueprint state for seeded PI runtime files
 - `os` extension
   - `system_health`
   - `nixos_update`
   - `systemd_control`
+  - `schedule_reboot`
 - `nixpi` extension
   - `nixpi_status` tool
+  - `nixpi_evolution_note` tool
   - `/nixpi status`
   - `/nixpi update-blueprints`
+  - `/nixpi evolution <title>`
 - restored PI skills
   - `os-operations`
   - `self-evolution`
   - `provisioning`
   - `first-boot`
+- persona layers as first-class editable wiki pages under `Knowledge/pages/projects/nixpi/persona/`
+- evolution notes under `Knowledge/pages/projects/nixpi/evolution/`
 
 These runtime files are installed under `~/.pi/agent/` by Home Manager and validated by flake checks plus the dedicated `pi-runtime-smoke` VM test.
 

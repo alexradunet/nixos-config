@@ -21,6 +21,7 @@ in {
           pi-web-access = final.callPackage ../../pkgs/pi-web-access {};
           llm-wiki = final.callPackage ../../pkgs/llm-wiki {};
           wg-admin = final.callPackage ../../pkgs/wg-admin {};
+          pi-gateway = final.callPackage ../../pkgs/pi-gateway {};
           qmd = mkQmd final system;
         })
       ];
@@ -56,6 +57,7 @@ in {
       pi-web-access = pkgs.pi-web-access;
       llm-wiki = pkgs.llm-wiki;
       wg-admin = pkgs.wg-admin;
+      pi-gateway = pkgs.pi-gateway;
       qmd = pkgs.qmd;
       default = pkgs.pi;
     };
@@ -79,6 +81,7 @@ in {
     pi-web-access = final.callPackage ../../pkgs/pi-web-access {};
     llm-wiki = final.callPackage ../../pkgs/llm-wiki {};
     wg-admin = final.callPackage ../../pkgs/wg-admin {};
+    pi-gateway = final.callPackage ../../pkgs/pi-gateway {};
     qmd = mkQmd final final.stdenv.hostPlatform.system;
   };
 }
