@@ -6,9 +6,17 @@
 }: let
   piWebAccessRoot = "${pkgs.pi-web-access}/share/pi-web-access";
   llmWikiRoot = "${pkgs.llm-wiki}/share/llm-wiki";
-  # Unified Wiki — technical + personal knowledge in one vault
+
+  # Wiki root — unified personal + technical vault, synced via Syncthing
   wikiDir = "${config.home.homeDirectory}/Wiki";
 
+  # Seed directory committed to the repo — provides the canonical structure on
+  # fresh devices before Syncthing has had a chance to sync.
+  # Strategy: [ -e "$dest" ] || cp "$src" "$dest"
+  # Syncthing wins once it syncs; the seed only fills gaps.
+  wikiSeed = ./wiki-seed;
+
+  # ── LLM Router ────────────────────────────────────────────────────────────
   llmRouterBase = {
     _comment = "LLM Router config — managed by NixOS (modules/features/home/pi/resources.nix). Manual edits are overwritten on rebuild.";
     private = {
@@ -89,260 +97,63 @@
       activity = "ctrl+shift+w";
     };
   };
-
-  wikiReadme = pkgs.writeText "wiki-README.md" ''
-    # Wiki
-
-    Unified knowledge base shared through Syncthing at `~/Wiki`.
-    Open this folder directly in Obsidian as a vault.
-
-    Contains both technical knowledge (NixOS, PI agent, infrastructure, AI)
-    and personal knowledge (journal, habits, health, relationships, projects).
-    Pages are distinguished by `domain: technical` or `domain: personal`.
-
-    ## Structure
-
-    PARA folders:
-
-    - `pages/projects/` — active projects (technical/ and personal sub-folders)
-    - `pages/areas/` — long-lived responsibilities
-    - `pages/resources/` — reference material (knowledge/, people/, technical/)
-    - `pages/archives/` — inactive material
-    - `pages/journal/daily/` — daily journal entries (canonical for new entries)
-    - `pages/tasks/` — task tracking
-    - `pages/technical/` — direct technical notes
-
-    ## Metadata conventions
-
-    - use `domain: technical` for system/infrastructure/code pages
-    - use `domain: personal` for personal/life/relationships pages
-    - use `areas: [...]` for long-lived themes
-    - use `hosts: [...]` for host-specific knowledge
-
-    ## Model
-
-    PI operates here with access to both technical and personal domains,
-    enabling cross-referencing between system knowledge and personal context.
-  '';
-
-  llmWikiSchema = pkgs.writeText "llm-wiki-WIKI_SCHEMA.md" ''
-    # Wiki Schema
-
-    Unified personal + technical knowledge base.
-    Plain markdown + YAML frontmatter. Open in Obsidian or any editor.
-
-    ## Canonical page frontmatter
-
-    ```yaml
-    ---
-    type: concept | entity | synthesis | analysis | evolution | procedure | decision | identity
-    title: Example Title
-    aliases: []
-    tags: [nixos, pi]
-    hosts: []
-    domain: technical   # or personal
-    areas: [infrastructure, ai]
-    status: active
-    updated: 2026-04-21
-    source_ids: []
-    summary: One-line summary (dense, specific — PI reads this at stage 1)
-    ---
-    ```
-
-    ## Domain convention
-
-    - `domain: technical` — NixOS, PI agent, infra, code, architecture
-    - `domain: personal` — journal, habits, health, people, trips, finances
-
-    ## Host-specific example
-
-    ```yaml
-    hosts:
-      - pad-nixos
-    ```
-
-    ## Folder structure
-
-    ```
-    pages/
-      technical/          # direct technical notes (ai/, nixos/)
-      projects/           # active projects
-        technical/
-        active-quests/
-        forgedance/
-      areas/              # long-lived responsibilities
-        technical/
-        habits/ vitality/ career/ wealth/ trips/ ...
-      resources/          # reference material
-        technical/
-        knowledge/ people/ digital-garden/
-      journal/daily/      # flat daily journal (canonical for new entries)
-      archives/
-      tasks/
-    ```
-
-    ## Linking
-
-    - Always use `[[wikilinks]]` — never `[text](path.md)`
-    - Cross-domain links are supported: `[[Andreea Pavel]]` works from a technical page
-  '';
-
-  llmWikiTechnicalStarter = pkgs.writeText "llm-wiki-system-landscape.md" ''
-    ---
-    type: concept
-    title: System Landscape
-    aliases: []
-    tags:
-      - nixos
-      - pi
-      - para
-    hosts: []
-    domain: technical
-    areas:
-      - infrastructure
-      - ai
-    status: active
-    updated: 2026-04-21
-    source_ids: []
-    summary: High-level overview of the shared technical environment.
-    ---
-    # System Landscape
-
-    ## Current understanding
-
-    - This wiki root is shared across devices through Syncthing.
-    - The vault can be edited directly from Obsidian.
-    - Both `domain: technical` and `domain: personal` pages coexist here.
-    - PARA folders help separate projects, areas, resources, and archives.
-    - Host-specific notes should use the `hosts:` field.
-
-    ## Evidence
-
-    - The repository exports `PI_LLM_WIKI_DIR=~/Wiki`.
-    - The llm-wiki extension filters host-specific pages by the current hostname.
-
-    ## Tensions / caveats
-
-    - Some technical preferences are global, while others are host-specific.
-    - Folder structure and frontmatter should reinforce each other.
-
-    ## Open questions
-
-    - Which technical notes belong in projects vs areas vs resources?
-    - Which topics deserve dedicated area pages?
-
-    ## Related pages
-
-    - [[resources/technical/pad-nixos|pad-nixos]]
-  '';
-
-  llmWikiPadStarter = pkgs.writeText "llm-wiki-pad-nixos.md" ''
-    ---
-    type: entity
-    title: pad-nixos
-    aliases: []
-    tags:
-      - host
-      - laptop
-    hosts:
-      - pad-nixos
-    domain: technical
-    areas:
-      - infrastructure
-      - laptop
-    status: active
-    updated: 2026-04-21
-    source_ids: []
-    summary: Laptop-specific notes and constraints.
-    ---
-    # pad-nixos
-
-    ## Current understanding
-
-    - This page is visible primarily when the current host is `pad-nixos`.
-    - Use this pattern for device-specific hardware, workflows, and quirks.
-
-    ## Evidence
-
-    - The page frontmatter sets `hosts: [pad-nixos]`.
-
-    ## Tensions / caveats
-
-    - Avoid putting globally relevant knowledge here.
-
-    ## Open questions
-
-    - Which laptop-only workflows should live here versus in global technical pages?
-
-    ## Related pages
-
-    - [[resources/technical/system-landscape|System Landscape]]
-  '';
-
-  llmWikiPageTemplate = pkgs.writeText "llm-wiki-page-template.md" ''
-    ---
-    type: concept
-    title: New Page
-    aliases: []
-    tags: []
-    hosts: []
-    domain: technical
-    areas: []
-    status: draft
-    updated: {{date:YYYY-MM-DD}}
-    source_ids: []
-    summary: One-line summary
-    ---
-    # New Page
-
-    <!-- Rename the title and move the note into the right PARA/domain folder after inserting this template. -->
-
-    ## Current understanding
-
-    ## Evidence
-
-    ## Tensions / caveats
-
-    ## Open questions
-
-    ## Related pages
-  '';
 in {
+  # ── qmd — local retrieval layer ───────────────────────────────────────────
   home.file.".config/qmd/index.yml".text = ''
     global_context: >-
-      Unified personal + technical knowledge base. If you see a [[WikiLink]],
-      search for that exact term to get more context on it.
+      Unified personal + technical knowledge base using an object model.
+      Notes have stable ids, object_type, and typed relation fields.
+      Folders express role: planner, projects, areas, resources, sources, journal.
+      domain: technical or personal separates scope. summary field is the
+      first routing hint. schema_version: 1, validation_level tracks maturity.
 
     collections:
       wiki:
         path: ${wikiDir}
         pattern: "pages/**/*.md"
-        ignore:
-          - "pages/sources/**"
         context:
-          "/": "Unified wiki — technical (NixOS, PI, infra, AI) and personal (journal, habits, health, people)"
-          "/pages/journal": "Daily journal entries"
-          "/pages/technical": "Direct technical notes"
-          "/pages/resources/technical": "Technical reference pages"
-          "/pages/areas/technical": "Long-lived technical areas"
-          "/pages/areas": "Long-lived personal areas — habits, vitality, career, wealth, trips"
-          "/pages/resources/people": "People and relationship cards"
-          "/pages/tasks": "Task board"
+          "/": "Unified wiki — personal and technical knowledge in one object graph"
+          "/pages/home": "Dashboards and navigation entry points"
+          "/pages/planner": "Operational layer: tasks, calendar, reminders, reviews"
+          "/pages/planner/tasks": "Actionable tasks with status, priority, due dates"
+          "/pages/planner/calendar": "Scheduled events and meetings"
+          "/pages/planner/reminders": "Time-based prompts and follow-ups"
+          "/pages/planner/reviews": "Weekly, monthly, and periodic review notes"
+          "/pages/projects": "Finite outcome projects, one folder per project"
+          "/pages/areas": "Long-lived responsibilities and life/system domains"
+          "/pages/resources": "Reference knowledge: people, technical, concepts"
+          "/pages/resources/people": "Person objects — relationship context and open loops"
+          "/pages/resources/technical": "Technical entities: hosts, services, tools"
+          "/pages/resources/knowledge": "Evergreen concepts and knowledge notes"
+          "/pages/sources": "Captured research, imported evidence, source summaries"
+          "/pages/journal": "Time-based logs and reflections"
+          "/pages/journal/daily": "Daily notes"
+          "/pages/journal/weekly": "Weekly reflections"
+          "/pages/journal/monthly": "Monthly summaries"
   '';
 
+  # ── PI config stubs ───────────────────────────────────────────────────────
   home.file.".pi/agent/prompts/.keep".text = "";
   home.file.".pi/agent/skills/.keep".text = "";
   home.file.".pi/agent/themes/.keep".text = "";
 
+  # ── PI extensions ─────────────────────────────────────────────────────────
   home.file.".pi/agent/extensions/pi-web-access".source = piWebAccessRoot;
   home.file.".pi/agent/extensions/llm-wiki".source = llmWikiRoot;
   home.file.".pi/agent/extensions/wg-admin".source = ./extensions/wg-admin;
+
+  # ── PI skills ─────────────────────────────────────────────────────────────
   home.file.".pi/agent/skills/librarian/SKILL.md".source = "${piWebAccessRoot}/skills/librarian/SKILL.md";
   home.file.".pi/agent/skills/wg-admin/SKILL.md".source = ./skills/wg-admin/SKILL.md;
+  home.file.".pi/agent/skills/wiki-migration/SKILL.md".source = ./skills/wiki-migration/SKILL.md;
+  home.file.".pi/agent/skills/wiki-migration/scripts/scan.sh".source = ./skills/wiki-migration/scripts/scan.sh;
+  home.file.".pi/agent/skills/wiki-migration/scripts/batch-list.sh".source = ./skills/wiki-migration/scripts/batch-list.sh;
 
+  # ── Session variables ─────────────────────────────────────────────────────
   home.sessionVariables.PI_LLM_WIKI_DIR = wikiDir;
   home.sessionVariables.PI_LLM_WIKI_ALLOWED_DOMAINS = "technical,personal";
 
+  # ── Activation: PI web-search config (once) ───────────────────────────────
   home.activation.piWebAccessStarter = lib.hm.dag.entryAfter ["writeBoundary"] ''
     config_path="$HOME/.pi/web-search.json"
     if [ ! -e "$config_path" ]; then
@@ -351,31 +162,61 @@ in {
     fi
   '';
 
+  # ── Activation: wiki seed (idempotent — never overwrites existing files) ──
+  #
+  # On a fresh device: seeds the full canonical wiki structure from wiki-seed/.
+  # Once Syncthing syncs personal content: Syncthing wins for all files.
+  # The [ -e "$dest" ] || cp guard ensures no file is ever overwritten.
+  #
   home.activation.wikiStarter = lib.hm.dag.entryAfter ["writeBoundary"] ''
     wiki_root='${wikiDir}'
+    seed='${wikiSeed}'
 
-
+    # Create directory skeleton (safe to run repeatedly)
     mkdir -p \
-      "$wiki_root/pages/sources" \
-      "$wiki_root/pages/projects/technical" \
-      "$wiki_root/pages/areas/technical" \
-      "$wiki_root/pages/resources/technical" \
-      "$wiki_root/pages/archives" \
-      "$wiki_root/pages/technical" \
-      "$wiki_root/pages/journal/daily" \
-      "$wiki_root/pages/tasks" \
+      "$wiki_root/.stfolder" \
       "$wiki_root/raw" \
       "$wiki_root/meta" \
-      "$wiki_root/templates/obsidian"
+      "$wiki_root/schemas" \
+      "$wiki_root/templates/markdown" \
+      "$wiki_root/pages/home" \
+      "$wiki_root/pages/planner/tasks" \
+      "$wiki_root/pages/planner/calendar" \
+      "$wiki_root/pages/planner/reminders" \
+      "$wiki_root/pages/planner/reviews" \
+      "$wiki_root/pages/projects" \
+      "$wiki_root/pages/areas" \
+      "$wiki_root/pages/resources/knowledge" \
+      "$wiki_root/pages/resources/people" \
+      "$wiki_root/pages/resources/technical" \
+      "$wiki_root/pages/resources/personal" \
+      "$wiki_root/pages/sources" \
+      "$wiki_root/pages/journal/daily" \
+      "$wiki_root/pages/journal/weekly" \
+      "$wiki_root/pages/journal/monthly" \
+      "$wiki_root/pages/archives/planner" \
+      "$wiki_root/pages/archives/projects" \
+      "$wiki_root/pages/archives/areas" \
+      "$wiki_root/pages/archives/resources" \
+      "$wiki_root/pages/archives/journal"
 
-    [ -e "$wiki_root/README.md" ]                                          || cp ${wikiReadme} "$wiki_root/README.md"
-    [ -e "$wiki_root/WIKI_SCHEMA.md" ]                                     || cp ${llmWikiSchema} "$wiki_root/WIKI_SCHEMA.md"
-    [ -e "$wiki_root/pages/resources/technical/system-landscape.md" ]      || cp ${llmWikiTechnicalStarter} "$wiki_root/pages/resources/technical/system-landscape.md"
-    [ -e "$wiki_root/pages/resources/technical/pad-nixos.md" ]             || cp ${llmWikiPadStarter} "$wiki_root/pages/resources/technical/pad-nixos.md"
-    [ -e "$wiki_root/templates/obsidian/page.md" ]                         || cp ${llmWikiPageTemplate} "$wiki_root/templates/obsidian/page.md"
+    # Seed files — only if the destination does not already exist
+    while IFS= read -r src; do
+      rel="''${src#$seed/}"
+      dest="$wiki_root/$rel"
+      if [ ! -e "$dest" ]; then
+        mkdir -p "$(dirname "$dest")"
+        cp "$src" "$dest"
+      fi
+    done < <(find "$seed" -type f)
+
+    # Seed an empty registry if none exists yet
+    if [ ! -e "$wiki_root/meta/registry.json" ]; then
+      printf '[]\n' > "$wiki_root/meta/registry.json"
+    fi
   '';
 
-  # Write llm-router.json and inject cortecs API key from sops secret
+  # ── Activation: LLM router (always refreshed — injects SOPS secret) ──────
   home.activation.llmRouter = lib.hm.dag.entryAfter ["writeBoundary"] ''
     llm_router_path="$HOME/.pi/agent/llm-router.json"
     secret_path="/run/secrets/cortecs-api-key"
