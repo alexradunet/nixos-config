@@ -1,5 +1,5 @@
-let
-  autoPeersFile = /home/alex/.local/state/wg-admin/nix/peers.nix;
+{config, ...}: let
+  autoPeersFile = config.services.wg-admin.nixPeersFile;
   autoPeers =
     if builtins.pathExists autoPeersFile
     then import autoPeersFile

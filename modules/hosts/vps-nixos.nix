@@ -3,27 +3,35 @@
   inputs,
   lib,
   ...
-}: {
+}: let
+  flakeConfig = config;
+in {
   flake.nixosConfigurations.vps-nixos = inputs.nixpkgs.lib.nixosSystem {
     system = "x86_64-linux";
     modules =
       [
-        ({pkgs, ...}: {
-          nixpkgs.overlays = [config.flake.overlays.default];
+        ({
+          config,
+          pkgs,
+          ...
+        }: let
+          alexHome = config.users.users.alex.home;
+        in {
+          nixpkgs.overlays = [flakeConfig.flake.overlays.default];
           networking.hostName = "vps-nixos";
           services.openssh.openFirewall = true;
           system.stateVersion = "25.11";
 
           services.wg-admin = {
             enable = true;
-            stateDir = "/home/alex/.local/state/wg-admin";
+            stateDir = "${alexHome}/.local/state/wg-admin";
             user = "alex";
             group = "users";
             subnet = "10.77.0.0/24";
             allowedIPs = ["10.77.0.0/24"];
             dns = ["10.77.0.1"];
             ipStart = 30;
-            rebuildFlake = "/home/alex/Workspace/NixPI#vps-nixos";
+            rebuildFlake = "${alexHome}/Workspace/NixPI#${config.networking.hostName}";
           };
         })
         ../../hosts/vps-nixos/hardware-configuration.nix
