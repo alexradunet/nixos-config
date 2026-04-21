@@ -129,7 +129,7 @@ COMMAND=${shellEscape(commandPath)}
 WORKDIR=${shellEscape(cwd)}
 PREVIEW=${shellEscape(preview(command, 400))}
 
-{
+(
   echo "[pi-sudo] started: $(date --iso-8601=seconds)"
   echo "[pi-sudo] cwd: $WORKDIR"
   echo "[pi-sudo] authenticate in this pane if sudo prompts"
@@ -137,9 +137,11 @@ PREVIEW=${shellEscape(preview(command, 400))}
   echo
   cd "$WORKDIR"
   bash "$COMMAND"
-} 2>&1 | tee -a "$LOG"
-status=${PIPESTATUS[0]}
-printf '%s\n' "$status" > "$STATUS"
+  status=$?
+  printf '%s\n' "$status" > "$STATUS"
+  exit "$status"
+) 2>&1 | tee -a "$LOG"
+status=$(cat "$STATUS" 2>/dev/null || printf '1\n')
 echo
 if [ "$status" -eq 0 ]; then
   echo "[pi-sudo] command completed successfully (exit 0)" | tee -a "$LOG"
