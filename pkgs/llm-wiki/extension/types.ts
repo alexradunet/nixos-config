@@ -196,6 +196,8 @@ export interface LintRun {
 		emptySummary: number;
 		duplicateIds: number;
 		unresolvedIds: number;
+		thinContent: number;
+		crossrefGaps: number;
 	};
 	issues: LintIssue[];
 }

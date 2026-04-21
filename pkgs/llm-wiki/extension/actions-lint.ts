@@ -12,6 +12,7 @@ import {
 	EVENT_STATUSES,
 	REMINDER_STATUSES,
 	OPERATIONAL_TYPES,
+	KNOWLEDGE_TYPES,
 } from "./rules.js";
 import type { ActionResult, BacklinksData, LintDetails, LintIssue, RegistryData } from "./types.js";
 
@@ -19,6 +20,8 @@ const SOURCE_STATUSES = new Set(["captured", "integrated", "superseded"]);
 const ORIGIN_TYPES = new Set(["text", "file", "url"]);
 const VALIDATION_LEVELS = new Set(["seed", "working", "trusted", "superseded"]);
 const RELATION_FIELDS = ["projects", "people", "systems", "sources", "related", "depends_on", "blocked_by"] as const;
+const THIN_CONTENT_WORD_THRESHOLD = 25;
+const CROSSFREF_MENTION_THRESHOLD = 2;
 
 function normalizeHeadingRef(value: string): string {
 	return value.trim().toLowerCase().replace(/\s+/g, " ");
@@ -26,6 +29,10 @@ function normalizeHeadingRef(value: string): string {
 
 function isExternalLink(target: string): boolean {
 	return /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(target);
+}
+
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function extractMarkdownLinks(markdown: string): string[] {
@@ -401,6 +408,49 @@ function lintUnresolvedIds(pages: ReturnType<typeof scanPages>, registry: Regist
 	return issues;
 }
 
+function lintThinContent(registry: RegistryData): LintIssue[] {
+	return registry.pages
+		.filter((page) => KNOWLEDGE_TYPES.has(page.type))
+		.filter((page) => page.status !== "archived" && page.status !== "superseded")
+		.filter((page) => page.wordCount < THIN_CONTENT_WORD_THRESHOLD)
+		.map((page) => ({
+			kind: "thin-content",
+			severity: "info" as const,
+			path: page.path,
+			message: `Thin content: ${page.wordCount} words (< ${THIN_CONTENT_WORD_THRESHOLD}).`,
+		}));
+}
+
+function lintCrossrefGaps(pages: ReturnType<typeof scanPages>, registry: RegistryData): LintIssue[] {
+	const issues: LintIssue[] = [];
+	for (const target of registry.pages) {
+		if (target.type === "source" || target.type === "journal" || OPERATIONAL_TYPES.has(target.type)) continue;
+		const candidateNames = [target.title, ...target.aliases]
+			.map((value) => value.trim())
+			.filter((value) => value.length >= 5);
+		if (candidateNames.length === 0) continue;
+
+		let mentions = 0;
+		for (const page of pages) {
+			if (page.relativePath === target.path) continue;
+			if (page.normalizedLinks.includes(target.path)) continue;
+			const body = page.body;
+			const mentioned = candidateNames.some((name) => new RegExp(`(^|[^a-z0-9])${escapeRegExp(name)}([^a-z0-9]|$)`, "i").test(body));
+			if (mentioned) mentions += 1;
+		}
+
+		if (mentions >= CROSSFREF_MENTION_THRESHOLD) {
+			issues.push({
+				kind: "crossref-gap",
+				severity: "info",
+				path: target.path,
+				message: `Referenced in ${mentions} page(s) without explicit links. Consider adding direct links or backlinks.`,
+			});
+		}
+	}
+	return issues;
+}
+
 function buildCounts(issues: LintIssue[]) {
 	return {
 		total: issues.length,
@@ -414,6 +464,8 @@ function buildCounts(issues: LintIssue[]) {
 		emptySummary: issues.filter((issue) => issue.kind === "empty-summary").length,
 		duplicateIds: issues.filter((issue) => issue.kind === "duplicate-id").length,
 		unresolvedIds: issues.filter((issue) => issue.kind === "unresolved-id").length,
+		thinContent: issues.filter((issue) => issue.kind === "thin-content").length,
+		crossrefGaps: issues.filter((issue) => issue.kind === "crossref-gap").length,
 	};
 }
 
@@ -440,6 +492,8 @@ const LINT_CHECKS: Record<
 	"empty-summary": (_pages, registry) => lintEmptySummary(registry),
 	"duplicate-id": (_pages, registry) => lintDuplicateIds(registry),
 	"unresolved-ids": (pages, registry) => lintUnresolvedIds(pages, registry),
+	"thin-content": (_pages, registry) => lintThinContent(registry),
+	"crossref-gaps": (pages, registry) => lintCrossrefGaps(pages, registry),
 };
 
 export function handleWikiLint(wikiRoot: string, mode: LintMode = "all"): ActionResult<LintDetails> {
@@ -458,7 +512,8 @@ export function handleWikiLint(wikiRoot: string, mode: LintMode = "all"): Action
 			`(links=${counts.brokenLinks} orphans=${counts.orphans} fm=${counts.frontmatter} ` +
 			`dup=${counts.duplicates} cov=${counts.coverage} stale=${counts.staleness} ` +
 			`review=${counts.staleReviews} summary=${counts.emptySummary} ` +
-			`dupId=${counts.duplicateIds} unresolved=${counts.unresolvedIds})`,
+			`dupId=${counts.duplicateIds} unresolved=${counts.unresolvedIds} ` +
+			`thin=${counts.thinContent} crossref=${counts.crossrefGaps})`,
 		details: { counts, issues },
 	});
 }

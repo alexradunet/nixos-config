@@ -48,6 +48,7 @@ export type LintMode =
 	| "links" | "orphans" | "frontmatter" | "duplicates"
 	| "coverage" | "staleness" | "stale-reviews"
 	| "empty-summary" | "duplicate-id" | "unresolved-ids"
+	| "thin-content" | "crossref-gaps"
 	| "all";
 
 export interface SearchableRegistryEntry {
