@@ -177,7 +177,8 @@ Current model:
   - `schedule_reboot`
   - `nix_config_proposal apply`
 - the user types the sudo password directly in tmux if prompted
-- `tmux-manager` tracks PI-owned temporary panes and closes successful ones after a grace period
+- successful privileged panes self-close after a short grace period; failed ones stay open for inspection
+- `tmux-manager` tracks PI-owned temporary panes for visibility and manual cleanup
 - long-running logs stay in tmux and are also written to a per-run log path for PI to inspect later
 
 This keeps PI unprivileged, uses one privilege-escalation flow, and avoids storing sudo passwords in PI session logs.

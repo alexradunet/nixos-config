@@ -187,13 +187,18 @@ status=$(cat "$STATUS" 2>/dev/null || printf '1\n')
 echo
 if [ "$status" -eq 0 ]; then
   echo "[pi-sudo] command completed successfully (exit 0)" | tee -a "$LOG"
+  echo "[pi-sudo] log: $LOG" | tee -a "$LOG"
+  echo "[pi-sudo] status: $STATUS" | tee -a "$LOG"
+  echo "[pi-sudo] auto-closing pane in 15 seconds." | tee -a "$LOG"
+  sleep 15
+  tmux kill-pane -t "${TMUX_PANE:-}" 2>/dev/null || exit 0
 else
   echo "[pi-sudo] command failed with exit $status" | tee -a "$LOG"
+  echo "[pi-sudo] log: $LOG" | tee -a "$LOG"
+  echo "[pi-sudo] status: $STATUS" | tee -a "$LOG"
+  echo "[pi-sudo] pane left open for inspection; exit when done." | tee -a "$LOG"
+  exec bash
 fi
-echo "[pi-sudo] log: $LOG" | tee -a "$LOG"
-echo "[pi-sudo] status: $STATUS" | tee -a "$LOG"
-echo "[pi-sudo] pane left open for inspection; exit when done." | tee -a "$LOG"
-exec bash
 `,
       );
 

@@ -180,6 +180,7 @@ function renderRecords(records: TempPaneRecord[]) {
 export default function tmuxManager(pi: ExtensionAPI) {
   const watchers = new Map<string, ReturnType<typeof setInterval>>();
   const closers = new Map<string, ReturnType<typeof setTimeout>>();
+  let discoveryTimer: ReturnType<typeof setInterval> | undefined;
   let lastCtx: ExtensionContext | undefined;
 
   function updateStatusWidget() {
@@ -291,6 +292,15 @@ export default function tmuxManager(pi: ExtensionAPI) {
     void reconcileRecord(id);
   }
 
+  function discoverRecords() {
+    for (const record of loadRecords()) {
+      if (record.status === "done" || record.status === "closed") continue;
+      watchRecord(record.id);
+      void setPaneTitle(record);
+    }
+    updateStatusWidget();
+  }
+
   async function register(payload: RegisterPayload) {
     const record: TempPaneRecord = {
       id: payload.id ?? makeId(payload.purpose),
@@ -389,10 +399,18 @@ export default function tmuxManager(pi: ExtensionAPI) {
       await setPaneTitle(record);
       watchRecord(record.id);
     }
+    if (discoveryTimer) clearInterval(discoveryTimer);
+    discoveryTimer = setInterval(() => {
+      discoverRecords();
+    }, 2000);
     updateStatusWidget();
   });
 
   pi.on("session_shutdown", async () => {
+    if (discoveryTimer) {
+      clearInterval(discoveryTimer);
+      discoveryTimer = undefined;
+    }
     for (const id of Array.from(watchers.keys())) clearTracking(id);
   });
 }
