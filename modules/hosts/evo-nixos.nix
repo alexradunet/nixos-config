@@ -29,6 +29,7 @@
         {
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
+          home-manager.backupFileExtension = "hm-backup";
           home-manager.users.alex.imports = [
             config.flake.homeModules.alex
             config.flake.homeModules.profile-host-evo-nixos
