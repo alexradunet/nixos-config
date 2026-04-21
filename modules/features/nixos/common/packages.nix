@@ -6,6 +6,7 @@
     wget
     curl
     pi
+    tmux
     age
     ssh-to-age
     sops

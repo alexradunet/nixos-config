@@ -136,6 +136,11 @@ The Pi runtime now restores several capabilities that previously lived in `NixPI
   - `nixos_update`
   - `systemd_control`
   - `schedule_reboot`
+- `sudo-handoff` extension
+  - overrides `bash` for `sudo ...` commands
+  - opens a tmux side pane instead of asking PI to capture a password
+  - leaves authentication and long-running logs in the pane itself
+  - returns pane/log/status paths back to PI for follow-up reading
 - `nixpi` extension
   - `nixpi_status` tool
   - `nixpi_evolution_note` tool
@@ -151,6 +156,22 @@ The Pi runtime now restores several capabilities that previously lived in `NixPI
 - evolution notes under `Knowledge/pages/projects/nixpi/evolution/`
 
 These runtime files are installed under `~/.pi/agent/` by Home Manager and validated by flake checks plus the dedicated `pi-runtime-smoke` VM test.
+
+### Privileged PI flows
+
+PI stays unprivileged.
+
+Current model:
+
+- recurring safe system operations use narrow `NOPASSWD` sudoers rules
+  - `nixos-rebuild switch --flake ~/Workspace/NixPI#<host>`
+  - `nixos-rebuild switch --rollback`
+  - `systemctl start|stop|restart` for `sshd`, `syncthing`, `reaction`, and `nixpi-*.service`
+- arbitrary `sudo ...` via the `bash` tool is handed off to a tmux side pane
+- the user types the sudo password directly in tmux if prompted
+- long-running logs stay in tmux and are also written to a per-run log path for PI to inspect later
+
+This avoids running PI as root and avoids storing sudo passwords in PI session logs.
 
 ### `evo-nixos` AI coding CLIs
 

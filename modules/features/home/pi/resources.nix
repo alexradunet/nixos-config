@@ -145,6 +145,10 @@ in {
   home.file.".pi/agent/extensions/persona".source = ./extensions/persona;
   home.file.".pi/agent/extensions/os".source = ./extensions/os;
   home.file.".pi/agent/extensions/nixpi".source = ./extensions/nixpi;
+  home.file.".pi/agent/extensions/sudo-handoff" = {
+    source = ./extensions/sudo-handoff;
+    force = true;
+  };
 
   # ── PI skills ─────────────────────────────────────────────────────────────
   home.file.".pi/agent/skills/librarian/SKILL.md".source = "${piWebAccessRoot}/skills/librarian/SKILL.md";
@@ -190,6 +194,11 @@ in {
     if [ ! -e "$guardrails_path" ]; then
       cp ${./extensions/persona/guardrails.yaml} "$guardrails_path"
     fi
+  '';
+
+  # Remove the older local sudo-password extension so only tmux handoff remains.
+  home.activation.piSudoCleanup = lib.hm.dag.entryAfter ["writeBoundary"] ''
+    rm -rf "$HOME/.pi/agent/extensions/sudo-prompt"
   '';
 
   # ── Activation: wiki seed (idempotent — never overwrites existing files) ──
