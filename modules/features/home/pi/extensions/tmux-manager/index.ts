@@ -161,8 +161,9 @@ function readStatusFile(statusPath?: string) {
 }
 
 function renderRecords(records: TempPaneRecord[]) {
-  if (records.length === 0) return "No PI-managed temporary tmux panes.";
-  return records
+  const visible = records.filter((record) => !HIDDEN_STATUSES.has(record.status));
+  if (visible.length === 0) return "No PI-managed temporary tmux panes.";
+  return visible
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
     .map((record) => {
       const parts = [
@@ -213,7 +214,9 @@ export default function tmuxManager(pi: ExtensionAPI) {
     }
 
     clearTracking(id);
-    if (reason === "success" || reason === "manual") {
+
+    const statusText = readStatusFile(record.statusPath);
+    if (reason === "success" || reason === "manual" || statusText === "0") {
       deleteRecord(id);
       updateStatusWidget();
       return true;
@@ -378,6 +381,11 @@ export default function tmuxManager(pi: ExtensionAPI) {
   pi.on("session_start", async (_event, ctx) => {
     lastCtx = ctx;
     for (const record of loadRecords()) {
+      const statusText = readStatusFile(record.statusPath);
+      if (record.status === "done" || record.status === "closed" || statusText === "0") {
+        await closeRecord(record.id, statusText === "0" ? "success" : "manual");
+        continue;
+      }
       await setPaneTitle(record);
       watchRecord(record.id);
     }

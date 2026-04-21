@@ -56,6 +56,48 @@ function writeExecutable(path: string, content: string) {
   chmodSync(path, 0o700);
 }
 
+function tmuxRegistryDir() {
+  const baseDir = runtimeBaseDir();
+  mkdirSync(baseDir, { recursive: true });
+  const registryDir = join(baseDir, "pi-tmux-temp");
+  mkdirSync(registryDir, { recursive: true });
+  return registryDir;
+}
+
+function writeTmuxRecord(params: {
+  paneId: string;
+  purpose: string;
+  titleBase: string;
+  status: "needs-auth" | "running" | "done" | "failed" | "closed";
+  statusPath: string;
+  logPath: string;
+  handoffDir: string;
+  autoCloseOnSuccess: boolean;
+  closeDelayMs: number;
+  keepOpenOnFailure: boolean;
+}) {
+  const id = `${params.purpose}-${Date.now()}`;
+  const recordPath = join(tmuxRegistryDir(), `${id}.json`);
+  writeFileSync(
+    recordPath,
+    `${JSON.stringify({
+      id,
+      paneId: params.paneId,
+      purpose: params.purpose,
+      titleBase: params.titleBase,
+      status: params.status,
+      createdAt: new Date().toISOString(),
+      statusPath: params.statusPath,
+      logPath: params.logPath,
+      handoffDir: params.handoffDir,
+      autoCloseOnSuccess: params.autoCloseOnSuccess,
+      closeDelayMs: params.closeDelayMs,
+      keepOpenOnFailure: params.keepOpenOnFailure,
+    }, null, 2)}\n`,
+    "utf-8",
+  );
+}
+
 export default function sudoHandoff(pi: ExtensionAPI) {
   const baseBash = createBashTool(process.cwd());
 
@@ -180,7 +222,7 @@ exec bash
 
       const paneId = (tmuxResult.stdout || "").trim() || "(unknown)";
       await run("tmux", ["select-pane", "-t", paneId, "-T", "pi-sudo [auth]"], signal);
-      pi.events.emit("pi-tmux:register", {
+      writeTmuxRecord({
         paneId,
         purpose: "sudo-handoff",
         titleBase: "pi-sudo",
