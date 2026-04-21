@@ -1,6 +1,8 @@
 {
   pkgs,
   lib,
+  config,
+  inputs,
 }: let
   snakeoilKeys = {
     hub = {
@@ -24,6 +26,13 @@
         prefixLength = 24;
       }
     ];
+  };
+
+  mkVmHostBase = hostName: {
+    networking.hostName = hostName;
+    system.stateVersion = "25.11";
+    virtualisation.memorySize = 4096;
+    virtualisation.diskSize = 16384;
   };
 in {
   wg-admin-basic = pkgs.testers.runNixOSTest {
@@ -176,6 +185,179 @@ in {
       with subtest("laptop-specific power management is configured"):
           machine.succeed("systemctl cat power-profiles-daemon.service >/dev/null")
           machine.succeed("command -v powerprofilesctl >/dev/null")
+    '';
+  };
+
+  evo-nixos-smoke = pkgs.testers.runNixOSTest {
+    name = "evo-nixos-smoke";
+
+    nodes.machine = {pkgs, ...}: {
+      imports = [
+        config.flake.nixosModules.sops
+        config.flake.nixosModules.common
+        config.flake.nixosModules.desktop
+        config.flake.nixosModules.users
+        config.flake.nixosModules.host-efi-systemd-boot
+        config.flake.nixosModules.service-networkmanager
+        config.flake.nixosModules.service-wireguard
+        config.flake.nixosModules.service-openssh
+        config.flake.nixosModules.service-reaction
+        config.flake.nixosModules.service-syncthing
+        config.flake.nixosModules.service-llama-cpp
+        config.flake.nixosModules.sops-common
+        config.flake.nixosModules.sops-shared-common
+        config.flake.nixosModules.sops-evo-nixos
+        ../../hosts/evo-nixos/syncthing.nix
+        inputs.home-manager.nixosModules.home-manager
+        {
+          services.llama-server = {
+            enable = true;
+            modelPath = "/tmp/test-model.gguf";
+          };
+          home-manager.useGlobalPkgs = true;
+          home-manager.useUserPackages = true;
+          home-manager.backupFileExtension = "hm-backup";
+          home-manager.users.alex.imports = [
+            config.flake.homeModules.alex
+            config.flake.homeModules.profile-base
+            config.flake.homeModules.wezterm
+            config.flake.homeModules.host-evo-nixos
+          ];
+        }
+        (mkVmHostBase "evo-nixos")
+      ];
+    };
+
+    testScript = ''
+      start_all()
+      machine.wait_for_unit("display-manager.service")
+      machine.wait_for_unit("NetworkManager.service")
+      machine.wait_for_unit("sshd.service")
+      machine.wait_for_unit("reaction.service")
+      machine.wait_for_unit("syncthing.service")
+
+      with subtest("evo host enables expected desktop workstation stack"):
+          machine.succeed("systemctl is-active display-manager.service")
+          machine.succeed("systemctl is-active NetworkManager.service")
+          machine.succeed("systemctl cat llama-server.service >/dev/null")
+
+      with subtest("evo host keeps syncthing and ssh active"):
+          machine.succeed("systemctl is-active syncthing.service")
+          machine.succeed("systemctl is-active sshd.service")
+    '';
+  };
+
+  pad-nixos-smoke = pkgs.testers.runNixOSTest {
+    name = "pad-nixos-smoke";
+
+    nodes.machine = {...}: {
+      imports = [
+        config.flake.nixosModules.sops
+        config.flake.nixosModules.common
+        config.flake.nixosModules.desktop
+        config.flake.nixosModules.laptop
+        config.flake.nixosModules.users
+        config.flake.nixosModules.host-efi-systemd-boot
+        config.flake.nixosModules.service-networkmanager
+        config.flake.nixosModules.service-wireguard
+        config.flake.nixosModules.service-openssh
+        config.flake.nixosModules.service-reaction
+        config.flake.nixosModules.service-syncthing
+        config.flake.nixosModules.sops-common
+        config.flake.nixosModules.sops-shared-common
+        config.flake.nixosModules.sops-pad-nixos
+        ../../hosts/pad-nixos/syncthing.nix
+        inputs.home-manager.nixosModules.home-manager
+        {
+          home-manager.useGlobalPkgs = true;
+          home-manager.useUserPackages = true;
+          home-manager.backupFileExtension = "hm-backup";
+          home-manager.users.alex.imports = [
+            config.flake.homeModules.alex
+            config.flake.homeModules.profile-host-pad-nixos
+          ];
+        }
+        (mkVmHostBase "pad-nixos")
+      ];
+    };
+
+    testScript = ''
+      start_all()
+      machine.wait_for_unit("display-manager.service")
+      machine.wait_for_unit("NetworkManager.service")
+      machine.wait_for_unit("syncthing.service")
+
+      with subtest("pad host enables laptop workstation stack"):
+          machine.succeed("systemctl is-active display-manager.service")
+          machine.succeed("systemctl is-active NetworkManager.service")
+          machine.succeed("systemctl is-active syncthing.service")
+          machine.succeed("systemctl cat power-profiles-daemon.service >/dev/null")
+          machine.succeed("command -v powerprofilesctl >/dev/null")
+
+      with subtest("pad host keeps expected desktop services"):
+          machine.succeed("command -v firefox >/dev/null")
+          machine.succeed("command -v kwriteconfig6 >/dev/null")
+    '';
+  };
+
+  vps-nixos-smoke = pkgs.testers.runNixOSTest {
+    name = "vps-nixos-smoke";
+
+    nodes.machine = {pkgs, ...}: {
+      imports = [
+        config.flake.nixosModules.sops
+        config.flake.nixosModules.common
+        config.flake.nixosModules.users
+        config.flake.nixosModules.service-openssh
+        config.flake.nixosModules.service-reaction
+        config.flake.nixosModules.service-wireguard
+        config.flake.nixosModules.sops-common
+        config.flake.nixosModules.sops-shared-common
+        config.flake.nixosModules.sops-vps-nixos
+        config.flake.nixosModules.service-wg-admin
+        inputs.home-manager.nixosModules.home-manager
+        {
+          services.openssh.openFirewall = true;
+          services.wg-admin = {
+            enable = true;
+            stateDir = "/home/alex/.local/state/wg-admin";
+            user = "alex";
+            group = "users";
+            subnet = "10.77.0.0/24";
+            allowedIPs = ["10.77.0.0/24"];
+            dns = ["10.77.0.1"];
+            ipStart = 30;
+            rebuildFlake = "/home/alex/Workspace/NixPI#vps-nixos";
+          };
+          home-manager.useGlobalPkgs = true;
+          home-manager.useUserPackages = true;
+          home-manager.backupFileExtension = "hm-backup";
+          home-manager.users.alex.imports = [
+            config.flake.homeModules.alex
+            config.flake.homeModules.profile-host-vps-nixos
+          ];
+        }
+        (mkVmHostBase "vps-nixos")
+      ];
+    };
+
+    testScript = ''
+      start_all()
+      machine.wait_for_unit("multi-user.target")
+      machine.wait_for_unit("sshd.service")
+
+      with subtest("vps host enables server and wg-admin stack"):
+          machine.succeed("systemctl is-active sshd.service")
+          machine.succeed("command -v wg-admin >/dev/null")
+          machine.succeed("test -f /etc/wg-admin/config.env")
+          machine.succeed("grep -F 'WG_ADMIN_HOME=' /etc/wg-admin/config.env >/dev/null")
+          machine.succeed("grep -F 'WG_ADMIN_SUBNET=' /etc/wg-admin/config.env >/dev/null")
+          machine.succeed("grep -F 'WG_ADMIN_NIX_PEERS_FILE=' /etc/wg-admin/config.env >/dev/null")
+
+      with subtest("vps host keeps reaction and user setup active"):
+          machine.succeed("systemctl is-active reaction.service")
+          machine.succeed("id alex")
+          machine.succeed("getent passwd alex | cut -d: -f7 | grep -F 'bash'")
     '';
   };
 

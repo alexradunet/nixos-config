@@ -78,4 +78,24 @@ describe("actions-pages v2 scaffolding", () => {
       expect(content).toContain("snooze_until:");
     }
   });
+
+  it("rejects page creation outside the allowed domain scope", () => {
+    process.env.PI_LLM_WIKI_ALLOWED_DOMAINS = "technical";
+    rebuildAllMeta(wikiRoot);
+
+    const result = handleEnsurePage(wikiRoot, {
+      type: "concept",
+      title: "Private Note",
+      domain: "personal",
+      folder: "resources/knowledge",
+    });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error).toContain('Domain "personal" is not accessible in this session');
+      expect(result.error).toContain("Allowed domains: technical");
+    }
+
+    delete process.env.PI_LLM_WIKI_ALLOWED_DOMAINS;
+  });
 });

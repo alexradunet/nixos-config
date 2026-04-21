@@ -87,6 +87,24 @@ body
     expect(parsed.attributes).toEqual({});
     expect(parsed.body).toContain("title: Missing close");
   });
+
+  it("supports trailing frontmatter delimiters without a body", () => {
+    const parsed = parseFrontmatter(`---
+title: Header Only
+aliases: one, two
+---`);
+    expect(parsed.attributes).toMatchObject({
+      title: "Header Only",
+      aliases: ["one", "two"],
+    });
+    expect(parsed.body).toBe("");
+  });
+
+  it("stringifies empty frontmatter objects with explicit delimiters", () => {
+    expect(stringifyFrontmatter({}, "body")).toBe(`---
+---
+body`);
+  });
 });
 
 describe("helper utilities", () => {

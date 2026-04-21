@@ -1,5 +1,6 @@
 {
   config,
+  inputs,
   lib,
   ...
 }: {
@@ -14,7 +15,7 @@
 
     alexHome = padConfig.home-manager.users.alex.home;
     llmWikiActivation = padConfig.home-manager.users.alex.home.activation.wikiStarter;
-    nixosTests = lib.filterAttrs (_: lib.isDerivation) (pkgs.callPackage ../../tests/nixos {});
+    nixosTests = lib.filterAttrs (_: lib.isDerivation) (pkgs.callPackage ../../tests/nixos {inherit config inputs;});
   in {
     checks =
       {

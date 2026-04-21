@@ -6,10 +6,12 @@ const state = vi.hoisted(() => ({
   wikiRoot: "/tmp/wiki-root",
   host: "pad-nixos",
   digest: "",
+  allowedDomains: undefined as string[] | undefined,
   protectWrite: false,
   pagePath: false,
+  captureShouldFail: false,
   rebuildCalls: [] as string[],
-  captureCalls: [] as Array<{ wikiRoot: string; params: Record<string, unknown> }>,
+  captureCalls: [] as Array<{ wikiRoot: string; kind: "text" | "file"; params: Record<string, unknown> }>,
   searchCalls: [] as Array<{ wikiRoot: string; query: string; options: Record<string, unknown> }>,
   ensureCalls: [] as Array<{ wikiRoot: string; params: Record<string, unknown> }>,
   lintCalls: [] as Array<{ wikiRoot: string; mode: unknown }>,
@@ -18,7 +20,7 @@ const state = vi.hoisted(() => ({
 vi.mock("../extension/paths.js", () => ({
   getWikiRoot: () => state.wikiRoot,
   getCurrentHost: () => state.host,
-  getAllowedDomains: () => undefined,
+  getAllowedDomains: () => state.allowedDomains,
   isProtectedPath: () => state.protectWrite,
   isWikiPagePath: () => state.pagePath,
 }));
@@ -38,11 +40,17 @@ vi.mock("../extension/actions-meta.js", () => ({
 
 vi.mock("../extension/actions-capture.js", () => ({
   captureText: (wikiRoot: string, _value: string, params: Record<string, unknown>) => {
-    state.captureCalls.push({ wikiRoot, params });
+    state.captureCalls.push({ wikiRoot, kind: "text", params });
+    if (state.captureShouldFail) {
+      return { isErr: () => true, isOk: () => false, error: "capture failed" };
+    }
     return { isErr: () => false, isOk: () => true, value: { text: "captured", details: {} } };
   },
   captureFile: (wikiRoot: string, _value: string, params: Record<string, unknown>) => {
-    state.captureCalls.push({ wikiRoot, params });
+    state.captureCalls.push({ wikiRoot, kind: "file", params });
+    if (state.captureShouldFail) {
+      return { isErr: () => true, isOk: () => false, error: "capture failed" };
+    }
     return { isErr: () => false, isOk: () => true, value: { text: "captured-file", details: {} } };
   },
 }));
@@ -73,8 +81,10 @@ describe("llm-wiki extension wiring", () => {
     state.wikiRoot = path.join("/tmp", "llm-wiki-index-test");
     state.host = "pad-nixos";
     state.digest = "";
+    state.allowedDomains = undefined;
     state.protectWrite = false;
     state.pagePath = false;
+    state.captureShouldFail = false;
     state.rebuildCalls = [];
     state.captureCalls = [];
     state.searchCalls = [];
@@ -130,6 +140,7 @@ describe("llm-wiki extension wiring", () => {
     expect(state.captureCalls).toEqual([
       {
         wikiRoot: state.wikiRoot,
+        kind: "text",
         params: {
           title: undefined,
           kind: undefined,
@@ -141,6 +152,45 @@ describe("llm-wiki extension wiring", () => {
       },
     ]);
     expect(state.rebuildCalls).toEqual([state.wikiRoot]);
+  });
+
+  it("routes file capture through captureFile and rebuilds after success", async () => {
+    const { execute } = await loadTool("wiki_capture");
+    await execute("tool-call", {
+      input_type: "file",
+      value: "/tmp/note.md",
+      title: "Imported Note",
+      kind: "note",
+      tags: ["import"],
+    });
+
+    expect(state.captureCalls).toEqual([
+      {
+        wikiRoot: state.wikiRoot,
+        kind: "file",
+        params: {
+          title: "Imported Note",
+          kind: "note",
+          tags: ["import"],
+          hosts: undefined,
+          domain: undefined,
+          areas: undefined,
+        },
+      },
+    ]);
+    expect(state.rebuildCalls).toEqual([state.wikiRoot]);
+  });
+
+  it("does not rebuild after a failed wiki mutation", async () => {
+    state.captureShouldFail = true;
+    const { execute } = await loadTool("wiki_capture");
+    const result = await execute("tool-call", {
+      input_type: "text",
+      value: "broken",
+    });
+
+    expect(result.isError).toBe(true);
+    expect(state.rebuildCalls).toEqual([]);
   });
 
   it("forwards search filters", async () => {
@@ -223,7 +273,19 @@ describe("llm-wiki extension wiring", () => {
     expect(result).toEqual({ block: true, reason: "Wiki protects raw/ and meta/. Use wiki tools instead." });
   });
 
-  it("returns undefined for non-protected writes and for agent_end when not dirty", async () => {
+  it("returns undefined for unrelated tool calls and for agent_end when not dirty", async () => {
+    const api = await loadExtension();
+    const unrelated = await api.fireEvent("tool_call", {
+      toolName: "read",
+      input: { path: `${state.wikiRoot}/pages/resources/technical/foo.md` },
+    });
+    expect(unrelated).toBeUndefined();
+
+    await api.fireEvent("agent_end");
+    expect(state.rebuildCalls).toEqual([]);
+  });
+
+  it("returns undefined for non-protected writes and rebuilds after page writes on agent_end", async () => {
     const api = await loadExtension();
     const result = await api.fireEvent("tool_call", {
       toolName: "write",
@@ -231,8 +293,14 @@ describe("llm-wiki extension wiring", () => {
     });
     expect(result).toBeUndefined();
 
+    state.pagePath = true;
+    await api.fireEvent("tool_call", {
+      toolName: "write",
+      input: { path: `${state.wikiRoot}/pages/resources/technical/foo.md` },
+    });
     await api.fireEvent("agent_end");
-    expect(state.rebuildCalls).toEqual([]);
+
+    expect(state.rebuildCalls).toEqual([state.wikiRoot]);
   });
 
   it("marks page edits dirty and rebuilds on agent_end", async () => {
@@ -257,6 +325,13 @@ describe("llm-wiki extension wiring", () => {
     expect(result.systemPrompt).toContain("domain: technical or personal");
     expect(result.systemPrompt).toContain("planner/tasks");
     expect(result.systemPrompt).toContain("[WIKI PLANNER DIGEST");
+  });
+
+  it("injects domain restrictions into the context when configured", async () => {
+    state.allowedDomains = ["technical", "personal"];
+    const api = await loadExtension();
+    const result = (await api.fireEvent("before_agent_start", { systemPrompt: "BASE" })) as { systemPrompt: string };
+    expect(result.systemPrompt).toContain("Domain access is restricted to: [technical, personal]");
   });
 
   it("injects context even when digest is empty", async () => {
