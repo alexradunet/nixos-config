@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { atomicWriteFile } from "./lib/filesystem.js";
 import { ok } from "./lib/utils.js";
@@ -22,6 +23,8 @@ const VALIDATION_LEVELS = new Set(["seed", "working", "trusted", "superseded"]);
 const RELATION_FIELDS = ["projects", "people", "systems", "sources", "related", "depends_on", "blocked_by"] as const;
 const THIN_CONTENT_WORD_THRESHOLD = 25;
 const CROSSFREF_MENTION_THRESHOLD = 2;
+const MISSING_CONCEPT_MENTION_THRESHOLD = 2;
+const QMD_COLLECTION = process.env.PI_LLM_WIKI_QMD_COLLECTION ?? "wiki";
 
 function normalizeHeadingRef(value: string): string {
 	return value.trim().toLowerCase().replace(/\s+/g, " ");
@@ -33,6 +36,47 @@ function isExternalLink(target: string): boolean {
 
 function escapeRegExp(value: string): string {
 	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normalizePhrase(value: string): string {
+	return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function tokenizeForSimilarity(value: string): string[] {
+	return value
+		.toLowerCase()
+		.split(/[^a-z0-9]+/)
+		.filter((token) => token.length >= 3);
+}
+
+function overlapCount(a: string[], b: string[]): number {
+	const bSet = new Set(b);
+	return [...new Set(a)].filter((token) => bSet.has(token)).length;
+}
+
+function extractCandidatePhrases(text: string): string[] {
+	const matches = text.match(/\b(?:[A-Z][a-z0-9]+|[A-Z]{2,})(?:\s+(?:[A-Z][a-z0-9]+|[A-Z]{2,})){1,3}\b/g) ?? [];
+	return [...new Set(matches.map((value) => value.trim()).filter((value) => value.length >= 6))];
+}
+
+function getQmdBin(): string {
+	return process.env.PI_LLM_WIKI_QMD_BIN ?? "qmd";
+}
+
+function queryQmdFiles(phrase: string): string[] | undefined {
+	try {
+		const stdout = execFileSync(getQmdBin(), ["search", `\"${phrase}\"`, "-c", QMD_COLLECTION, "--files", "-n", "20"], {
+			encoding: "utf8",
+			stdio: ["ignore", "pipe", "ignore"],
+		});
+		return stdout
+			.split("\n")
+			.map((line) => line.trim())
+			.filter(Boolean)
+			.filter((line) => line.endsWith(".md"));
+	} catch {
+		return undefined;
+	}
 }
 
 function extractMarkdownLinks(markdown: string): string[] {
@@ -421,8 +465,15 @@ function lintThinContent(registry: RegistryData): LintIssue[] {
 		}));
 }
 
+function getExplicitMarkdownTargets(page: ReturnType<typeof scanPages>[number]): string[] {
+	return extractMarkdownLinks(page.body)
+		.map((raw) => resolveMarkdownTarget(page.relativePath, raw))
+		.filter((value): value is string => !!value);
+}
+
 function lintCrossrefGaps(pages: ReturnType<typeof scanPages>, registry: RegistryData): LintIssue[] {
 	const issues: LintIssue[] = [];
+	const explicitMarkdownTargets = new Map(pages.map((page) => [page.relativePath, new Set(getExplicitMarkdownTargets(page))]));
 	for (const target of registry.pages) {
 		if (target.type === "source" || target.type === "journal" || OPERATIONAL_TYPES.has(target.type)) continue;
 		const candidateNames = [target.title, ...target.aliases]
@@ -434,6 +485,7 @@ function lintCrossrefGaps(pages: ReturnType<typeof scanPages>, registry: Registr
 		for (const page of pages) {
 			if (page.relativePath === target.path) continue;
 			if (page.normalizedLinks.includes(target.path)) continue;
+			if (explicitMarkdownTargets.get(page.relativePath)?.has(target.path)) continue;
 			const body = page.body;
 			const mentioned = candidateNames.some((name) => new RegExp(`(^|[^a-z0-9])${escapeRegExp(name)}([^a-z0-9]|$)`, "i").test(body));
 			if (mentioned) mentions += 1;
@@ -447,6 +499,75 @@ function lintCrossrefGaps(pages: ReturnType<typeof scanPages>, registry: Registr
 				message: `Referenced in ${mentions} page(s) without explicit links. Consider adding direct links or backlinks.`,
 			});
 		}
+	}
+	return issues;
+}
+
+function lintContradictionReview(pages: ReturnType<typeof scanPages>, registry: RegistryData): LintIssue[] {
+	const issues: LintIssue[] = [];
+	const explicitMarkdownTargets = new Map(pages.map((page) => [page.relativePath, new Set(getExplicitMarkdownTargets(page))]));
+	const candidates = registry.pages.filter((page) => KNOWLEDGE_TYPES.has(page.type));
+	for (let i = 0; i < candidates.length; i += 1) {
+		const left = candidates[i];
+		for (let j = i + 1; j < candidates.length; j += 1) {
+			const right = candidates[j];
+			if (left.path === right.path) continue;
+			if ((left.domain ?? "") !== (right.domain ?? "")) continue;
+			const linkedLeft = left.linksOut.includes(right.path) || explicitMarkdownTargets.get(left.path)?.has(right.path);
+			const linkedRight = right.linksOut.includes(left.path) || explicitMarkdownTargets.get(right.path)?.has(left.path);
+			if (linkedLeft || linkedRight) continue;
+			const sameAreas = left.areas.some((area) => right.areas.includes(area));
+			const sameSources = left.sourceIds.some((sourceId) => right.sourceIds.includes(sourceId));
+			const tokenOverlap = overlapCount(tokenizeForSimilarity(left.title), tokenizeForSimilarity(right.title));
+			const sameObjectType = !!left.objectType && left.objectType === right.objectType;
+			if (!(sameSources || (sameAreas && tokenOverlap >= 1) || (sameObjectType && tokenOverlap >= 2))) continue;
+			if (!left.summary.trim() || !right.summary.trim()) continue;
+			if (normalizePhrase(left.summary) === normalizePhrase(right.summary)) continue;
+			if (left.status === right.status && tokenOverlap === 0 && !sameSources) continue;
+			issues.push({
+				kind: "contradiction-review",
+				severity: "info",
+				path: left.path,
+				message: `Review against ${right.path}: overlapping context but divergent summaries/status (${left.status} vs ${right.status}).`,
+			});
+		}
+	}
+	return issues;
+}
+
+function collectLocalPhraseMentions(pages: ReturnType<typeof scanPages>): Map<string, string[]> {
+	const mentions = new Map<string, Set<string>>();
+	for (const page of pages) {
+		for (const phrase of extractCandidatePhrases(`${page.body}\n${page.headings.join("\n")}`)) {
+			const normalized = normalizePhrase(phrase);
+			if (!mentions.has(normalized)) mentions.set(normalized, new Set());
+			mentions.get(normalized)?.add(page.relativePath);
+		}
+	}
+	return new Map([...mentions.entries()].map(([phrase, paths]) => [phrase, [...paths].sort()]));
+}
+
+function lintMissingConcepts(pages: ReturnType<typeof scanPages>, registry: RegistryData): LintIssue[] {
+	const existingNames = new Set(
+		registry.pages.flatMap((page) => [page.title, ...page.aliases]).map(normalizePhrase).filter(Boolean),
+	);
+	const localMentions = collectLocalPhraseMentions(pages);
+	const issues: LintIssue[] = [];
+
+	for (const [phrase, mentionPaths] of localMentions) {
+		if (existingNames.has(phrase)) continue;
+		if (mentionPaths.length < MISSING_CONCEPT_MENTION_THRESHOLD) continue;
+		const qmdFiles = queryQmdFiles(phrase);
+		const confirmedPaths = qmdFiles ? [...new Set(qmdFiles)] : mentionPaths;
+		if (confirmedPaths.length < MISSING_CONCEPT_MENTION_THRESHOLD) continue;
+		issues.push({
+			kind: "missing-concept",
+			severity: "info",
+			path: mentionPaths[0] ?? "pages",
+			message:
+				`Missing concept candidate: "${phrase}" appears in ${confirmedPaths.length} page(s)` +
+				`${qmdFiles ? " (confirmed by qmd)" : " (local heuristic)"}. Consider creating a page.`,
+		});
 	}
 	return issues;
 }
@@ -466,6 +587,8 @@ function buildCounts(issues: LintIssue[]) {
 		unresolvedIds: issues.filter((issue) => issue.kind === "unresolved-id").length,
 		thinContent: issues.filter((issue) => issue.kind === "thin-content").length,
 		crossrefGaps: issues.filter((issue) => issue.kind === "crossref-gap").length,
+		contradictionReview: issues.filter((issue) => issue.kind === "contradiction-review").length,
+		missingConcepts: issues.filter((issue) => issue.kind === "missing-concept").length,
 	};
 }
 
@@ -494,6 +617,8 @@ const LINT_CHECKS: Record<
 	"unresolved-ids": (pages, registry) => lintUnresolvedIds(pages, registry),
 	"thin-content": (_pages, registry) => lintThinContent(registry),
 	"crossref-gaps": (pages, registry) => lintCrossrefGaps(pages, registry),
+	"contradiction-review": (pages, registry) => lintContradictionReview(pages, registry),
+	"missing-concepts": (pages, registry) => lintMissingConcepts(pages, registry),
 };
 
 export function handleWikiLint(wikiRoot: string, mode: LintMode = "all"): ActionResult<LintDetails> {
@@ -513,7 +638,8 @@ export function handleWikiLint(wikiRoot: string, mode: LintMode = "all"): Action
 			`dup=${counts.duplicates} cov=${counts.coverage} stale=${counts.staleness} ` +
 			`review=${counts.staleReviews} summary=${counts.emptySummary} ` +
 			`dupId=${counts.duplicateIds} unresolved=${counts.unresolvedIds} ` +
-			`thin=${counts.thinContent} crossref=${counts.crossrefGaps})`,
+			`thin=${counts.thinContent} crossref=${counts.crossrefGaps} ` +
+			`contra=${counts.contradictionReview} missing=${counts.missingConcepts})`,
 		details: { counts, issues },
 	});
 }

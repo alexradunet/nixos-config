@@ -49,6 +49,7 @@ export type LintMode =
 	| "coverage" | "staleness" | "stale-reviews"
 	| "empty-summary" | "duplicate-id" | "unresolved-ids"
 	| "thin-content" | "crossref-gaps"
+	| "contradiction-review" | "missing-concepts"
 	| "all";
 
 export interface SearchableRegistryEntry {

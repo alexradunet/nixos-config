@@ -198,6 +198,8 @@ export interface LintRun {
 		unresolvedIds: number;
 		thinContent: number;
 		crossrefGaps: number;
+		contradictionReview: number;
+		missingConcepts: number;
 	};
 	issues: LintIssue[];
 }
