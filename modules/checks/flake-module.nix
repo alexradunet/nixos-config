@@ -13,7 +13,7 @@
     vpsConfig = config.flake.nixosConfigurations.vps-nixos.config;
 
     alexHome = padConfig.home-manager.users.alex.home;
-    llmWikiActivation = padConfig.home-manager.users.alex.home.activation.nixpiWikiStarter;
+    llmWikiActivation = padConfig.home-manager.users.alex.home.activation.wikiStarter;
     nixosTests = lib.filterAttrs (_: lib.isDerivation) (pkgs.callPackage ../../tests/nixos {});
   in {
     checks =
@@ -37,7 +37,7 @@
           extension_source='${alexHome.file.".pi/agent/extensions/llm-wiki".source}'
           activation_script='${llmWikiActivation.data}'
 
-          test "$session_var" = "/home/alex/Sync/Wiki/NixPI"
+          test "$session_var" = "/home/alex/Wiki"
           test -d "$extension_source"
 
           printf '%s\n' "$activation_script" | grep -F 'pages/projects/technical' >/dev/null

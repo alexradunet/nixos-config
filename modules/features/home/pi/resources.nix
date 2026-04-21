@@ -6,8 +6,8 @@
 }: let
   piWebAccessRoot = "${pkgs.pi-web-access}/share/pi-web-access";
   llmWikiRoot = "${pkgs.llm-wiki}/share/llm-wiki";
-  # NixPI — technical wiki (architect / developer / maintainer role)
-  nixpiWikiDir = "${config.home.homeDirectory}/Sync/Wiki/NixPI";
+  # Unified Wiki — technical + personal knowledge in one vault
+  wikiDir = "${config.home.homeDirectory}/Wiki";
 
   llmRouterBase = {
     _comment = "LLM Router config — managed by NixOS (modules/features/home/pi/resources.nix). Manual edits are overwritten on rebuild.";
@@ -48,7 +48,7 @@
     };
     rules = {
       technical = {
-        cwdContains = ["/Repos" "/nixos-config" "/code" "/src" "/projects" "/Sync/Wiki/NixPI"];
+        cwdContains = ["/Repos" "/nixos-config" "/code" "/src" "/projects" "/Wiki"];
         filePathContains = [
           "pages/technical"
           "pages/resources/technical"
@@ -90,44 +90,46 @@
     };
   };
 
-  nixpiWikiReadme = pkgs.writeText "nixpi-wiki-README.md" ''
-    # NixPI Wiki
+  wikiReadme = pkgs.writeText "wiki-README.md" ''
+    # Wiki
 
-    This wiki is shared through Syncthing at `~/Sync/Wiki/NixPI`.
+    Unified knowledge base shared through Syncthing at `~/Wiki`.
     Open this folder directly in Obsidian as a vault.
 
-    This wiki covers all technical knowledge: NixOS configuration, PI agent,
-    infrastructure, architecture, and domain-specific technical knowledge.
-    It is the OS/system layer — analogous to NixOS in the NixOS/HomeManager split.
+    Contains both technical knowledge (NixOS, PI agent, infrastructure, AI)
+    and personal knowledge (journal, habits, health, relationships, projects).
+    Pages are distinguished by `domain: technical` or `domain: personal`.
 
     ## Structure
 
     PARA folders:
 
-    - `pages/projects/technical/`
-    - `pages/areas/technical/`
-    - `pages/resources/technical/`
-    - `pages/archives/`
-    - `pages/technical/` for direct technical notes
+    - `pages/projects/` — active projects (technical/ and personal sub-folders)
+    - `pages/areas/` — long-lived responsibilities
+    - `pages/resources/` — reference material (knowledge/, people/, technical/)
+    - `pages/archives/` — inactive material
+    - `pages/journal/daily/` — daily journal entries (canonical for new entries)
+    - `pages/tasks/` — task tracking
+    - `pages/technical/` — direct technical notes
 
     ## Metadata conventions
 
-    - use `domain: technical` for all pages here
-    - use `areas: [nixos, pi, infrastructure, ai, ...]` for long-lived themes
+    - use `domain: technical` for system/infrastructure/code pages
+    - use `domain: personal` for personal/life/relationships pages
+    - use `areas: [...]` for long-lived themes
     - use `hosts: [...]` for host-specific knowledge
 
     ## Model
 
-    The architect LLM (smart, public) operates here.
-    This wiki is domain-restricted to `technical`.
+    PI operates here with access to both technical and personal domains,
+    enabling cross-referencing between system knowledge and personal context.
   '';
 
   llmWikiSchema = pkgs.writeText "llm-wiki-WIKI_SCHEMA.md" ''
-    # llm-wiki schema
+    # Wiki Schema
 
-    ## Recommendation
-
-    Prefer a technical-first wiki layout with PARA-style folders for storage and browsing.
+    Unified personal + technical knowledge base.
+    Plain markdown + YAML frontmatter. Open in Obsidian or any editor.
 
     ## Canonical page frontmatter
 
@@ -138,14 +140,19 @@
     aliases: []
     tags: [nixos, pi]
     hosts: []
-    domain: technical
+    domain: technical   # or personal
     areas: [infrastructure, ai]
     status: active
-    updated: 2026-04-19
+    updated: 2026-04-21
     source_ids: []
-    summary: One-line summary
+    summary: One-line summary (dense, specific — PI reads this at stage 1)
     ---
     ```
+
+    ## Domain convention
+
+    - `domain: technical` — NixOS, PI agent, infra, code, architecture
+    - `domain: personal` — journal, habits, health, people, trips, finances
 
     ## Host-specific example
 
@@ -154,12 +161,30 @@
       - pad-nixos
     ```
 
-    ## Folder examples
+    ## Folder structure
 
-    - `pages/resources/technical/`
-    - `pages/areas/technical/`
-    - `pages/projects/technical/`
-    - `pages/technical/`
+    ```
+    pages/
+      technical/          # direct technical notes (ai/, nixos/)
+      projects/           # active projects
+        technical/
+        active-quests/
+        forgedance/
+      areas/              # long-lived responsibilities
+        technical/
+        habits/ vitality/ career/ wealth/ trips/ ...
+      resources/          # reference material
+        technical/
+        knowledge/ people/ digital-garden/
+      journal/daily/      # flat daily journal (canonical for new entries)
+      archives/
+      tasks/
+    ```
+
+    ## Linking
+
+    - Always use `[[wikilinks]]` — never `[text](path.md)`
+    - Cross-domain links are supported: `[[Andreea Pavel]]` works from a technical page
   '';
 
   llmWikiTechnicalStarter = pkgs.writeText "llm-wiki-system-landscape.md" ''
@@ -177,7 +202,7 @@
       - infrastructure
       - ai
     status: active
-    updated: 2026-04-19
+    updated: 2026-04-21
     source_ids: []
     summary: High-level overview of the shared technical environment.
     ---
@@ -187,13 +212,13 @@
 
     - This wiki root is shared across devices through Syncthing.
     - The vault can be edited directly from Obsidian.
-    - Technical knowledge should usually use `domain: technical`.
+    - Both `domain: technical` and `domain: personal` pages coexist here.
     - PARA folders help separate projects, areas, resources, and archives.
     - Host-specific notes should use the `hosts:` field.
 
     ## Evidence
 
-    - The repository exports `PI_LLM_WIKI_DIR=~/Sync/Wiki/NixPI`.
+    - The repository exports `PI_LLM_WIKI_DIR=~/Wiki`.
     - The llm-wiki extension filters host-specific pages by the current hostname.
 
     ## Tensions / caveats
@@ -226,7 +251,7 @@
       - infrastructure
       - laptop
     status: active
-    updated: 2026-04-19
+    updated: 2026-04-21
     source_ids: []
     summary: Laptop-specific notes and constraints.
     ---
@@ -285,21 +310,24 @@
 in {
   home.file.".config/qmd/index.yml".text = ''
     global_context: >-
-      Technical knowledge base. If you see a [[WikiLink]], search for that exact
-      term to get more context on it.
+      Unified personal + technical knowledge base. If you see a [[WikiLink]],
+      search for that exact term to get more context on it.
 
     collections:
-      nixpi:
-        path: ${nixpiWikiDir}
+      wiki:
+        path: ${wikiDir}
         pattern: "pages/**/*.md"
         ignore:
           - "pages/sources/**"
         context:
-          "/": "NixPI technical wiki — NixOS config, Pi agent, infrastructure, AI, and architecture"
-          "/pages/journal": "Technical journal entries"
+          "/": "Unified wiki — technical (NixOS, PI, infra, AI) and personal (journal, habits, health, people)"
+          "/pages/journal": "Daily journal entries"
           "/pages/technical": "Direct technical notes"
           "/pages/resources/technical": "Technical reference pages"
           "/pages/areas/technical": "Long-lived technical areas"
+          "/pages/areas": "Long-lived personal areas — habits, vitality, career, wealth, trips"
+          "/pages/resources/people": "People and relationship cards"
+          "/pages/tasks": "Task board"
   '';
 
   home.file.".pi/agent/prompts/.keep".text = "";
@@ -312,8 +340,8 @@ in {
   home.file.".pi/agent/skills/librarian/SKILL.md".source = "${piWebAccessRoot}/skills/librarian/SKILL.md";
   home.file.".pi/agent/skills/wg-admin/SKILL.md".source = ./skills/wg-admin/SKILL.md;
 
-  home.sessionVariables.PI_LLM_WIKI_DIR = nixpiWikiDir;
-  home.sessionVariables.PI_LLM_WIKI_ALLOWED_DOMAINS = "technical";
+  home.sessionVariables.PI_LLM_WIKI_DIR = wikiDir;
+  home.sessionVariables.PI_LLM_WIKI_ALLOWED_DOMAINS = "technical,personal";
 
   home.activation.piWebAccessStarter = lib.hm.dag.entryAfter ["writeBoundary"] ''
     config_path="$HOME/.pi/web-search.json"
@@ -323,32 +351,28 @@ in {
     fi
   '';
 
-  home.activation.nixpiWikiStarter = lib.hm.dag.entryAfter ["writeBoundary"] ''
-    nixpi_root='${nixpiWikiDir}'
+  home.activation.wikiStarter = lib.hm.dag.entryAfter ["writeBoundary"] ''
+    wiki_root='${wikiDir}'
 
-    # Migrate from the old single-wiki path if it still exists
-    old_root="$HOME/Sync/llm-wiki"
-    if [ -d "$old_root" ] && [ ! -d "$nixpi_root" ]; then
-      mkdir -p "$HOME/Sync/Wiki"
-      mv "$old_root" "$nixpi_root"
-    fi
 
     mkdir -p \
-      "$nixpi_root/pages/sources" \
-      "$nixpi_root/pages/projects/technical" \
-      "$nixpi_root/pages/areas/technical" \
-      "$nixpi_root/pages/resources/technical" \
-      "$nixpi_root/pages/archives" \
-      "$nixpi_root/pages/technical" \
-      "$nixpi_root/raw" \
-      "$nixpi_root/meta" \
-      "$nixpi_root/templates/obsidian"
+      "$wiki_root/pages/sources" \
+      "$wiki_root/pages/projects/technical" \
+      "$wiki_root/pages/areas/technical" \
+      "$wiki_root/pages/resources/technical" \
+      "$wiki_root/pages/archives" \
+      "$wiki_root/pages/technical" \
+      "$wiki_root/pages/journal/daily" \
+      "$wiki_root/pages/tasks" \
+      "$wiki_root/raw" \
+      "$wiki_root/meta" \
+      "$wiki_root/templates/obsidian"
 
-    [ -e "$nixpi_root/README.md" ]                                          || cp ${nixpiWikiReadme} "$nixpi_root/README.md"
-    [ -e "$nixpi_root/WIKI_SCHEMA.md" ]                                     || cp ${llmWikiSchema} "$nixpi_root/WIKI_SCHEMA.md"
-    [ -e "$nixpi_root/pages/resources/technical/system-landscape.md" ]      || cp ${llmWikiTechnicalStarter} "$nixpi_root/pages/resources/technical/system-landscape.md"
-    [ -e "$nixpi_root/pages/resources/technical/pad-nixos.md" ]             || cp ${llmWikiPadStarter} "$nixpi_root/pages/resources/technical/pad-nixos.md"
-    [ -e "$nixpi_root/templates/obsidian/page.md" ]                         || cp ${llmWikiPageTemplate} "$nixpi_root/templates/obsidian/page.md"
+    [ -e "$wiki_root/README.md" ]                                          || cp ${wikiReadme} "$wiki_root/README.md"
+    [ -e "$wiki_root/WIKI_SCHEMA.md" ]                                     || cp ${llmWikiSchema} "$wiki_root/WIKI_SCHEMA.md"
+    [ -e "$wiki_root/pages/resources/technical/system-landscape.md" ]      || cp ${llmWikiTechnicalStarter} "$wiki_root/pages/resources/technical/system-landscape.md"
+    [ -e "$wiki_root/pages/resources/technical/pad-nixos.md" ]             || cp ${llmWikiPadStarter} "$wiki_root/pages/resources/technical/pad-nixos.md"
+    [ -e "$wiki_root/templates/obsidian/page.md" ]                         || cp ${llmWikiPageTemplate} "$wiki_root/templates/obsidian/page.md"
   '';
 
   # Write llm-router.json and inject cortecs API key from sops secret

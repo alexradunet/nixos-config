@@ -23,13 +23,13 @@
         export GH_TOKEN="$GITHUB_TOKEN"
       fi
 
-      # Obsidian vault shortcuts
-      obsidian-nixpi() { obsidian "$HOME/Sync/Wiki/NixPI" &! }
+      # Obsidian vault shortcut
+      obsidian-wiki() { obsidian "$HOME/Wiki" &! }
 
-      # Wiki shortcuts for the AI assistant context
+      # Wiki shortcut for the AI assistant context
       wiki-technical() {
-        export PI_LLM_WIKI_DIR="$HOME/Sync/Wiki/NixPI"
-        echo "Wiki context: Technical (NixPI)"
+        export PI_LLM_WIKI_DIR="$HOME/Wiki"
+        echo "Wiki context: Unified (technical + personal)"
       }
     '';
   };

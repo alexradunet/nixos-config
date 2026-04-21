@@ -13,10 +13,9 @@
     };
 
     folders = {
-      # Technical wiki — NixOS, PI agent, infra, architecture.
-      # Visible to the smart LLM. domain: technical only.
-      "nixpi-wiki" = {
-        path = "/home/alex/Sync/Wiki/NixPI";
+      # Unified wiki — technical + personal knowledge in one Obsidian vault.
+      "wiki" = {
+        path = "/home/alex/Wiki";
         devices = ["evo-nixos"];
       };
     };

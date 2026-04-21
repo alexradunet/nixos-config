@@ -1,5 +1,4 @@
 {...}: {
-  home.file."Sync/.keep".text = "";
-  home.file."Sync/Wiki/NixPI/.keep".text = "";
+  home.file."Wiki/.keep".text = "";
   home.file."Repos/.keep".text = "";
 }
