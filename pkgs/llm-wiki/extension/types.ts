@@ -192,6 +192,10 @@ export interface LintRun {
 		duplicates: number;
 		coverage: number;
 		staleness: number;
+		staleReviews: number;
+		emptySummary: number;
+		duplicateIds: number;
+		unresolvedIds: number;
 	};
 	issues: LintIssue[];
 }

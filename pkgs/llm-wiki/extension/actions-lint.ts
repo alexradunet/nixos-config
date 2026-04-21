@@ -2,7 +2,7 @@ import path from "node:path";
 import { atomicWriteFile } from "./lib/filesystem.js";
 import { ok } from "./lib/utils.js";
 import { buildBacklinks, buildRegistry, scanPages } from "./actions-meta.js";
-import { normalizeDomain, normalizeWikiLink } from "./paths.js";
+import { normalizeDomain, normalizeWikiLink, todayStamp } from "./paths.js";
 import { PAGE_TYPES, type WikiPageType } from "./types.js";
 import {
 	type LintMode,
@@ -15,9 +15,45 @@ import {
 } from "./rules.js";
 import type { ActionResult, BacklinksData, LintDetails, LintIssue, RegistryData } from "./types.js";
 
+const SOURCE_STATUSES = new Set(["captured", "integrated", "superseded"]);
+const ORIGIN_TYPES = new Set(["text", "file", "url"]);
+const VALIDATION_LEVELS = new Set(["seed", "working", "trusted", "superseded"]);
+const RELATION_FIELDS = ["projects", "people", "systems", "sources", "related", "depends_on", "blocked_by"] as const;
 
 function normalizeHeadingRef(value: string): string {
 	return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function isExternalLink(target: string): boolean {
+	return /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(target);
+}
+
+function extractMarkdownLinks(markdown: string): string[] {
+	const links: string[] = [];
+	const regex = /(?<!!)\[[^\]]+\]\(([^)]+)\)/g;
+	for (const match of markdown.matchAll(regex)) {
+		const target = match[1]?.trim();
+		if (target) links.push(target);
+	}
+	return links;
+}
+
+function resolveMarkdownTarget(fromPage: string, rawTarget: string): string | undefined {
+	const clean = rawTarget.trim();
+	if (!clean || clean.startsWith("#") || isExternalLink(clean)) return undefined;
+	const [targetPath] = clean.split("#", 2);
+	if (!targetPath) return undefined;
+
+	const posix = path.posix;
+	const fromDir = posix.dirname(fromPage.replace(/\\/g, "/"));
+	const normalized = targetPath.startsWith("/")
+		? posix.normalize(targetPath.replace(/^\/+/, ""))
+		: posix.normalize(posix.join(fromDir, targetPath));
+
+	if (!normalized || normalized.startsWith("../")) return undefined;
+	if (normalized.endsWith(".md")) return normalized;
+	if (!posix.extname(normalized)) return `${normalized}.md`;
+	return normalized;
 }
 
 function lintLinks(pages: ReturnType<typeof scanPages>, registry: RegistryData): LintIssue[] {
@@ -51,6 +87,32 @@ function lintLinks(pages: ReturnType<typeof scanPages>, registry: RegistryData):
 				}
 			}
 		}
+
+		for (const raw of extractMarkdownLinks(page.body)) {
+			const normalized = resolveMarkdownTarget(page.relativePath, raw);
+			if (!normalized) continue;
+			if (!known.has(normalized)) {
+				issues.push({
+					kind: "broken-link",
+					severity: "warning",
+					path: page.relativePath,
+					message: `Broken markdown link: (${raw})`,
+				});
+				continue;
+			}
+			const [, fragment] = raw.split("#", 2);
+			if (fragment) {
+				const headings = headingsByPath.get(normalized);
+				if (!headings?.has(normalizeHeadingRef(fragment))) {
+					issues.push({
+						kind: "broken-link",
+						severity: "warning",
+						path: page.relativePath,
+						message: `Broken markdown heading link: (${raw})`,
+					});
+				}
+			}
+		}
 	}
 	return issues;
 }
@@ -70,9 +132,6 @@ function lintOrphans(registry: RegistryData, backlinks: BacklinksData): LintIssu
 		}));
 }
 
-const SOURCE_STATUSES = new Set(["captured", "integrated", "superseded"]);
-const ORIGIN_TYPES = new Set(["text", "file", "url"]);
-
 function pushFrontmatterIssue(issues: LintIssue[], pathValue: string, message: string): void {
 	issues.push({
 		kind: "frontmatter",
@@ -84,6 +143,10 @@ function pushFrontmatterIssue(issues: LintIssue[], pathValue: string, message: s
 
 function isStringArray(value: unknown): value is string[] {
 	return Array.isArray(value) && value.every((entry) => typeof entry === "string");
+}
+
+function isNonEmptyString(value: unknown): value is string {
+	return typeof value === "string" && value.trim() !== "";
 }
 
 function lintFrontmatter(pages: ReturnType<typeof scanPages>): LintIssue[] {
@@ -108,7 +171,7 @@ function lintFrontmatter(pages: ReturnType<typeof scanPages>): LintIssue[] {
 		}
 
 		const title = page.frontmatter.title;
-		if (title !== undefined && (typeof title !== "string" || title.trim() === "")) {
+		if (title !== undefined && !isNonEmptyString(title)) {
 			pushFrontmatterIssue(issues, page.relativePath, "Field title must be a non-empty string.");
 		}
 
@@ -117,7 +180,7 @@ function lintFrontmatter(pages: ReturnType<typeof scanPages>): LintIssue[] {
 			pushFrontmatterIssue(issues, page.relativePath, `Invalid domain: ${String(domain)}`);
 		}
 
-		for (const field of ["aliases", "tags", "hosts", "areas", "source_ids"] as const) {
+		for (const field of ["aliases", "tags", "hosts", "areas", "source_ids", ...RELATION_FIELDS] as const) {
 			const value = page.frontmatter[field];
 			if (value !== undefined && !isStringArray(value)) {
 				pushFrontmatterIssue(issues, page.relativePath, `Field ${field} must be an array of strings.`);
@@ -126,7 +189,7 @@ function lintFrontmatter(pages: ReturnType<typeof scanPages>): LintIssue[] {
 
 		if (type === "source") {
 			const sourceId = page.frontmatter.source_id;
-			if (sourceId !== undefined && (typeof sourceId !== "string" || sourceId.trim() === "")) {
+			if (sourceId !== undefined && !isNonEmptyString(sourceId)) {
 				pushFrontmatterIssue(issues, page.relativePath, "Field source_id must be a non-empty string.");
 			}
 			const status = page.frontmatter.status;
@@ -138,11 +201,11 @@ function lintFrontmatter(pages: ReturnType<typeof scanPages>): LintIssue[] {
 				pushFrontmatterIssue(issues, page.relativePath, `Invalid origin_type: ${String(originType)}`);
 			}
 			const capturedAt = page.frontmatter.captured_at;
-			if (capturedAt !== undefined && (typeof capturedAt !== "string" || capturedAt.trim() === "")) {
+			if (capturedAt !== undefined && !isNonEmptyString(capturedAt)) {
 				pushFrontmatterIssue(issues, page.relativePath, "Field captured_at must be a non-empty string.");
 			}
 			const originValue = page.frontmatter.origin_value;
-			if (originValue !== undefined && (typeof originValue !== "string" || originValue.trim() === "")) {
+			if (originValue !== undefined && !isNonEmptyString(originValue)) {
 				pushFrontmatterIssue(issues, page.relativePath, "Field origin_value must be a non-empty string.");
 			}
 			continue;
@@ -151,21 +214,56 @@ function lintFrontmatter(pages: ReturnType<typeof scanPages>): LintIssue[] {
 		const status = page.frontmatter.status;
 		if (status !== undefined && typeof status === "string") {
 			const validStatuses =
-				type === "task"     ? TASK_STATUSES :
-				type === "event"    ? EVENT_STATUSES :
+				type === "task" ? TASK_STATUSES :
+				type === "event" ? EVENT_STATUSES :
 				type === "reminder" ? REMINDER_STATUSES :
 				CANONICAL_STATUSES;
 			if (!validStatuses.has(status)) {
 				pushFrontmatterIssue(issues, page.relativePath, `Invalid status "${status}" for type "${type}"`);
 			}
 		}
+
 		const updated = page.frontmatter.updated;
-		if (updated !== undefined && (typeof updated !== "string" || updated.trim() === "")) {
+		if (updated !== undefined && !isNonEmptyString(updated)) {
 			pushFrontmatterIssue(issues, page.relativePath, "Field updated must be a non-empty string.");
 		}
+
 		const summary = page.frontmatter.summary;
 		if (summary !== undefined && typeof summary !== "string") {
 			pushFrontmatterIssue(issues, page.relativePath, "Field summary must be a string.");
+		}
+		if (summary !== undefined && typeof summary === "string" && summary.trim() === "") {
+			pushFrontmatterIssue(issues, page.relativePath, "Field summary must be a non-empty string.");
+		}
+
+		const id = page.frontmatter.id;
+		if (id !== undefined) {
+			if (!isNonEmptyString(id)) {
+				pushFrontmatterIssue(issues, page.relativePath, "Field id must be a non-empty string.");
+			} else if (!id.includes("/") || /\s/.test(id)) {
+				pushFrontmatterIssue(issues, page.relativePath, `Invalid id format: ${id}`);
+			}
+		}
+
+		const objectType = page.frontmatter.object_type;
+		if (objectType !== undefined && !isNonEmptyString(objectType)) {
+			pushFrontmatterIssue(issues, page.relativePath, "Field object_type must be a non-empty string.");
+		}
+		if (id !== undefined && typeof id === "string" && objectType !== undefined && typeof objectType === "string") {
+			const [prefix] = id.split("/", 1);
+			if (prefix && prefix !== objectType) {
+				pushFrontmatterIssue(issues, page.relativePath, `id prefix \"${prefix}\" does not match object_type \"${objectType}\".`);
+			}
+		}
+
+		const schemaVersion = page.frontmatter.schema_version;
+		if (schemaVersion !== undefined && schemaVersion !== 1) {
+			pushFrontmatterIssue(issues, page.relativePath, `Unsupported schema_version: ${String(schemaVersion)}`);
+		}
+
+		const validationLevel = page.frontmatter.validation_level;
+		if (validationLevel !== undefined && (typeof validationLevel !== "string" || !VALIDATION_LEVELS.has(validationLevel))) {
+			pushFrontmatterIssue(issues, page.relativePath, `Invalid validation_level: ${String(validationLevel)}`);
 		}
 	}
 	return issues;
@@ -209,8 +307,6 @@ function lintCoverage(registry: RegistryData, backlinks: BacklinksData): LintIss
 		}
 
 		if (page.type === "journal") continue;
-
-		// Operational notes (task/event/reminder) don't require source_ids
 		if (OPERATIONAL_TYPES.has(page.type)) continue;
 
 		if (page.sourceIds.length === 0) {
@@ -236,6 +332,75 @@ function lintStaleness(registry: RegistryData): LintIssue[] {
 		}));
 }
 
+function lintStaleReviews(registry: RegistryData): LintIssue[] {
+	const today = todayStamp();
+	return registry.pages
+		.filter((page) => !!page.nextReview)
+		.filter((page) => page.status !== "done" && page.status !== "cancelled" && page.status !== "archived")
+		.filter((page) => (page.nextReview ?? "") < today)
+		.map((page) => ({
+			kind: "stale-review",
+			severity: "info" as const,
+			path: page.path,
+			message: `Review overdue since ${page.nextReview}.`,
+		}));
+}
+
+function lintEmptySummary(registry: RegistryData): LintIssue[] {
+	return registry.pages
+		.filter((page) => page.type !== "source")
+		.filter((page) => page.summary.trim() === "")
+		.map((page) => ({
+			kind: "empty-summary",
+			severity: "warning" as const,
+			path: page.path,
+			message: "Summary is empty.",
+		}));
+}
+
+function lintDuplicateIds(registry: RegistryData): LintIssue[] {
+	const seen = new Map<string, string>();
+	const issues: LintIssue[] = [];
+	for (const page of registry.pages) {
+		if (!page.id) continue;
+		const previousPath = seen.get(page.id);
+		if (previousPath) {
+			issues.push({
+				kind: "duplicate-id",
+				severity: "error",
+				path: page.path,
+				message: `Duplicate id \"${page.id}\" also used by ${previousPath}`,
+			});
+			continue;
+		}
+		seen.set(page.id, page.path);
+	}
+	return issues;
+}
+
+function lintUnresolvedIds(pages: ReturnType<typeof scanPages>, registry: RegistryData): LintIssue[] {
+	const knownIds = new Set(registry.pages.map((page) => page.id).filter((id): id is string => typeof id === "string" && id.trim() !== ""));
+	const issues: LintIssue[] = [];
+	for (const page of pages) {
+		for (const field of RELATION_FIELDS) {
+			const values = page.frontmatter[field];
+			if (!Array.isArray(values)) continue;
+			for (const value of values) {
+				if (typeof value !== "string" || value.trim() === "") continue;
+				if (!knownIds.has(value)) {
+					issues.push({
+						kind: "unresolved-id",
+						severity: "warning",
+						path: page.relativePath,
+						message: `Unresolved relation in ${field}: ${value}`,
+					});
+				}
+			}
+		}
+	}
+	return issues;
+}
+
 function buildCounts(issues: LintIssue[]) {
 	return {
 		total: issues.length,
@@ -245,6 +410,10 @@ function buildCounts(issues: LintIssue[]) {
 		duplicates: issues.filter((issue) => issue.kind === "duplicate").length,
 		coverage: issues.filter((issue) => issue.kind === "coverage").length,
 		staleness: issues.filter((issue) => issue.kind === "staleness").length,
+		staleReviews: issues.filter((issue) => issue.kind === "stale-review").length,
+		emptySummary: issues.filter((issue) => issue.kind === "empty-summary").length,
+		duplicateIds: issues.filter((issue) => issue.kind === "duplicate-id").length,
+		unresolvedIds: issues.filter((issue) => issue.kind === "unresolved-id").length,
 	};
 }
 
@@ -267,6 +436,10 @@ const LINT_CHECKS: Record<
 	duplicates: (_pages, registry) => lintDuplicates(registry),
 	coverage: (_pages, registry, backlinks) => lintCoverage(registry, backlinks),
 	staleness: (_pages, registry) => lintStaleness(registry),
+	"stale-reviews": (_pages, registry) => lintStaleReviews(registry),
+	"empty-summary": (_pages, registry) => lintEmptySummary(registry),
+	"duplicate-id": (_pages, registry) => lintDuplicateIds(registry),
+	"unresolved-ids": (pages, registry) => lintUnresolvedIds(pages, registry),
 };
 
 export function handleWikiLint(wikiRoot: string, mode: LintMode = "all"): ActionResult<LintDetails> {
@@ -280,7 +453,12 @@ export function handleWikiLint(wikiRoot: string, mode: LintMode = "all"): Action
 	atomicWriteFile(path.join(wikiRoot, "meta", "lint-report.md"), renderReport(mode, issues, counts));
 
 	return ok({
-		text: `Lint: ${counts.total} issues (links=${counts.brokenLinks} orphans=${counts.orphans} fm=${counts.frontmatter} dup=${counts.duplicates} cov=${counts.coverage} stale=${counts.staleness})`,
+		text:
+			`Lint: ${counts.total} issues ` +
+			`(links=${counts.brokenLinks} orphans=${counts.orphans} fm=${counts.frontmatter} ` +
+			`dup=${counts.duplicates} cov=${counts.coverage} stale=${counts.staleness} ` +
+			`review=${counts.staleReviews} summary=${counts.emptySummary} ` +
+			`dupId=${counts.duplicateIds} unresolved=${counts.unresolvedIds})`,
 		details: { counts, issues },
 	});
 }

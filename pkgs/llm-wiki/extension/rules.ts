@@ -44,7 +44,11 @@ export const SEARCH_FIELD_WEIGHTS = {
 	tokenPath: 3,
 } as const;
 
-export type LintMode = "links" | "orphans" | "frontmatter" | "duplicates" | "coverage" | "staleness" | "all";
+export type LintMode =
+	| "links" | "orphans" | "frontmatter" | "duplicates"
+	| "coverage" | "staleness" | "stale-reviews"
+	| "empty-summary" | "duplicate-id" | "unresolved-ids"
+	| "all";
 
 export interface SearchableRegistryEntry {
 	title: RegistryEntry["title"];

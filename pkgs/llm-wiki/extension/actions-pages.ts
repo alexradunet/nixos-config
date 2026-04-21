@@ -99,9 +99,10 @@ export function handleEnsurePage(wikiRoot: string, params: EnsurePageParams): Ac
 		.map((page) => path.basename(page.path, ".md"));
 	const today = todayStamp();
 	const slug = dedupeSlug(slugifyTitle(params.title), existingSlugs);
-	const idPrefix = params.objectType ?? (params.type === "journal" ? "journal" : params.type);
+	const objectType = params.objectType ?? params.type;
+	const idPrefix = objectType;
 	const id = params.type === "journal" ? `journal/${params.title}` : `${idPrefix}/${slug}`;
-	const reviewDays = REVIEW_CYCLES[params.objectType ?? ""];
+	const reviewDays = REVIEW_CYCLES[objectType ?? ""];
 	const relPath = buildPagePath(slug, normalizedFolder);
 	const absPath = path.join(wikiRoot, relPath);
 
@@ -109,7 +110,7 @@ export function handleEnsurePage(wikiRoot: string, params: EnsurePageParams): Ac
 		id,
 		schema_version: 1,
 		type: params.type,
-		...(params.objectType ? { object_type: params.objectType } : {}),
+		object_type: objectType,
 		title: params.title,
 		aliases: params.aliases ?? [],
 		tags: params.tags ?? [],
@@ -138,7 +139,7 @@ export function handleEnsurePage(wikiRoot: string, params: EnsurePageParams): Ac
 		sources: [],
 		related: [],
 		source_ids: [],
-		summary: params.summary ?? "",
+		summary: params.summary ?? `Working note for ${params.title}.`,
 	};
 	const body = (
 		params.type === "journal" ? [

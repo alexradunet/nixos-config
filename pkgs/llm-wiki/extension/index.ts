@@ -28,7 +28,7 @@ const CanonicalTypeEnum = StringEnum([
 	"task", "event", "reminder",
 ] as const);
 
-const LintModeEnum = StringEnum(["links", "orphans", "frontmatter", "duplicates", "coverage", "staleness", "all"] as const);
+const LintModeEnum = StringEnum(["links", "orphans", "frontmatter", "duplicates", "coverage", "staleness", "stale-reviews", "empty-summary", "duplicate-id", "unresolved-ids", "all"] as const);
 const HostScopeEnum = StringEnum(["current", "all"] as const);
 
 const WikiCaptureParams = Type.Object({
@@ -110,7 +110,7 @@ function buildWikiContextPrompt(): string {
 		"- Templates: templates/markdown/<type>.md. Object schemas: schemas/<object_type>.md.",
 		"- wiki_search: query, type, object_type, domain, areas, folder, host_scope filters.",
 		"- wiki_ensure_page: creates or resolves; injects id, object_type, schema_version, relation fields.",
-		"- wiki_lint: checks links, orphans, frontmatter, duplicates, coverage, staleness.",
+		"- wiki_lint: checks links, orphans, frontmatter, duplicates, coverage, staleness, stale reviews, empty summaries, duplicate ids, unresolved relation ids.",
 		"- qmd: use for full-text body search — qmd search <query> -c wiki or qmd query <query> --no-rerank.",
 		"- Pages with hosts: [...] apply only to those hosts. Pages without hosts are global.",
 		...(allowedDomains
@@ -201,7 +201,7 @@ export default function (pi: ExtensionAPI) {
 		{
 			name: "wiki_lint",
 			label: "Wiki Lint",
-			description: "Run structural wiki checks for broken links, frontmatter, duplicates, coverage, and staleness.",
+			description: "Run structural wiki checks for broken links, frontmatter, duplicates, coverage, staleness, stale reviews, empty summaries, duplicate ids, and unresolved relation ids.",
 			parameters: WikiLintParams,
 			async execute(_toolCallId, params) {
 				const typed = params as Static<typeof WikiLintParams>;

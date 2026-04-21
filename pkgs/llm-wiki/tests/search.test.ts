@@ -77,10 +77,11 @@ describe("searchRegistry", () => {
     expect(searchRegistry(registry, "system-landscape").matches[0]?.title).toBe("System Landscape");
   });
 
-  it("filters by folder, host, domain, type, and area conjunction", () => {
+  it("filters by folder, host, domain, type, objectType, and area conjunction", () => {
     const registry = makeRegistry([
       makeEntry({
         title: "pad Host Notes",
+        objectType: "host",
         path: "pages/resources/technical/pad.md",
         folder: "resources/technical",
         hosts: ["pad-nixos"],
@@ -90,6 +91,7 @@ describe("searchRegistry", () => {
       makeEntry({
         title: "Personal Identity",
         type: "identity",
+        objectType: "person",
         path: "pages/areas/personal/personal-identity.md",
         folder: "areas/personal",
         domain: "personal",
@@ -100,6 +102,8 @@ describe("searchRegistry", () => {
     expect(searchRegistry(registry, "notes", { folder: "resources/technical", host: "pad-nixos" }).matches).toHaveLength(1);
     expect(searchRegistry(registry, "notes", { folder: "resources/technical", host: "evo-nixos" }).matches).toHaveLength(0);
     expect(searchRegistry(registry, "identity", { domain: "personal", type: "identity" }).matches[0]?.title).toBe("Personal Identity");
+    expect(searchRegistry(registry, "identity", { objectType: "person", hostScope: "all" }).matches[0]?.title).toBe("Personal Identity");
+    expect(searchRegistry(registry, "notes", { objectType: "host", host: "pad-nixos" }).matches[0]?.title).toBe("pad Host Notes");
     expect(searchRegistry(registry, "notes", { areas: ["infra", "ops"], host: "pad-nixos" }).matches).toHaveLength(1);
     expect(searchRegistry(registry, "notes", { areas: ["infra", "missing"], host: "pad-nixos" }).matches).toHaveLength(0);
   });
@@ -173,10 +177,11 @@ describe("handleWikiSearch", () => {
     }
   });
 
-  it("renders domain, area, and host suffixes for successful matches", () => {
+  it("renders domain, area, host, and objectType suffixes for successful matches", () => {
     const registry = makeRegistry([
       makeEntry({
         title: "Laptop Note",
+        objectType: "host",
         hosts: ["pad-nixos"],
         domain: "technical",
         areas: ["infra", "ops"],
@@ -187,6 +192,7 @@ describe("handleWikiSearch", () => {
     const result = handleWikiSearch(registry, "laptop", { host: "pad-nixos" });
     expect(result.isOk()).toBe(true);
     if (result.isOk()) {
+      expect(result.value.text).toContain("(concept/host)");
       expect(result.value.text).toContain("[domain: technical]");
       expect(result.value.text).toContain("[areas: infra, ops]");
       expect(result.value.text).toContain("[hosts: pad-nixos]");

@@ -208,10 +208,12 @@ export function handleWikiSearch(registry: RegistryData, query: string, options:
 
 	const lines = [
 		`Top matches for${scopeText}: ${query}`,
-		...result.matches.map(
-			(match) =>
-				`- [${match.score}] ${match.title} (${match.type}) — ${match.path}${formatDomainSuffix(match.domain)}${formatAreasSuffix(match.areas)}${formatHostsSuffix(match.hosts)}`,
-		),
+		...result.matches.map((match) => {
+			const typeLabel = match.objectType && match.objectType !== match.type
+				? `${match.type}/${match.objectType}`
+				: match.type;
+			return `- [${match.score}] ${match.title} (${typeLabel}) — ${match.path}${formatDomainSuffix(match.domain)}${formatAreasSuffix(match.areas)}${formatHostsSuffix(match.hosts)}`;
+		}),
 	];
 	return ok({ text: lines.join("\n"), details: result });
 }
