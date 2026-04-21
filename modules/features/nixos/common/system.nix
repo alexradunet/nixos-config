@@ -1,4 +1,6 @@
-{...}: {
+{config, ...}: let
+  alexHome = config.users.users.alex.home;
+in {
   time.timeZone = "Europe/Bucharest";
   i18n.defaultLocale = "en_US.UTF-8";
   console.keyMap = "us";
@@ -15,7 +17,7 @@
   # NH_FLAKE is picked up automatically by `nh os switch`, `nh os boot`, etc.
   programs.nh = {
     enable = true;
-    flake = "/home/alex/Workspace/NixPI";
+    flake = "${alexHome}/Workspace/NixPI";
 
     # Weekly automatic garbage collection — keeps the store tidy without
     # manual intervention.

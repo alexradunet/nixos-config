@@ -25,6 +25,7 @@
         config.flake.nixosModules.sops-evo-nixos
         ../../hosts/evo-nixos/syncthing.nix
         ../../hosts/evo-nixos/llama-cpp.nix
+        ../../hosts/evo-nixos/nvidia-prime.nix
         inputs.home-manager.nixosModules.home-manager
         {
           home-manager.useGlobalPkgs = true;

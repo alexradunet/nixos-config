@@ -14,8 +14,6 @@
           services.openssh.openFirewall = true;
           system.stateVersion = "25.11";
 
-          environment.systemPackages = [pkgs.wezterm];
-
           services.wg-admin = {
             enable = true;
             stateDir = "/home/alex/.local/state/wg-admin";

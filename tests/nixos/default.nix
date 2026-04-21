@@ -133,7 +133,6 @@ in {
           machine.succeed("command -v pw-cli >/dev/null")
           machine.succeed("systemctl cat bluetooth.service >/dev/null")
           machine.succeed("command -v firefox >/dev/null")
-          machine.succeed("command -v wezterm >/dev/null")
 
       with subtest("desktop profile keeps core workstation services up"):
           machine.succeed("systemctl is-active NetworkManager.service")
@@ -173,7 +172,6 @@ in {
           machine.succeed("systemctl is-active display-manager.service")
           machine.succeed("systemctl is-active NetworkManager.service")
           machine.succeed("systemctl is-active syncthing.service")
-          machine.succeed("command -v wezterm >/dev/null")
 
       with subtest("laptop-specific power management is configured"):
           machine.succeed("systemctl cat power-profiles-daemon.service >/dev/null")

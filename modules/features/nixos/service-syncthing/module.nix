@@ -1,9 +1,11 @@
-{...}: {
+{config, ...}: let
+  alexHome = config.users.users.alex.home;
+in {
   services.syncthing = {
     enable = true;
     user = "alex";
-    dataDir = "/home/alex";
-    configDir = "/home/alex/.config/syncthing";
+    dataDir = alexHome;
+    configDir = "${alexHome}/.config/syncthing";
     openDefaultPorts = true;
   };
 }

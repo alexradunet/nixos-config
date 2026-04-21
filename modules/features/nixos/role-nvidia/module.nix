@@ -29,8 +29,6 @@
       offload.enable = true;
       offload.enableOffloadCmd = true;
       allowExternalGpu = true;
-      nvidiaBusId = "PCI:101@0:0:0";
-      amdgpuBusId = "PCI:103@0:0:0";
     };
   };
 

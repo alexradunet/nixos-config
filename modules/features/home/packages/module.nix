@@ -1,10 +1,14 @@
-{pkgs, ...}: {
+{
+  config,
+  pkgs,
+  ...
+}: {
   # Set a writable npm global prefix so `npm install -g` (used by `pi install`)
   # doesn't try to write into the read-only nix store.
   home.file.".npmrc".text = ''
-    prefix = /home/alex/.npm-global
+    prefix = ${config.home.homeDirectory}/.npm-global
   '';
-  home.sessionPath = [ "/home/alex/.npm-global/bin" ];
+  home.sessionPath = ["${config.home.homeDirectory}/.npm-global/bin"];
 
   home.packages = with pkgs; [
     ripgrep
