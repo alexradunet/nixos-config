@@ -67,7 +67,7 @@
         ./modules/features/home/pi/flake-module.nix
         ./modules/features/home/shell/flake-module.nix
         ./modules/features/home/ssh/flake-module.nix
-        ./modules/features/home/zellij/flake-module.nix
+        ./modules/features/home/wezterm/flake-module.nix
         ./modules/features/home/host-evo-nixos/flake-module.nix
         ./modules/features/home/host-pad-nixos/flake-module.nix
         ./modules/features/home/host-vps-nixos/flake-module.nix

@@ -3,7 +3,10 @@
   i18n.defaultLocale = "en_US.UTF-8";
   console.keyMap = "us";
 
-  programs.zsh.enable = true;
+  programs.bash = {
+    enable = true;
+    completion.enable = true;
+  };
 
   # whois (new NixOS module in 26.05) — intelligent WHOIS client.
   programs.whois.enable = true;

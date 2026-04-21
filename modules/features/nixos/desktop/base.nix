@@ -1,4 +1,4 @@
-{...}: {
+{pkgs, ...}: {
   services.displayManager.sddm = {
     enable = true;
     # Use the native Wayland compositor instead of X11 for the greeter.
@@ -6,6 +6,11 @@
     wayland.enable = true;
   };
   services.desktopManager.plasma6.enable = true;
+
+  environment.plasma6.excludePackages = [pkgs.kdePackages.konsole];
+
+  fonts.packages = [pkgs.nerd-fonts.jetbrains-mono];
+  fonts.fontconfig.defaultFonts.monospace = ["JetBrainsMono Nerd Font Mono"];
 
   hardware.graphics.enable = true;
 

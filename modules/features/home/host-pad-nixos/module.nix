@@ -1,5 +1,5 @@
 {...}: {
-  programs.zsh.shellAliases = {
+  programs.bash.shellAliases = {
     rb = "nh os switch";
     rbb = "nh os boot";
     rbt = "nh os test";

@@ -60,7 +60,7 @@ then NixOS will materialize it at:
 
 owned by `alex:users` with mode `0400`.
 
-Interactive zsh shells will also export:
+Interactive bash shells will also export:
 
 - `GITHUB_TOKEN`
 - `GH_TOKEN`

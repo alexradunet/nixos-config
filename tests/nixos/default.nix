@@ -92,7 +92,7 @@ in {
       with subtest("server profile provisions base user and shell"):
           machine.succeed("id alex")
           machine.succeed("id -nG alex | tr ' ' '\\n' | grep -Fx wheel")
-          machine.succeed("getent passwd alex | cut -d: -f7 | grep -F 'zsh'")
+          machine.succeed("getent passwd alex | cut -d: -f7 | grep -F 'bash'")
 
       with subtest("reaction and common system settings are active"):
           machine.succeed("systemctl is-active reaction.service")
@@ -133,6 +133,7 @@ in {
           machine.succeed("command -v pw-cli >/dev/null")
           machine.succeed("systemctl cat bluetooth.service >/dev/null")
           machine.succeed("command -v firefox >/dev/null")
+          machine.succeed("command -v wezterm >/dev/null")
 
       with subtest("desktop profile keeps core workstation services up"):
           machine.succeed("systemctl is-active NetworkManager.service")
@@ -172,6 +173,7 @@ in {
           machine.succeed("systemctl is-active display-manager.service")
           machine.succeed("systemctl is-active NetworkManager.service")
           machine.succeed("systemctl is-active syncthing.service")
+          machine.succeed("command -v wezterm >/dev/null")
 
       with subtest("laptop-specific power management is configured"):
           machine.succeed("systemctl cat power-profiles-daemon.service >/dev/null")

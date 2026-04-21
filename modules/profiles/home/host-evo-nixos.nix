@@ -3,6 +3,7 @@
     imports = [
       config.flake.homeModules.profile-base
       config.flake.homeModules.llm-agents
+      config.flake.homeModules.wezterm
       config.flake.homeModules.host-evo-nixos
     ];
   };

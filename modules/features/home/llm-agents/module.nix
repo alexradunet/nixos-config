@@ -9,7 +9,7 @@
     pkgs.llm-agents.copilot-cli
   ];
 
-  programs.zsh.initContent = lib.mkAfter ''
+  programs.bash.initExtra = lib.mkAfter ''
     # AI coding CLIs on this host use OAuth subscriptions.
     # Avoid token/API-key env vars taking precedence over the interactive login.
     claude() {

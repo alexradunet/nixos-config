@@ -1,9 +1,7 @@
 {config, ...}: {
-  programs.zsh = {
+  programs.bash = {
     enable = true;
     enableCompletion = true;
-    autosuggestion.enable = true;
-    syntaxHighlighting.enable = true;
 
     shellAliases = {
       ls = "eza";
@@ -11,20 +9,24 @@
       la = "eza -a";
     };
 
-    history = {
-      size = 10000;
-      path = "${config.home.homeDirectory}/.zsh_history";
-      ignoreAllDups = true;
-    };
+    historySize = 10000;
+    historyFileSize = 10000;
+    historyFile = "${config.home.homeDirectory}/.bash_history";
+    historyControl = [
+      "erasedups"
+      "ignoredups"
+    ];
 
-    initContent = ''
+    initExtra = ''
       if [ -r /run/secrets/github-token ]; then
         export GITHUB_TOKEN="$(< /run/secrets/github-token)"
         export GH_TOKEN="$GITHUB_TOKEN"
       fi
 
       # Obsidian vault shortcut
-      obsidian-wiki() { obsidian "$HOME/Wiki" &! }
+      obsidian-wiki() {
+        nohup obsidian "$HOME/Wiki" >/dev/null 2>&1 &
+      }
 
       # Wiki shortcut for the AI assistant context
       wiki-technical() {
@@ -36,18 +38,19 @@
 
   programs.fzf = {
     enable = true;
-    enableZshIntegration = true;
+    enableBashIntegration = true;
   };
 
   programs.zoxide = {
     enable = true;
-    enableZshIntegration = true;
+    enableBashIntegration = true;
   };
 
   # vivid: generates LS_COLORS from a named theme — gives eza/ls coloured output
   # without hardcoding ANSI escape strings.
   programs.vivid = {
     enable = true;
+    enableBashIntegration = true;
     activeTheme = "molokai";
   };
 }

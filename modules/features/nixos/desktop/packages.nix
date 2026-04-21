@@ -1,8 +1,8 @@
 {pkgs, ...}: {
   environment.systemPackages = with pkgs; [
     kdePackages.kate
-    kdePackages.konsole
     kdePackages.dolphin
+    wezterm
     kdePackages.plasma-nm
     netbird-ui
     vlc

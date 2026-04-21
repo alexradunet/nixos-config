@@ -104,7 +104,7 @@ Shared Home Manager config for `alex` is now composed from dendritic home featur
 - `copilot-cli`
 
 They are intended to be used with OAuth/subscription login on this host.
-Host-specific zsh wrappers unset API-key/token environment variables before launching them so OAuth takes precedence over token-based auth.
+Host-specific bash wrappers unset API-key/token environment variables before launching them so OAuth takes precedence over token-based auth.
 This is especially relevant for `copilot`, because the shared shell config exports `GITHUB_TOKEN` / `GH_TOKEN` when present.
 
 Typical first-time login flow after rebuild:
@@ -235,7 +235,7 @@ Current example shared secret:
 
 - `github.token` in `secrets/common.yaml`
 - materialized at `/run/secrets/github-token`
-- exported in interactive zsh shells as `GITHUB_TOKEN` and `GH_TOKEN` when present
+- exported in interactive bash shells as `GITHUB_TOKEN` and `GH_TOKEN` when present
 
 The dev shell now includes:
 
