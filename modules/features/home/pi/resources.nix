@@ -145,6 +145,10 @@ in {
   home.file.".pi/agent/extensions/persona".source = ./extensions/persona;
   home.file.".pi/agent/extensions/os".source = ./extensions/os;
   home.file.".pi/agent/extensions/nixpi".source = ./extensions/nixpi;
+  home.file.".pi/agent/extensions/tmux-manager" = {
+    source = ./extensions/tmux-manager;
+    force = true;
+  };
   home.file.".pi/agent/extensions/sudo-handoff" = {
     source = ./extensions/sudo-handoff;
     force = true;

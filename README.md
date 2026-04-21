@@ -136,10 +136,16 @@ The Pi runtime now restores several capabilities that previously lived in `NixPI
   - `nixos_update`
   - `systemd_control`
   - `schedule_reboot`
+- `tmux-manager` extension
+  - tracks PI-owned temporary tmux panes used by runtime workflows
+  - labels temporary panes clearly and watches their status files
+  - auto-closes successful temporary panes after a short grace period
+  - keeps failed panes open for inspection
+  - adds `/tmux-temp list|cleanup|close <pane-id>`
 - `sudo-handoff` extension
   - overrides `bash` for `sudo ...` commands
   - opens a tmux side pane instead of asking PI to capture a password
-  - leaves authentication and long-running logs in the pane itself
+  - registers the pane with `tmux-manager` for lifecycle tracking
   - returns pane/log/status paths back to PI for follow-up reading
 - `nixpi` extension
   - `nixpi_status` tool
@@ -169,6 +175,7 @@ Current model:
   - `systemctl start|stop|restart` for `sshd`, `syncthing`, `reaction`, and `nixpi-*.service`
 - arbitrary `sudo ...` via the `bash` tool is handed off to a tmux side pane
 - the user types the sudo password directly in tmux if prompted
+- `tmux-manager` tracks PI-owned temporary panes and closes successful ones after a grace period
 - long-running logs stay in tmux and are also written to a per-run log path for PI to inspect later
 
 This avoids running PI as root and avoids storing sudo passwords in PI session logs.

@@ -13,7 +13,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 const execFileAsync = promisify(execFile);
-const SUDO_RE = /\bsudo\b/;
+const SUDO_RE = /(^|[\n;|&()])\s*sudo(?:\s|$)/m;
 
 function shellEscape(value: string) {
   return `'${value.replace(/'/g, `'\\''`)}'`;
@@ -179,7 +179,19 @@ exec bash
       }
 
       const paneId = (tmuxResult.stdout || "").trim() || "(unknown)";
-      await run("tmux", ["select-pane", "-t", paneId, "-T", "pi-sudo"], signal);
+      await run("tmux", ["select-pane", "-t", paneId, "-T", "pi-sudo [auth]"], signal);
+      pi.events.emit("pi-tmux:register", {
+        paneId,
+        purpose: "sudo-handoff",
+        titleBase: "pi-sudo",
+        status: "needs-auth",
+        statusPath,
+        logPath,
+        handoffDir,
+        autoCloseOnSuccess: true,
+        closeDelayMs: 15000,
+        keepOpenOnFailure: true,
+      });
 
       return {
         content: [{
