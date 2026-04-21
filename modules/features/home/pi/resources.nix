@@ -142,6 +142,8 @@ in {
   home.file.".pi/agent/extensions/pi-web-access".source = piWebAccessRoot;
   home.file.".pi/agent/extensions/llm-wiki".source = llmWikiRoot;
   home.file.".pi/agent/extensions/wg-admin".source = ./extensions/wg-admin;
+  home.file.".pi/agent/extensions/persona".source = ./extensions/persona;
+  home.file.".pi/agent/extensions/os".source = ./extensions/os;
 
   # ── PI skills ─────────────────────────────────────────────────────────────
   home.file.".pi/agent/skills/librarian/SKILL.md".source = "${piWebAccessRoot}/skills/librarian/SKILL.md";
@@ -150,6 +152,10 @@ in {
   home.file.".pi/agent/skills/wiki-migration/SKILL.md".source = ./skills/wiki-migration/SKILL.md;
   home.file.".pi/agent/skills/wiki-migration/scripts/scan.sh".source = ./skills/wiki-migration/scripts/scan.sh;
   home.file.".pi/agent/skills/wiki-migration/scripts/batch-list.sh".source = ./skills/wiki-migration/scripts/batch-list.sh;
+  home.file.".pi/agent/skills/os-operations/SKILL.md".source = ./skills/os-operations/SKILL.md;
+  home.file.".pi/agent/skills/self-evolution/SKILL.md".source = ./skills/self-evolution/SKILL.md;
+  home.file.".pi/agent/skills/provisioning/SKILL.md".source = ./skills/provisioning/SKILL.md;
+  home.file.".pi/agent/skills/first-boot/SKILL.md".source = ./skills/first-boot/SKILL.md;
 
   # ── Session variables ─────────────────────────────────────────────────────
   home.sessionVariables.PI_LLM_WIKI_DIR = wikiDir;
@@ -173,6 +179,15 @@ in {
     elif ! ${pkgs.jq}/bin/jq -e '.mcpServers.qmd' "$settings_path" > /dev/null 2>&1; then
       ${pkgs.jq}/bin/jq '.mcpServers.qmd = {"command":"qmd","args":["mcp"]}' \
         "$settings_path" > "$settings_path.tmp" && mv "$settings_path.tmp" "$settings_path"
+    fi
+  '';
+
+  # ── Activation: guardrails seed (idempotent) ──────────────────────────────
+  home.activation.piGuardrails = lib.hm.dag.entryAfter ["writeBoundary"] ''
+    guardrails_path="$HOME/.pi/agent/guardrails.yaml"
+    mkdir -p "$(dirname "$guardrails_path")"
+    if [ ! -e "$guardrails_path" ]; then
+      cp ${./extensions/persona/guardrails.yaml} "$guardrails_path"
     fi
   '';
 
