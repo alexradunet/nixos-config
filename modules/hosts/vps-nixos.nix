@@ -8,11 +8,13 @@
     system = "x86_64-linux";
     modules =
       [
-        {
+        ({pkgs, ...}: {
           nixpkgs.overlays = [config.flake.overlays.default];
           networking.hostName = "vps-nixos";
           services.openssh.openFirewall = true;
           system.stateVersion = "25.11";
+
+          environment.systemPackages = [pkgs.wezterm];
 
           services.wg-admin = {
             enable = true;
@@ -25,7 +27,7 @@
             ipStart = 30;
             rebuildFlake = "/home/alex/Repos/nixos-config#vps-nixos";
           };
-        }
+        })
         ../../hosts/vps-nixos/hardware-configuration.nix
         config.flake.nixosModules.profile-server-base
         config.flake.nixosModules.sops-common
