@@ -444,11 +444,6 @@ in {
         config.flake.nixosModules.users
         inputs.home-manager.nixosModules.home-manager
         {
-          nixpkgs.overlays = [
-            config.flake.overlays.default
-            inputs.llm-agents.overlays.default
-          ];
-
           networking.hostName = "pi-runtime-smoke";
           system.stateVersion = "25.11";
 
