@@ -95,7 +95,7 @@ in {
     rebuildFlake = mkOption {
       type = types.nullOr types.str;
       default = null;
-      example = "/home/alex/NixPI/Infrastructure/Repositories/NixPI#vps-nixos";
+      example = "/home/alex/Workspace/NixPI#vps-nixos";
       description = "Optional flake reference used by `wg-admin rebuild` and the higher-level onboarding helpers.";
     };
   };

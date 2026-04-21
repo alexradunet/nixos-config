@@ -13,12 +13,12 @@ It provides these tools:
 
 ## Storage path
 
-By default it stores wiki data under `~/NixPI/Knowledge`.
+By default it stores wiki data under `~/Workspace/Knowledge`.
 You can override that with `PI_LLM_WIKI_DIR`.
 
 ## Obsidian support
 
-Open `~/NixPI/Knowledge` directly as an Obsidian vault.
+Open `~/Workspace/Knowledge` directly as an Obsidian vault.
 The extension uses plain markdown and frontmatter, so manual edits work naturally.
 The starter seeds the canonical `templates/markdown/` structure used by the workspace wiki.
 

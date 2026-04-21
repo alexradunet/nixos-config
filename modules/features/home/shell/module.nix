@@ -25,12 +25,12 @@
 
       # Knowledge wiki shortcut
       obsidian-wiki() {
-        nohup obsidian "$HOME/NixPI/Knowledge" >/dev/null 2>&1 &
+        nohup obsidian "$HOME/Workspace/Knowledge" >/dev/null 2>&1 &
       }
 
       # Wiki shortcut for the AI assistant context
       wiki-technical() {
-        export PI_LLM_WIKI_DIR="$HOME/NixPI/Knowledge"
+        export PI_LLM_WIKI_DIR="$HOME/Workspace/Knowledge"
         echo "Wiki context: Knowledge ($PI_LLM_WIKI_DIR)"
       }
     '';

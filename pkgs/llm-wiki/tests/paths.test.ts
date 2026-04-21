@@ -35,7 +35,7 @@ describe("getWikiRoot", () => {
     expect(getWikiRoot()).toBe("/tmp/custom-wiki");
   });
 
-  it("falls back to ~/NixPI/Knowledge", () => {
+  it("falls back to ~/Workspace/Knowledge", () => {
     expect(getWikiRoot()).toBe(path.join(process.env.HOME ?? "/root", "NixPI", "Knowledge"));
   });
 });

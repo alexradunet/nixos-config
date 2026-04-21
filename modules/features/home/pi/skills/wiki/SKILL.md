@@ -1,7 +1,7 @@
 ---
 name: wiki
 description: >
-  Manage the plain-Markdown personal wiki at ~/NixPI/Knowledge. Use for daily note
+  Manage the plain-Markdown personal wiki at ~/Workspace/Knowledge. Use for daily note
   creation, task capture and updates, showing today's agenda, weekly review,
   archiving, linting, and any general wiki operation. Loads schema and
   context automatically. Works alongside qmd for full-text search.
@@ -15,16 +15,16 @@ Daily wiki management. Covers capture, planning, review, and maintenance.
 
 | Role | Path |
 |---|---|
-| Wiki root | `/home/alex/NixPI/Knowledge` |
-| Schema | `/home/alex/NixPI/Knowledge/WIKI_SCHEMA.md` |
-| Rules | `/home/alex/NixPI/Knowledge/WIKI_RULES.md` |
-| Object model | `/home/alex/NixPI/Knowledge/WIKI_OBJECT_MODEL.md` |
-| Object schemas | `/home/alex/NixPI/Knowledge/schemas/<object_type>.md` |
-| Templates | `/home/alex/NixPI/Knowledge/templates/markdown/` |
-| Controlled tags | `/home/alex/NixPI/Knowledge/meta/tags.md` |
-| Relation types | `/home/alex/NixPI/Knowledge/meta/relation-types.md` |
-| Registry | `/home/alex/NixPI/Knowledge/meta/registry.json` |
-| Log | `/home/alex/NixPI/Knowledge/meta/log.md` |
+| Wiki root | `/home/alex/Workspace/Knowledge` |
+| Schema | `/home/alex/Workspace/Knowledge/WIKI_SCHEMA.md` |
+| Rules | `/home/alex/Workspace/Knowledge/WIKI_RULES.md` |
+| Object model | `/home/alex/Workspace/Knowledge/WIKI_OBJECT_MODEL.md` |
+| Object schemas | `/home/alex/Workspace/Knowledge/schemas/<object_type>.md` |
+| Templates | `/home/alex/Workspace/Knowledge/templates/markdown/` |
+| Controlled tags | `/home/alex/Workspace/Knowledge/meta/tags.md` |
+| Relation types | `/home/alex/Workspace/Knowledge/meta/relation-types.md` |
+| Registry | `/home/alex/Workspace/Knowledge/meta/registry.json` |
+| Log | `/home/alex/Workspace/Knowledge/meta/log.md` |
 
 ---
 
@@ -213,7 +213,7 @@ qmd search "topic" -c wiki --files
 qmd query "topic" -c wiki --no-rerank --files -n 5
 
 # Get a specific file
-qmd get /home/alex/NixPI/Knowledge/pages/...
+qmd get /home/alex/Workspace/Knowledge/pages/...
 ```
 
 ---

@@ -8,7 +8,7 @@
   llmWikiRoot = "${pkgs.llm-wiki}/share/llm-wiki";
 
   # Wiki root — unified personal + technical vault, synced via Syncthing
-  wikiDir = "${config.home.homeDirectory}/NixPI/Knowledge";
+  wikiDir = "${config.home.homeDirectory}/Workspace/Knowledge";
 
   # Seed directory committed to the repo — provides the canonical structure on
   # fresh devices before Syncthing has had a chance to sync.

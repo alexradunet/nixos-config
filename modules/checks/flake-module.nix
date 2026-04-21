@@ -37,7 +37,7 @@
           extension_source='${alexHome.file.".pi/agent/extensions/llm-wiki".source}'
           activation_script='${llmWikiActivation.data}'
 
-          test "$session_var" = "/home/alex/NixPI/Knowledge"
+          test "$session_var" = "/home/alex/Workspace/Knowledge"
           test -d "$extension_source"
 
           printf '%s\n' "$activation_script" | grep -F 'pages/projects' >/dev/null

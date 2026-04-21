@@ -2,7 +2,7 @@
 name: wiki-migration
 description: >
   Migrate personal knowledge notes from ~/Wiki_backup into the new
-  plain-Markdown wiki at ~/NixPI/Knowledge. Use when asked to migrate notes, convert
+  plain-Markdown wiki at ~/Workspace/Knowledge. Use when asked to migrate notes, convert
   legacy frontmatter to the current schema with stable ids and object_type, or
   move files from the old structure. Uses qmd for local hybrid retrieval to
   narrow candidates before reading. Works in small ordered batches suited to
@@ -12,23 +12,23 @@ description: >
 
 # Wiki Migration Skill
 
-Migrate notes from `~/Wiki_backup/pages/` → `~/NixPI/Knowledge/pages/` one batch at a time.
+Migrate notes from `~/Wiki_backup/pages/` → `~/Workspace/Knowledge/pages/` one batch at a time.
 
 ## Paths
 
 | Role | Path |
 |---|---|
 | Backup vault | `/home/alex/Wiki_backup/pages/` |
-| New wiki | `/home/alex/NixPI/Knowledge/pages/` |
-| Schema | `/home/alex/NixPI/Knowledge/WIKI_SCHEMA.md` |
-| Rules | `/home/alex/NixPI/Knowledge/WIKI_RULES.md` |
-| Object model | `/home/alex/NixPI/Knowledge/WIKI_OBJECT_MODEL.md` |
-| Object schemas | `/home/alex/NixPI/Knowledge/schemas/<object_type>.md` |
-| Templates | `/home/alex/NixPI/Knowledge/templates/markdown/` |
-| Controlled tags | `/home/alex/NixPI/Knowledge/meta/tags.md` |
-| Relation types | `/home/alex/NixPI/Knowledge/meta/relation-types.md` |
-| Registry | `/home/alex/NixPI/Knowledge/meta/registry.json` |
-| Log | `/home/alex/NixPI/Knowledge/meta/log.md` |
+| New wiki | `/home/alex/Workspace/Knowledge/pages/` |
+| Schema | `/home/alex/Workspace/Knowledge/WIKI_SCHEMA.md` |
+| Rules | `/home/alex/Workspace/Knowledge/WIKI_RULES.md` |
+| Object model | `/home/alex/Workspace/Knowledge/WIKI_OBJECT_MODEL.md` |
+| Object schemas | `/home/alex/Workspace/Knowledge/schemas/<object_type>.md` |
+| Templates | `/home/alex/Workspace/Knowledge/templates/markdown/` |
+| Controlled tags | `/home/alex/Workspace/Knowledge/meta/tags.md` |
+| Relation types | `/home/alex/Workspace/Knowledge/meta/relation-types.md` |
+| Registry | `/home/alex/Workspace/Knowledge/meta/registry.json` |
+| Log | `/home/alex/Workspace/Knowledge/meta/log.md` |
 | Scan script | `scripts/scan.sh` |
 | Batch list script | `scripts/batch-list.sh` |
 
@@ -40,7 +40,7 @@ qmd is the local retrieval layer. Use it to narrow candidates before reading fil
 
 ```bash
 # Register collections
-qmd collection add wiki /home/alex/NixPI/Knowledge
+qmd collection add wiki /home/alex/Workspace/Knowledge
 qmd collection add wiki-backup /home/alex/Wiki_backup
 qmd update
 
@@ -52,8 +52,8 @@ qmd embed
 Attach the schema as context so qmd can use it for reranking:
 
 ```bash
-qmd context add wiki-schema /home/alex/NixPI/Knowledge/WIKI_SCHEMA.md
-qmd context add wiki-rules /home/alex/NixPI/Knowledge/WIKI_RULES.md
+qmd context add wiki-schema /home/alex/Workspace/Knowledge/WIKI_SCHEMA.md
+qmd context add wiki-rules /home/alex/Workspace/Knowledge/WIKI_RULES.md
 ```
 
 Check index health:
@@ -123,7 +123,7 @@ bash /home/alex/.pi/agent/skills/wiki-migration/scripts/scan.sh
 qmd status
 
 # 3. Read the schema (do once per session)
-cat /home/alex/NixPI/Knowledge/WIKI_SCHEMA.md
+cat /home/alex/Workspace/Knowledge/WIKI_SCHEMA.md
 ```
 
 Then ask the user which batch to work on, or continue from where the last session stopped by checking `meta/log.md`.
@@ -388,7 +388,7 @@ summary:
 
 ## Registry update
 
-After each batch append entries to `/home/alex/NixPI/Knowledge/meta/registry.json`:
+After each batch append entries to `/home/alex/Workspace/Knowledge/meta/registry.json`:
 
 ```json
 {"id":"person/dan-bunescu","title":"Dan Bunescu","path":"pages/resources/people/dan-bunescu.md","type":"entity","object_type":"person","domain":"personal","status":"active"}
@@ -409,7 +409,7 @@ Migrated N files from <source> to <destination>. Notes: <any issues>.
 
 ```bash
 # Wikilinks remaining in new wiki
-grep -rn '\[\[[^]]*\]\]' /home/alex/NixPI/Knowledge/pages/ || echo 'no wikilinks'
+grep -rn '\[\[[^]]*\]\]' /home/alex/Workspace/Knowledge/pages/ || echo 'no wikilinks'
 
 # Schema and broken-link check
 bash /home/alex/.pi/agent/skills/wiki-migration/scripts/scan.sh verify

@@ -7,7 +7,7 @@ Personal multi-host NixOS fleet config.
 - Keep one repo for all machines
 - Reuse shared modules across device types
 - Keep host-specific differences small and explicit
-- Keep the infrastructure repo aligned with the canonical `~/NixPI` workspace layout
+- Keep the infrastructure repo aligned with the canonical `~/Workspace` workspace layout
 
 ## Structure
 
@@ -169,7 +169,7 @@ wg-admin list
 wg-admin add iphone-alex
 wg-admin conf iphone-alex
 wg-admin qr iphone-alex
-sudo nixos-rebuild switch --flake ~/NixPI/Infrastructure/Repositories/NixPI#vps-nixos
+sudo nixos-rebuild switch --flake ~/Workspace/NixPI#vps-nixos
 ```
 
 Higher-level shortcuts:
@@ -194,19 +194,20 @@ Pi also gets a bundled `wg-admin` extension + skill so the assistant can use the
 
 ### Shared user folders
 
-These are created declaratively:
+These are the canonical workspace locations:
 
-- `~/NixPI`
-- `~/NixPI/Knowledge`
-- `~/NixPI/Infrastructure/Repositories`
+- `~/Workspace`
+- `~/Workspace/NixPI`
+- `~/Workspace/Knowledge`
+- `~/Workspace/Infrastructure`
 
 ### Syncing
 
 Syncthing currently syncs:
 
-- `~/NixPI/Knowledge`
+- `~/Workspace/Knowledge`
 
-The infrastructure repo under `~/NixPI/Infrastructure/Repositories` is **not** synced with Syncthing.
+The infrastructure repo under `~/Workspace/NixPI` is **not** synced with Syncthing.
 Use Git/GitHub for code and infrastructure history.
 
 ## Secrets
@@ -248,19 +249,19 @@ The dev shell now includes:
 Mini PC:
 
 ```bash
-sudo nixos-rebuild switch --flake ~/NixPI/Infrastructure/Repositories/NixPI#evo-nixos
+sudo nixos-rebuild switch --flake ~/Workspace/NixPI#evo-nixos
 ```
 
 VPS:
 
 ```bash
-sudo nixos-rebuild switch --flake ~/NixPI/Infrastructure/Repositories/NixPI#vps-nixos
+sudo nixos-rebuild switch --flake ~/Workspace/NixPI#vps-nixos
 ```
 
 Laptop:
 
 ```bash
-sudo nixos-rebuild switch --flake ~/NixPI/Infrastructure/Repositories/NixPI#pad-nixos
+sudo nixos-rebuild switch --flake ~/Workspace/NixPI#pad-nixos
 ```
 
 ## Quality checks
@@ -328,4 +329,4 @@ npm run test:coverage
 - shared user config lives in Home Manager
 - machine-specific overrides should stay small and obvious
 - repo-specific binary cache settings live in `flake.nix` via `nixConfig`
-- this repo is the canonical infrastructure layer inside the `~/NixPI` workspace
+- this repo is the canonical infrastructure layer inside the `~/Workspace` workspace

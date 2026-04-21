@@ -82,6 +82,6 @@ templates/markdown/
 
 ## Notes
 
-- Canonical path: `/home/alex/NixPI/Knowledge`.
+- Canonical path: `/home/alex/Workspace/Knowledge`.
 - The previous vault backup remains at `/home/alex/Wiki_backup`.
 - This wiki is a clean rebuild with a stricter schema and example notes.

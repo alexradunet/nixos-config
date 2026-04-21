@@ -1,7 +1,7 @@
 # Wiki Log
 
 ## [2026-04-21] init | clean rebuild
-Created a new plain-Markdown wiki from scratch at `/home/alex/NixPI/Knowledge`.
+Created a new plain-Markdown wiki from scratch at `/home/alex/Workspace/Knowledge`.
 
 ## [2026-04-21] schema | object model
 Introduced `id`, `type`, and `object_type` as the core schema for object-based knowledge management.

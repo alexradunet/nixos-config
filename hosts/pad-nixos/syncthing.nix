@@ -15,7 +15,7 @@
     folders = {
       # Unified wiki — technical + personal knowledge in one Obsidian vault.
       "wiki" = {
-        path = "/home/alex/NixPI/Knowledge";
+        path = "/home/alex/Workspace/Knowledge";
         devices = ["evo-nixos"];
       };
     };
