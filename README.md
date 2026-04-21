@@ -169,16 +169,18 @@ PI stays unprivileged.
 
 Current model:
 
-- recurring safe system operations use narrow `NOPASSWD` sudoers rules
-  - `nixos-rebuild switch --flake ~/Workspace/NixPI#<host>`
-  - `nixos-rebuild switch --rollback`
-  - `systemctl start|stop|restart` for `sshd`, `syncthing`, `reaction`, and `nixpi-*.service`
-- arbitrary `sudo ...` via the `bash` tool is handed off to a tmux side pane
+- read-only inspection tools run directly without sudo handoff
+- privileged mutations open a tmux side pane for human-mediated sudo handoff
+  - `bash` commands containing `sudo ...`
+  - `nixos_update apply|rollback`
+  - `systemd_control start|stop|restart`
+  - `schedule_reboot`
+  - `nix_config_proposal apply`
 - the user types the sudo password directly in tmux if prompted
 - `tmux-manager` tracks PI-owned temporary panes and closes successful ones after a grace period
 - long-running logs stay in tmux and are also written to a per-run log path for PI to inspect later
 
-This avoids running PI as root and avoids storing sudo passwords in PI session logs.
+This keeps PI unprivileged, uses one privilege-escalation flow, and avoids storing sudo passwords in PI session logs.
 
 ### `evo-nixos` AI coding CLIs
 

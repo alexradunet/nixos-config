@@ -3,8 +3,9 @@ import { Type } from "@sinclair/typebox";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync, mkdtempSync, chmodSync } from "node:fs";
 import { join, dirname } from "node:path";
+import { tmpdir } from "node:os";
 
 const execFileAsync = promisify(execFile);
 const NIXOS_UPDATE_ACTIONS = ["status", "apply", "rollback"] as const;
@@ -38,6 +39,207 @@ async function confirm(ctx: any, action: string) {
   if (!ctx.hasUI) return `Cannot perform \"${action}\" without interactive confirmation.`;
   const ok = await ctx.ui.confirm("Confirm action", `Allow: ${action}?`);
   return ok ? null : `User declined: ${action}`;
+}
+
+function shellEscape(value: string) {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+function preview(command: string, max = 140) {
+  const oneLine = command.replace(/\s+/g, " ").trim();
+  return oneLine.length > max ? `${oneLine.slice(0, max - 1)}…` : oneLine;
+}
+
+function runtimeBaseDir() {
+  const xdg = process.env.XDG_RUNTIME_DIR;
+  if (xdg && existsSync(xdg)) return xdg;
+
+  const runUser = `/run/user/${process.getuid()}`;
+  if (existsSync(runUser)) return runUser;
+
+  return tmpdir();
+}
+
+function writeExecutable(path: string, content: string) {
+  writeFileSync(path, content, { encoding: "utf-8", mode: 0o700 });
+  chmodSync(path, 0o700);
+}
+
+function tmuxRegistryDir() {
+  const baseDir = runtimeBaseDir();
+  mkdirSync(baseDir, { recursive: true });
+  const registryDir = join(baseDir, "pi-tmux-temp");
+  mkdirSync(registryDir, { recursive: true });
+  return registryDir;
+}
+
+function writeTmuxRecord(params: {
+  paneId: string;
+  purpose: string;
+  titleBase: string;
+  status: "needs-auth" | "running" | "done" | "failed" | "closed";
+  statusPath: string;
+  logPath: string;
+  handoffDir: string;
+  autoCloseOnSuccess: boolean;
+  closeDelayMs: number;
+  keepOpenOnFailure: boolean;
+}) {
+  const id = `${params.purpose}-${Date.now()}`;
+  const recordPath = join(tmuxRegistryDir(), `${id}.json`);
+  writeFileSync(
+    recordPath,
+    `${JSON.stringify({
+      id,
+      paneId: params.paneId,
+      purpose: params.purpose,
+      titleBase: params.titleBase,
+      status: params.status,
+      createdAt: new Date().toISOString(),
+      statusPath: params.statusPath,
+      logPath: params.logPath,
+      handoffDir: params.handoffDir,
+      autoCloseOnSuccess: params.autoCloseOnSuccess,
+      closeDelayMs: params.closeDelayMs,
+      keepOpenOnFailure: params.keepOpenOnFailure,
+    }, null, 2)}\n`,
+    "utf-8",
+  );
+}
+
+async function privilegedTmuxHandoff(params: {
+  ctx: any;
+  signal?: AbortSignal;
+  command: string;
+  purpose: string;
+  titleBase: string;
+  confirmationLabel: string;
+  confirmationBody?: string;
+}) {
+  const { ctx, signal, command, purpose, titleBase, confirmationLabel, confirmationBody } = params;
+
+  if (!ctx.hasUI) {
+    return {
+      content: [{ type: "text" as const, text: `Blocked privileged action: ${confirmationLabel} requires interactive UI for tmux handoff.` }],
+      details: { ok: false, handoff: false, reason: "no-ui" },
+      isError: true,
+    };
+  }
+
+  if (!process.env.TMUX) {
+    return {
+      content: [{ type: "text" as const, text: `Blocked privileged action: ${confirmationLabel} requires PI to run inside tmux for password handoff.` }],
+      details: { ok: false, handoff: false, reason: "not-in-tmux" },
+      isError: true,
+    };
+  }
+
+  const confirmed = await ctx.ui.confirm(
+    "Open privileged command in tmux?",
+    confirmationBody ?? `PI will open a tmux side pane and run:\n\n${preview(command, 220)}\n\nYou will type the sudo password directly in that pane if prompted.`,
+  );
+  if (!confirmed) {
+    return {
+      content: [{ type: "text" as const, text: `Cancelled privileged tmux handoff: ${confirmationLabel}.` }],
+      details: { ok: false, handoff: false, reason: "user-cancelled" },
+    };
+  }
+
+  const baseDir = runtimeBaseDir();
+  mkdirSync(baseDir, { recursive: true });
+  const handoffDir = mkdtempSync(join(baseDir, "pi-sudo-"));
+  const commandPath = join(handoffDir, "command.sh");
+  const runnerPath = join(handoffDir, "runner.sh");
+  const logPath = join(handoffDir, "command.log");
+  const statusPath = join(handoffDir, "exit-status.txt");
+  const cwd = ctx.cwd;
+
+  writeFileSync(statusPath, "running\n", "utf-8");
+  writeExecutable(commandPath, `#!/usr/bin/env bash\n${command}\n`);
+  writeExecutable(
+    runnerPath,
+    `#!/usr/bin/env bash
+set -uo pipefail
+LOG=${shellEscape(logPath)}
+STATUS=${shellEscape(statusPath)}
+COMMAND=${shellEscape(commandPath)}
+WORKDIR=${shellEscape(cwd)}
+PREVIEW=${shellEscape(preview(command, 400))}
+
+(
+  echo "[pi-sudo] started: $(date --iso-8601=seconds)"
+  echo "[pi-sudo] cwd: $WORKDIR"
+  echo "[pi-sudo] authenticate in this pane if sudo prompts"
+  echo "[pi-sudo] command: $PREVIEW"
+  echo
+  cd "$WORKDIR"
+  bash "$COMMAND"
+  status=$?
+  printf '%s\n' "$status" > "$STATUS"
+  exit "$status"
+) 2>&1 | tee -a "$LOG"
+status=$(cat "$STATUS" 2>/dev/null || printf '1\n')
+echo
+if [ "$status" -eq 0 ]; then
+  echo "[pi-sudo] command completed successfully (exit 0)" | tee -a "$LOG"
+else
+  echo "[pi-sudo] command failed with exit $status" | tee -a "$LOG"
+fi
+echo "[pi-sudo] log: $LOG" | tee -a "$LOG"
+echo "[pi-sudo] status: $STATUS" | tee -a "$LOG"
+echo "[pi-sudo] pane left open for inspection; exit when done." | tee -a "$LOG"
+exec bash
+`,
+  );
+
+  const tmuxResult = await run(
+    "tmux",
+    ["split-window", "-h", "-p", "45", "-P", "-F", "#{pane_id}", `bash ${shellEscape(runnerPath)}`],
+    signal,
+  );
+
+  if (tmuxResult.exitCode !== 0) {
+    return {
+      content: [{ type: "text" as const, text: `Failed to open tmux handoff pane: ${tmuxResult.stderr || tmuxResult.stdout}` }],
+      details: { ok: false, handoff: false, reason: "tmux-failed", handoffDir },
+      isError: true,
+    };
+  }
+
+  const paneId = (tmuxResult.stdout || "").trim() || "(unknown)";
+  await run("tmux", ["select-pane", "-t", paneId, "-T", `${titleBase} [auth]`], signal);
+  writeTmuxRecord({
+    paneId,
+    purpose,
+    titleBase,
+    status: "needs-auth",
+    statusPath,
+    logPath,
+    handoffDir,
+    autoCloseOnSuccess: true,
+    closeDelayMs: 15000,
+    keepOpenOnFailure: true,
+  });
+
+  return {
+    content: [{
+      type: "text" as const,
+      text:
+        `Opened privileged command in tmux pane ${paneId}.\n` +
+        `Authenticate directly in that pane if prompted.\n` +
+        `Log: ${logPath}\n` +
+        `Status: ${statusPath}`,
+    }],
+    details: {
+      ok: true,
+      handoff: true,
+      paneId,
+      logPath,
+      statusPath,
+      handoffDir,
+      commandPreview: preview(command),
+    },
+  };
 }
 
 function systemFlakeDir() {
@@ -155,13 +357,18 @@ async function handleNixosUpdate(action: (typeof NIXOS_UPDATE_ACTIONS)[number], 
   }
 
   if (action === "rollback") {
-    const result = await run("sudo", ["nixos-rebuild", "switch", "--rollback"], signal);
-    const text = result.stdout || result.stderr || "Rollback completed.";
-    return {
-      content: [{ type: "text" as const, text: truncate(text) }],
-      details: { ok: result.exitCode === 0, exitCode: result.exitCode },
-      ...(result.exitCode !== 0 ? { isError: true } : {}),
-    };
+    return privilegedTmuxHandoff({
+      ctx,
+      signal,
+      command: "sudo nixos-rebuild switch --rollback",
+      purpose: "nixos-rollback",
+      titleBase: "pi-nixos",
+      confirmationLabel: "OS rollback",
+      confirmationBody:
+        "PI will open a tmux side pane and run:\n\n" +
+        "sudo nixos-rebuild switch --rollback\n\n" +
+        "Type the sudo password in that pane if prompted.",
+    });
   }
 
   const flakeDir = systemFlakeDir();
@@ -174,13 +381,18 @@ async function handleNixosUpdate(action: (typeof NIXOS_UPDATE_ACTIONS)[number], 
     };
   }
 
-  const result = await run("sudo", ["nixos-rebuild", "switch", "--flake", flakeRef], signal);
-  const text = result.stdout || result.stderr || `Applied ${flakeRef}.`;
-  return {
-    content: [{ type: "text" as const, text: truncate(text) }],
-    details: { ok: result.exitCode === 0, exitCode: result.exitCode, flakeRef },
-    ...(result.exitCode !== 0 ? { isError: true } : {}),
-  };
+  return privilegedTmuxHandoff({
+    ctx,
+    signal,
+    command: `sudo nixos-rebuild switch --flake ${shellEscape(flakeRef)}`,
+    purpose: "nixos-apply",
+    titleBase: "pi-nixos",
+    confirmationLabel: "OS apply",
+    confirmationBody:
+      "PI will open a tmux side pane and run:\n\n" +
+      `sudo nixos-rebuild switch --flake ${flakeRef}\n\n` +
+      "Type the sudo password in that pane if prompted.",
+  });
 }
 
 async function handleSystemdControl(service: string, action: (typeof SYSTEMD_ACTIONS)[number], signal: AbortSignal | undefined, ctx: any) {
@@ -200,15 +412,24 @@ async function handleSystemdControl(service: string, action: (typeof SYSTEMD_ACT
     }
   }
 
-  const command = action === "status" ? "systemctl" : "sudo";
-  const args = action === "status" ? [action, unit, "--no-pager"] : ["systemctl", action, unit, "--no-pager"];
-  const result = await run(command, args, signal);
-  const text = result.stdout || result.stderr || `systemctl ${action} ${unit} completed.`;
-  return {
-    content: [{ type: "text" as const, text: truncate(text) }],
-    details: { ok: result.exitCode === 0, exitCode: result.exitCode, unit },
-    ...(result.exitCode !== 0 ? { isError: true } : {}),
-  };
+  if (action === "status") {
+    const result = await run("systemctl", [action, unit, "--no-pager"], signal);
+    const text = result.stdout || result.stderr || `systemctl ${action} ${unit} completed.`;
+    return {
+      content: [{ type: "text" as const, text: truncate(text) }],
+      details: { ok: result.exitCode === 0, exitCode: result.exitCode, unit },
+      ...(result.exitCode !== 0 ? { isError: true } : {}),
+    };
+  }
+
+  return privilegedTmuxHandoff({
+    ctx,
+    signal,
+    command: `sudo systemctl ${action} ${shellEscape(unit)} --no-pager`,
+    purpose: "systemd-control",
+    titleBase: "pi-systemd",
+    confirmationLabel: `systemctl ${action} ${unit}`,
+  });
 }
 
 async function handleScheduleReboot(delayMinutes: number, signal: AbortSignal | undefined, ctx: any) {
@@ -218,16 +439,14 @@ async function handleScheduleReboot(delayMinutes: number, signal: AbortSignal | 
     return { content: [{ type: "text" as const, text: denied }], details: { ok: false }, isError: true };
   }
 
-  const result = await run("sudo", ["shutdown", "-r", `+${delay}`], signal);
-  const text = result.exitCode === 0
-    ? `Reboot scheduled in ${delay} minute(s).`
-    : result.stdout || result.stderr || "Failed to schedule reboot.";
-
-  return {
-    content: [{ type: "text" as const, text: truncate(text) }],
-    details: { ok: result.exitCode === 0, exitCode: result.exitCode, delay_minutes: delay },
-    ...(result.exitCode !== 0 ? { isError: true } : {}),
-  };
+  return privilegedTmuxHandoff({
+    ctx,
+    signal,
+    command: `sudo shutdown -r +${delay}`,
+    purpose: "schedule-reboot",
+    titleBase: "pi-reboot",
+    confirmationLabel: `schedule reboot in ${delay} minute(s)`,
+  });
 }
 
 function updateStatusPath() {
@@ -384,13 +603,14 @@ Staged diff:\n${staged.stdout.trim() || "(none)"}`
   if (denied) return { content: [{ type: "text" as const, text: denied }], details: { ok: false }, isError: true };
 
   const flakeRef = `${repoDir}#${currentHostName()}`;
-  const applyResult = await run("sudo", ["nixos-rebuild", "switch", "--flake", flakeRef], signal);
-  const applyOk = applyResult.exitCode === 0;
-  return {
-    content: [{ type: "text" as const, text: truncate(applyResult.stdout || applyResult.stderr || `Applied ${flakeRef}.`) }],
-    details: { ok: applyOk, exitCode: applyResult.exitCode, flakeRef },
-    ...(applyOk ? {} : { isError: true }),
-  };
+  return privilegedTmuxHandoff({
+    ctx,
+    signal,
+    command: `sudo nixos-rebuild switch --flake ${shellEscape(flakeRef)}`,
+    purpose: "nix-config-apply",
+    titleBase: "pi-apply",
+    confirmationLabel: `nixos-rebuild switch --flake ${flakeRef}`,
+  });
 }
 
 export default function osExtension(pi: ExtensionAPI) {
