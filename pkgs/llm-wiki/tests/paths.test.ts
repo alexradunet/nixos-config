@@ -35,8 +35,8 @@ describe("getWikiRoot", () => {
     expect(getWikiRoot()).toBe("/tmp/custom-wiki");
   });
 
-  it("falls back to ~/Sync/llm-wiki", () => {
-    expect(getWikiRoot()).toBe(path.join(process.env.HOME ?? "/root", "Sync", "llm-wiki"));
+  it("falls back to ~/Sync/Wiki/NixPI", () => {
+    expect(getWikiRoot()).toBe(path.join(process.env.HOME ?? "/root", "Sync", "Wiki", "NixPI"));
   });
 });
 

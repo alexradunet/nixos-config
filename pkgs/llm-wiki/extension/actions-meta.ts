@@ -20,6 +20,7 @@ import {
 	normalizeDomain,
 	normalizeHosts,
 	normalizeWikiLink,
+	todayStamp,
 } from "./paths.js";
 import type {
 	ActionResult,
@@ -127,6 +128,18 @@ export function buildRegistry(pages: ParsedPage[]): RegistryData {
 			linksOut: page.normalizedLinks,
 			headings: page.headings,
 			wordCount: page.wordCount,
+			// v2 object-model fields
+			...(frontmatter.id ? { id: asString(frontmatter.id) } : {}),
+			...(frontmatter.object_type ? { objectType: asString(frontmatter.object_type) } : {}),
+			...(typeof frontmatter.schema_version === "number" ? { schemaVersion: frontmatter.schema_version } : {}),
+			...(frontmatter.validation_level ? { validationLevel: asString(frontmatter.validation_level) } : {}),
+			...(typeof frontmatter.review_cycle_days === "number" ? { reviewCycleDays: frontmatter.review_cycle_days } : {}),
+			...(frontmatter.next_review ? { nextReview: asString(frontmatter.next_review) } : {}),
+			// planner fields
+			...(frontmatter.due ? { due: asString(frontmatter.due) } : {}),
+			...(frontmatter.start ? { startDate: asString(frontmatter.start) } : {}),
+			...(frontmatter.remind_at ? { remindAt: asString(frontmatter.remind_at) } : {}),
+			...(frontmatter.schedule ? { schedule: asString(frontmatter.schedule) } : {}),
 		};
 	});
 
@@ -163,6 +176,9 @@ export function renderIndex(registry: RegistryData): string {
 
 	const sectionOrder: WikiPageType[] = [
 		"source",
+		"task",
+		"event",
+		"reminder",
 		"concept",
 		"entity",
 		"synthesis",
@@ -174,16 +190,19 @@ export function renderIndex(registry: RegistryData): string {
 		"journal",
 	];
 	const sectionLabel: Record<WikiPageType, string> = {
-		source: "Source Pages",
-		concept: "Concept Pages",
-		entity: "Entity Pages",
+		source:    "Source Pages",
+		task:      "Task Pages",
+		event:     "Event Pages",
+		reminder:  "Reminder Pages",
+		concept:   "Concept Pages",
+		entity:    "Entity Pages",
 		synthesis: "Synthesis Pages",
-		analysis: "Analysis Pages",
+		analysis:  "Analysis Pages",
 		evolution: "Evolution Pages",
 		procedure: "Procedure Pages",
-		decision: "Decision Pages",
-		identity: "Identity Pages",
-		journal: "Journal Pages",
+		decision:  "Decision Pages",
+		identity:  "Identity Pages",
+		journal:   "Journal Pages",
 	};
 
 	for (const type of sectionOrder) {
@@ -340,22 +359,79 @@ export function buildWikiDigest(wikiRoot: string): string {
 
 	const host = getCurrentHost();
 	const registry = loadRegistry(wikiRoot);
-	const active = registry.pages
-		.filter((page) => !["source", "identity", "journal"].includes(page.type))
-		.filter((page) => page.status === "active")
-		.filter((page) => appliesToHost(page.hosts, host))
-		.filter((page) => isDomainAllowed(page.domain, getAllowedDomains()))
+	const today = todayStamp();
+	const nextWeek = new Date();
+	nextWeek.setDate(nextWeek.getDate() + 7);
+	const nextWeekStamp = nextWeek.toISOString().slice(0, 10);
+
+	const allowed = getAllowedDomains();
+	const visible = (p: RegistryEntry) =>
+		appliesToHost(p.hosts, host) && isDomainAllowed(p.domain, allowed);
+
+	const lines: string[] = [`\n\n[WIKI PLANNER DIGEST — ${host} — ${today}]`];
+
+	// Today's daily note
+	const todayNote = registry.pages.find(
+		(p) => p.type === "journal" && p.path.includes(`journal/daily/${today}`) && visible(p),
+	);
+	lines.push(todayNote
+		? `- TODAY NOTE: ${todayNote.path}`
+		: `- TODAY NOTE: none yet for ${today} — create with wiki_ensure_page type=journal`);
+
+	// Overdue tasks
+	const overdue = registry.pages.filter(
+		(p) => p.type === "task" && p.status !== "done" && p.status !== "cancelled" && p.due && p.due < today && visible(p),
+	);
+	for (const t of overdue.slice(0, 5))
+		lines.push(`- OVERDUE (${t.due}): ${t.title} [${t.status}] — ${t.path}`);
+
+	// Tasks due today or within 7 days
+	const dueSoon = registry.pages.filter(
+		(p) => p.type === "task" && p.status !== "done" && p.status !== "cancelled" &&
+			p.due && p.due >= today && p.due <= nextWeekStamp && visible(p),
+	).sort((a, b) => (a.due ?? "").localeCompare(b.due ?? ""));
+	for (const t of dueSoon.slice(0, 5))
+		lines.push(`- DUE ${t.due === today ? "TODAY" : t.due}: ${t.title} [${t.status}] — ${t.path}`);
+
+	// Open tasks with no due date (inbox)
+	const inboxTasks = registry.pages.filter(
+		(p) => p.type === "task" && p.status === "open" && !p.due && visible(p),
+	).slice(0, 3);
+	for (const t of inboxTasks)
+		lines.push(`- OPEN TASK: ${t.title} — ${t.path}`);
+
+	// Upcoming events/meetings (next 7 days)
+	const events = registry.pages.filter(
+		(p) => p.type === "event" && p.status !== "done" && p.status !== "cancelled" &&
+			p.startDate && p.startDate >= today && p.startDate <= nextWeekStamp && visible(p),
+	).sort((a, b) => (a.startDate ?? "").localeCompare(b.startDate ?? ""));
+	for (const e of events.slice(0, 5))
+		lines.push(`- EVENT ${e.startDate}: ${e.title} — ${e.path}`);
+
+	// Open reminders that are due
+	const reminders = registry.pages.filter(
+		(p) => p.type === "reminder" && p.status === "open" &&
+			p.remindAt && p.remindAt.slice(0, 10) <= today && visible(p),
+	);
+	for (const r of reminders.slice(0, 3))
+		lines.push(`- REMINDER: ${r.title} (due ${r.remindAt?.slice(0, 10)}) — ${r.path}`);
+
+	// Active knowledge notes (top 10 by word count, non-operational)
+	const knowledge = registry.pages
+		.filter((p) => !["source", "identity", "journal", "task", "event", "reminder"].includes(p.type))
+		.filter((p) => p.status === "active")
+		.filter(visible)
 		.sort((a, b) => b.wordCount - a.wordCount)
-		.slice(0, 15);
-
-	if (active.length === 0) return "";
-
-	const lines = [`\n\n[WIKI MEMORY DIGEST for ${host}]`];
-	for (const entry of active) {
-		const summary = entry.summary ? ` — ${entry.summary}` : "";
-		lines.push(
-			`- ${entry.title} (${entry.type})${formatDomainSuffix(entry.domain)}${formatAreasSuffix(entry.areas)}${formatHostsSuffix(entry.hosts)}${summary}`,
-		);
+		.slice(0, 10);
+	if (knowledge.length > 0) {
+		lines.push("- ---");
+		for (const entry of knowledge) {
+			const summary = entry.summary ? ` — ${entry.summary}` : "";
+			lines.push(
+				`- ${entry.title} (${entry.objectType ?? entry.type})${formatDomainSuffix(entry.domain)}${formatAreasSuffix(entry.areas)}${summary}`,
+			);
+		}
 	}
+
 	return lines.join("\n");
 }

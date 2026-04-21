@@ -18,6 +18,7 @@ const state = vi.hoisted(() => ({
 vi.mock("../extension/paths.js", () => ({
   getWikiRoot: () => state.wikiRoot,
   getCurrentHost: () => state.host,
+  getAllowedDomains: () => undefined,
   isProtectedPath: () => state.protectWrite,
   isWikiPagePath: () => state.pagePath,
 }));
@@ -247,15 +248,15 @@ describe("llm-wiki extension wiring", () => {
   });
 
   it("injects wiki context and digest before agent start", async () => {
-    state.digest = "\n\n[WIKI MEMORY DIGEST for pad-nixos]\n- Shared Note";
+    state.digest = "\n\n[WIKI PLANNER DIGEST — pad-nixos — 2026-04-21]\n- Shared Note";
     const api = await loadExtension();
     const result = (await api.fireEvent("before_agent_start", { systemPrompt: "BASE" })) as { systemPrompt: string };
 
     expect(result.systemPrompt).toContain("BASE");
-    expect(result.systemPrompt).toContain("Open this folder directly in Obsidian");
-    expect(result.systemPrompt).toContain("domain: technical");
-    expect(result.systemPrompt).toContain("pages/projects");
-    expect(result.systemPrompt).toContain("[WIKI MEMORY DIGEST for pad-nixos]");
+    expect(result.systemPrompt).toContain("Plain-Markdown wiki");
+    expect(result.systemPrompt).toContain("domain: technical or personal");
+    expect(result.systemPrompt).toContain("planner/tasks");
+    expect(result.systemPrompt).toContain("[WIKI PLANNER DIGEST");
   });
 
   it("injects context even when digest is empty", async () => {
@@ -263,6 +264,6 @@ describe("llm-wiki extension wiring", () => {
     const result = (await api.fireEvent("before_agent_start", { systemPrompt: "BASE" })) as { systemPrompt: string };
     expect(result.systemPrompt).toContain("BASE");
     expect(result.systemPrompt).toContain("[LLM WIKI CONTEXT]");
-    expect(result.systemPrompt).not.toContain("[WIKI MEMORY DIGEST");
+    expect(result.systemPrompt).not.toContain("[WIKI PLANNER DIGEST");
   });
 });

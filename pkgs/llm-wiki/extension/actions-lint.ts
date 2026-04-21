@@ -4,8 +4,17 @@ import { ok } from "./lib/utils.js";
 import { buildBacklinks, buildRegistry, scanPages } from "./actions-meta.js";
 import { normalizeDomain, normalizeWikiLink } from "./paths.js";
 import { PAGE_TYPES, type WikiPageType } from "./types.js";
-import { type LintMode, REQUIRED_FRONTMATTER_FIELDS } from "./rules.js";
+import {
+	type LintMode,
+	REQUIRED_FRONTMATTER_FIELDS,
+	CANONICAL_STATUSES,
+	TASK_STATUSES,
+	EVENT_STATUSES,
+	REMINDER_STATUSES,
+	OPERATIONAL_TYPES,
+} from "./rules.js";
 import type { ActionResult, BacklinksData, LintDetails, LintIssue, RegistryData } from "./types.js";
+
 
 function normalizeHeadingRef(value: string): string {
 	return value.trim().toLowerCase().replace(/\s+/g, " ");
@@ -62,7 +71,6 @@ function lintOrphans(registry: RegistryData, backlinks: BacklinksData): LintIssu
 }
 
 const SOURCE_STATUSES = new Set(["captured", "integrated", "superseded"]);
-const CANONICAL_STATUSES = new Set(["draft", "active", "contested", "superseded", "archived"]);
 const ORIGIN_TYPES = new Set(["text", "file", "url"]);
 
 function pushFrontmatterIssue(issues: LintIssue[], pathValue: string, message: string): void {
@@ -141,8 +149,15 @@ function lintFrontmatter(pages: ReturnType<typeof scanPages>): LintIssue[] {
 		}
 
 		const status = page.frontmatter.status;
-		if (status !== undefined && (typeof status !== "string" || !CANONICAL_STATUSES.has(status))) {
-			pushFrontmatterIssue(issues, page.relativePath, `Invalid canonical status: ${String(status)}`);
+		if (status !== undefined && typeof status === "string") {
+			const validStatuses =
+				type === "task"     ? TASK_STATUSES :
+				type === "event"    ? EVENT_STATUSES :
+				type === "reminder" ? REMINDER_STATUSES :
+				CANONICAL_STATUSES;
+			if (!validStatuses.has(status)) {
+				pushFrontmatterIssue(issues, page.relativePath, `Invalid status "${status}" for type "${type}"`);
+			}
 		}
 		const updated = page.frontmatter.updated;
 		if (updated !== undefined && (typeof updated !== "string" || updated.trim() === "")) {
@@ -193,9 +208,10 @@ function lintCoverage(registry: RegistryData, backlinks: BacklinksData): LintIss
 			continue;
 		}
 
-		if (page.type === "journal") {
-			continue;
-		}
+		if (page.type === "journal") continue;
+
+		// Operational notes (task/event/reminder) don't require source_ids
+		if (OPERATIONAL_TYPES.has(page.type)) continue;
 
 		if (page.sourceIds.length === 0) {
 			issues.push({

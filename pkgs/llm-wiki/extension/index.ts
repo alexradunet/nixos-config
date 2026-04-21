@@ -17,28 +17,15 @@ import { getCurrentHost, getAllowedDomains, getWikiRoot, isProtectedPath, isWiki
 import type { CanonicalPageType } from "./types.js";
 
 const PageTypeEnum = StringEnum([
-	"source",
-	"concept",
-	"entity",
-	"synthesis",
-	"analysis",
-	"evolution",
-	"procedure",
-	"decision",
-	"identity",
-	"journal",
+	"source", "concept", "entity", "synthesis", "analysis",
+	"evolution", "procedure", "decision", "identity", "journal",
+	"task", "event", "reminder",
 ] as const);
 
 const CanonicalTypeEnum = StringEnum([
-	"concept",
-	"entity",
-	"synthesis",
-	"analysis",
-	"evolution",
-	"procedure",
-	"decision",
-	"identity",
-	"journal",
+	"concept", "entity", "synthesis", "analysis",
+	"evolution", "procedure", "decision", "identity", "journal",
+	"task", "event", "reminder",
 ] as const);
 
 const LintModeEnum = StringEnum(["links", "orphans", "frontmatter", "duplicates", "coverage", "staleness", "all"] as const);
@@ -58,6 +45,7 @@ const WikiCaptureParams = Type.Object({
 const WikiSearchParams = Type.Object({
 	query: Type.String({ description: "Search query." }),
 	type: Type.Optional(PageTypeEnum),
+	object_type: Type.Optional(Type.String({ description: "Filter by object_type frontmatter field (e.g. person, host, task, project, meeting)." })),
 	limit: Type.Optional(Type.Number({ description: "Maximum results to return.", default: 10 })),
 	host_scope: Type.Optional(HostScopeEnum),
 	domain: Type.Optional(Type.String({ description: "Optional domain filter such as technical or personal." })),
@@ -70,6 +58,7 @@ const WikiSearchParams = Type.Object({
 const WikiEnsurePageParams = Type.Object({
 	type: CanonicalTypeEnum,
 	title: Type.String({ description: "Canonical page title." }),
+	object_type: Type.Optional(Type.String({ description: "Real-world object kind, e.g. person, project, host, meeting. Sets id prefix, review cycle, and extra frontmatter fields." })),
 	aliases: Type.Optional(Type.Array(Type.String())),
 	tags: Type.Optional(Type.Array(Type.String())),
 	hosts: Type.Optional(Type.Array(Type.String({ description: "Optional host scope. Omit for global knowledge shared across hosts." }))),
@@ -99,19 +88,33 @@ function buildWikiContextPrompt(): string {
 		"[LLM WIKI CONTEXT]",
 		`- Wiki root: ${wikiRoot}`,
 		`- Current host: ${host}`,
-		"- Open this folder directly in Obsidian to contribute markdown notes.",
-		"- Use domain: technical or domain: personal to separate system knowledge from user knowledge.",
-		"- Use areas: [...] for long-lived themes and responsibilities.",
-		"- For PARA-style organization, prefer folders under pages/projects, pages/areas, pages/resources, and pages/archives.",
-		"- Journal entries should usually live under pages/journal/daily and use type: journal.",
-		"- wiki_ensure_page can also create journal entries when type=journal.",
-		"- Pages with a frontmatter hosts list apply only to those hosts.",
-		"- Pages without hosts are global and apply across all hosts.",
-		`- When knowledge is host-specific, set hosts: [${host}] or another explicit host list.`,
+		"- Plain-Markdown wiki. No app-specific syntax. Use standard Markdown links in note bodies.",
+		"- domain: technical or personal separates system from personal knowledge.",
+		"- areas: [...] for long-lived themes. id: for stable object identity. object_type: for real-world kind.",
+		"- schema_version: 1 on all notes. validation_level: seed | working | trusted | superseded.",
+		"- Canonical folders under pages/:",
+		"-   home/                         — dashboards and navigation",
+		"-   planner/tasks/                — actionable tasks (type: task)",
+		"-   planner/calendar/             — events and meetings (type: event)",
+		"-   planner/reminders/            — follow-up prompts (type: reminder)",
+		"-   planner/reviews/              — weekly/monthly reviews",
+		"-   projects/<slug>/              — finite outcomes",
+		"-   areas/<slug>/                 — ongoing responsibilities",
+		"-   resources/knowledge/          — evergreen concepts",
+		"-   resources/people/             — person objects",
+		"-   resources/technical/          — hosts, services, tools",
+		"-   sources/                      — captured evidence and research",
+		"-   journal/daily/                — daily notes (type: journal)",
+		"-   journal/weekly/ monthly/      — periodic reflections",
+		"-   archives/                     — inactive material",
+		"- Templates: templates/markdown/<type>.md. Object schemas: schemas/<object_type>.md.",
+		"- wiki_search: query, type, object_type, domain, areas, folder, host_scope filters.",
+		"- wiki_ensure_page: creates or resolves; injects id, object_type, schema_version, relation fields.",
+		"- wiki_lint: checks links, orphans, frontmatter, duplicates, coverage, staleness.",
+		"- qmd: use for full-text body search — qmd search <query> -c wiki or qmd query <query> --no-rerank.",
+		"- Pages with hosts: [...] apply only to those hosts. Pages without hosts are global.",
 		...(allowedDomains
-			? [
-					`- Domain access is restricted to: [${allowedDomains.join(", ")}]. Do not read, reference, or search for pages outside these domains. Personal and journal data is not accessible in this session.`,
-			  ]
+			? [`- Domain access is restricted to: [${allowedDomains.join(", ")}]. Do not read, reference, or search for pages outside these domains.`]
 			: []),
 	].join("\n");
 }
@@ -170,6 +173,7 @@ export default function (pi: ExtensionAPI) {
 				return toToolResult(
 					handleWikiSearch(loadRegistry(getWikiRoot()), typed.query, {
 						type: typed.type,
+						objectType: typed.object_type,
 						limit: typed.limit,
 						hostScope: typed.host_scope,
 						domain: typed.domain,
@@ -188,7 +192,10 @@ export default function (pi: ExtensionAPI) {
 			async execute(_toolCallId, params) {
 				const typed = params as Static<typeof WikiEnsurePageParams> & { type: CanonicalPageType };
 				const wikiRoot = getWikiRoot();
-				return runWikiMutation(wikiRoot, async () => handleEnsurePage(wikiRoot, typed));
+				return runWikiMutation(wikiRoot, async () => handleEnsurePage(wikiRoot, {
+					...typed,
+					objectType: typed.object_type,
+				}));
 			},
 		},
 		{

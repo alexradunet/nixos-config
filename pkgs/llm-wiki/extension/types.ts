@@ -13,6 +13,9 @@ export const PAGE_TYPES = [
 	"decision",
 	"identity",
 	"journal",
+	"task",
+	"event",
+	"reminder",
 ] as const;
 export type WikiPageType = (typeof PAGE_TYPES)[number];
 
@@ -26,6 +29,9 @@ export const CANONICAL_PAGE_TYPES = [
 	"decision",
 	"identity",
 	"journal",
+	"task",
+	"event",
+	"reminder",
 ] as const;
 export type CanonicalPageType = (typeof CANONICAL_PAGE_TYPES)[number];
 
@@ -67,10 +73,42 @@ export interface CanonicalPageFrontmatter {
 	hosts: string[];
 	domain?: string;
 	areas: string[];
-	status: "draft" | "active" | "contested" | "superseded" | "archived";
+	status: string;
 	updated: string;
 	source_ids: string[];
 	summary: string;
+	// v2 object-model fields (optional for backwards compat)
+	id?: string;
+	schema_version?: number;
+	object_type?: string;
+	validation_level?: string;
+	created?: string;
+	review_cycle_days?: number;
+	last_reviewed?: string;
+	next_review?: string;
+	// relation fields
+	projects?: string[];
+	people?: string[];
+	systems?: string[];
+	related?: string[];
+	sources?: string[];
+	depends_on?: string[];
+	blocked_by?: string[];
+	completed?: string;
+	// task-specific
+	priority?: string;
+	due?: string;
+	scheduled?: string;
+	schedule?: string;
+	// event/meeting-specific
+	start?: string;
+	end?: string;
+	location?: string;
+	attendees?: string[];
+	// reminder-specific
+	remind_at?: string;
+	snooze_until?: string;
+	for?: string;
 }
 
 export type WikiFrontmatter = SourcePageFrontmatter | CanonicalPageFrontmatter;
@@ -82,7 +120,11 @@ export interface RegistryEntry {
 	title: string;
 	aliases: string[];
 	summary: string;
-	status: "draft" | "active" | "contested" | "superseded" | "archived" | "captured" | "integrated";
+	status:
+		| "draft" | "active" | "contested" | "superseded" | "archived"
+		| "captured" | "integrated"
+		| "open" | "in-progress" | "waiting" | "done" | "cancelled"
+		| "scheduled" | "snoozed";
 	tags: string[];
 	hosts: string[];
 	domain?: string;
@@ -92,6 +134,18 @@ export interface RegistryEntry {
 	linksOut: string[];
 	headings: string[];
 	wordCount: number;
+	// v2 object-model fields
+	id?: string;
+	objectType?: string;
+	schemaVersion?: number;
+	validationLevel?: string;
+	reviewCycleDays?: number;
+	nextReview?: string;
+	// planner fields
+	due?: string;
+	startDate?: string;
+	remindAt?: string;
+	schedule?: string;
 }
 
 export interface RegistryData {

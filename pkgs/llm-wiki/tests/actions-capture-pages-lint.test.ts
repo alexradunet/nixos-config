@@ -483,7 +483,7 @@ summary: Daily note
       expect(messages).toContain("Invalid domain: 123");
       expect(messages).toContain("Field aliases must be an array of strings.");
       expect(messages).toContain("Field hosts must be an array of strings.");
-      expect(messages).toContain("Invalid canonical status: publishing");
+      expect(messages.some(m => m.includes('Invalid status "publishing"'))).toBe(true);
       const report = readFileSync(path.join(wikiRoot, "meta", "lint-report.md"), "utf8");
       expect(report).toContain("broken-link");
       expect(report).not.toContain("pages/journal/daily/2026-04-19.md` - No source_ids listed.");

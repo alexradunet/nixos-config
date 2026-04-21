@@ -17,6 +17,7 @@ import type { ActionResult, RegistryData, RegistryEntry, WikiPageType } from "./
 
 export interface SearchMatch {
 	type: string;
+	objectType?: string;
 	path: string;
 	folder: string;
 	title: string;
@@ -39,6 +40,7 @@ export interface SearchResult {
 
 export interface SearchOptions {
 	type?: WikiPageType | string;
+	objectType?: string;
 	limit?: number;
 	hostScope?: "current" | "all";
 	host?: string;
@@ -154,6 +156,7 @@ export function searchRegistry(registry: RegistryData, query: string, options: S
 	const allowedDomains = getAllowedDomains();
 	const matches = registry.pages
 		.filter((entry) => !options.type || entry.type === options.type)
+		.filter((entry) => !options.objectType || entry.objectType === options.objectType)
 		.filter((entry) => hostScope === "all" || appliesToHost(entry.hosts, host))
 		.filter((entry) => isDomainAllowed(entry.domain, allowedDomains))
 		.filter((entry) => !domain || entry.domain === domain)
@@ -165,6 +168,7 @@ export function searchRegistry(registry: RegistryData, query: string, options: S
 		.slice(0, options.limit ?? 10)
 		.map(({ entry, score }) => ({
 			type: entry.type,
+			objectType: entry.objectType,
 			path: entry.path,
 			folder: entry.folder,
 			title: entry.title,

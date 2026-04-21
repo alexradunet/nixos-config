@@ -134,6 +134,7 @@ in {
 
   # ── PI config stubs ───────────────────────────────────────────────────────
   home.file.".pi/agent/prompts/.keep".text = "";
+  home.file.".pi/agent/prompts/wiki.md".source = ./prompts/wiki.md;
   home.file.".pi/agent/skills/.keep".text = "";
   home.file.".pi/agent/themes/.keep".text = "";
 
@@ -145,6 +146,7 @@ in {
   # ── PI skills ─────────────────────────────────────────────────────────────
   home.file.".pi/agent/skills/librarian/SKILL.md".source = "${piWebAccessRoot}/skills/librarian/SKILL.md";
   home.file.".pi/agent/skills/wg-admin/SKILL.md".source = ./skills/wg-admin/SKILL.md;
+  home.file.".pi/agent/skills/wiki/SKILL.md".source = ./skills/wiki/SKILL.md;
   home.file.".pi/agent/skills/wiki-migration/SKILL.md".source = ./skills/wiki-migration/SKILL.md;
   home.file.".pi/agent/skills/wiki-migration/scripts/scan.sh".source = ./skills/wiki-migration/scripts/scan.sh;
   home.file.".pi/agent/skills/wiki-migration/scripts/batch-list.sh".source = ./skills/wiki-migration/scripts/batch-list.sh;
@@ -159,6 +161,18 @@ in {
     if [ ! -e "$config_path" ]; then
       mkdir -p "$HOME/.pi"
       printf '%s\n' '${starterConfig}' > "$config_path"
+    fi
+  '';
+
+  # ── Activation: PI settings — merge qmd MCP (never overwrites user prefs) ──
+  home.activation.piSettings = lib.hm.dag.entryAfter ["writeBoundary"] ''
+    settings_path="$HOME/.pi/agent/settings.json"
+    mkdir -p "$(dirname "$settings_path")"
+    if [ ! -e "$settings_path" ]; then
+      printf '{"mcpServers":{"qmd":{"command":"qmd","args":["mcp"]}}}\n' > "$settings_path"
+    elif ! ${pkgs.jq}/bin/jq -e '.mcpServers.qmd' "$settings_path" > /dev/null 2>&1; then
+      ${pkgs.jq}/bin/jq '.mcpServers.qmd = {"command":"qmd","args":["mcp"]}' \
+        "$settings_path" > "$settings_path.tmp" && mv "$settings_path.tmp" "$settings_path"
     fi
   '';
 
