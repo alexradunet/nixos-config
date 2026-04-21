@@ -1,4 +1,8 @@
-{config, lib, ...}: {
+{
+  config,
+  lib,
+  ...
+}: {
   programs.bash = {
     enable = true;
     enableCompletion = true;
@@ -17,31 +21,33 @@
       "ignoredups"
     ];
 
-    initExtra = ''
-      if [ -r /run/secrets/github-token ]; then
-        export GITHUB_TOKEN="$(< /run/secrets/github-token)"
-        export GH_TOKEN="$GITHUB_TOKEN"
-      fi
+    initExtra =
+      ''
+        if [ -r /run/secrets/github-token ]; then
+          export GITHUB_TOKEN="$(< /run/secrets/github-token)"
+          export GH_TOKEN="$GITHUB_TOKEN"
+        fi
 
-      # Knowledge wiki shortcut
-      obsidian-wiki() {
-        nohup obsidian "$HOME/Workspace/Knowledge" >/dev/null 2>&1 &
-      }
+        # Knowledge wiki shortcut
+        obsidian-wiki() {
+          nohup obsidian "$HOME/Workspace/Knowledge" >/dev/null 2>&1 &
+        }
 
-      # Wiki shortcut for the AI assistant context
-      wiki-technical() {
-        export PI_LLM_WIKI_DIR="$HOME/Workspace/Knowledge"
-        echo "Wiki context: Knowledge ($PI_LLM_WIKI_DIR)"
-      }
-    '' + lib.optionalString config.programs.tmux.enable ''
-      if command -v tmux >/dev/null 2>&1 \
-        && [ -z "$TMUX" ] \
-        && [ -z "$SSH_TTY" ] \
-        && [ "''${TERM_PROGRAM-}" != "vscode" ] \
-        && [ -z "''${INSIDE_EMACS-}" ]; then
-        exec tmux new-session -A -s main
-      fi
-    '';
+        # Wiki shortcut for the AI assistant context
+        wiki-technical() {
+          export PI_LLM_WIKI_DIR="$HOME/Workspace/Knowledge"
+          echo "Wiki context: Knowledge ($PI_LLM_WIKI_DIR)"
+        }
+      ''
+      + lib.optionalString config.programs.tmux.enable ''
+        if command -v tmux >/dev/null 2>&1 \
+          && [ -z "$TMUX" ] \
+          && [ -z "$SSH_TTY" ] \
+          && [ "''${TERM_PROGRAM-}" != "vscode" ] \
+          && [ -z "''${INSIDE_EMACS-}" ]; then
+          exec tmux new-session -A -s main
+        fi
+      '';
   };
 
   programs.fzf = {
