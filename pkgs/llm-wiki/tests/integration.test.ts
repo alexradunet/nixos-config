@@ -2,11 +2,13 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import extension from "../extension/index.js";
 import { captureText } from "../extension/actions-capture.js";
 import { handleWikiLint } from "../extension/actions-lint.js";
 import { buildBacklinks, handleWikiStatus, loadRegistry, readEvents, rebuildAllMeta } from "../extension/actions-meta.js";
 import { handleEnsurePage } from "../extension/actions-pages.js";
 import { handleWikiSearch } from "../extension/actions-search.js";
+import { createMockExtensionAPI } from "./helpers/mock-extension-api.js";
 
 function initWikiRoot(root: string) {
   for (const dir of [
@@ -119,6 +121,68 @@ describe("llm-wiki integration", () => {
     }
 
     expect(readEvents(wikiRoot).map((event) => event.kind)).toEqual(["capture", "page-create"]);
+  });
+
+  it("wires real extension hooks against a temporary wiki root", async () => {
+    process.env.PI_LLM_WIKI_DIR = wikiRoot;
+    const api = createMockExtensionAPI();
+    extension(api as never);
+
+    const captureTool = api._registeredTools.find((tool) => tool.name === "wiki_capture");
+    const ensureTool = api._registeredTools.find((tool) => tool.name === "wiki_ensure_page");
+    expect(typeof captureTool?.execute).toBe("function");
+    expect(typeof ensureTool?.execute).toBe("function");
+
+    await (captureTool?.execute as (toolCallId: string, params: Record<string, unknown>) => Promise<unknown>)("capture", {
+      input_type: "text",
+      value: "Extension owned content for rebuild checks.",
+      title: "Extension Capture",
+      domain: "technical",
+      areas: ["pi"],
+      hosts: ["pad-nixos"],
+    });
+
+    await (ensureTool?.execute as (toolCallId: string, params: Record<string, unknown>) => Promise<unknown>)("ensure", {
+      type: "concept",
+      title: "Extension Managed Note",
+      domain: "technical",
+      folder: "resources/technical",
+      areas: ["pi"],
+      hosts: ["pad-nixos"],
+      summary: "Created through the extension tool.",
+    });
+
+    const pagePath = path.join(wikiRoot, "pages", "resources", "technical", "extension-managed-note.md");
+    expect(existsSync(pagePath)).toBe(true);
+    expect(readFileSync(path.join(wikiRoot, "meta", "registry.json"), "utf8")).toContain("Extension Managed Note");
+
+    const blocked = await api.fireEvent("tool_call", {
+      toolName: "write",
+      input: { path: path.join(wikiRoot, "raw", "SRC-2026-04-21-999", "manifest.json") },
+    });
+    expect(blocked).toEqual({ block: true, reason: "Wiki protects raw/ and meta/. Use wiki tools instead." });
+
+    const allowed = await api.fireEvent("tool_call", {
+      toolName: "edit",
+      input: { path: pagePath },
+    });
+    expect(allowed).toBeUndefined();
+
+    const activatedPage = readFileSync(pagePath, "utf8")
+      .replace("status: draft", "status: active")
+      .concat(`\nExtra integration line.\n\n${"word ".repeat(40)}`);
+    writeFileSync(pagePath, activatedPage, "utf8");
+    await api.fireEvent("agent_end");
+
+    const registryAfterEdit = loadRegistry(wikiRoot);
+    expect(registryAfterEdit.pages.map((page) => page.title)).toContain("Extension Managed Note");
+
+    const promptResult = (await api.fireEvent("before_agent_start", { systemPrompt: "BASE" })) as { systemPrompt: string };
+    expect(promptResult.systemPrompt).toContain("[LLM WIKI CONTEXT]");
+    expect(promptResult.systemPrompt).toContain("[WIKI PLANNER DIGEST");
+    expect(promptResult.systemPrompt).toContain("Extension Managed Note");
+
+    delete process.env.PI_LLM_WIKI_DIR;
   });
 
   it("runs lint and metadata rebuilds against a real seeded wiki", () => {
