@@ -10,7 +10,7 @@
       kdePackages.dolphin
       kdePackages.plasma-nm
       vlc
-      vscodium
+      zed-editor
     ])
     ++ lib.optionals (config.nixpkgs.config.allowUnfree or false) [
       pkgs.obsidian
