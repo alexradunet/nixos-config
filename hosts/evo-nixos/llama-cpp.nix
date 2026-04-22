@@ -10,8 +10,6 @@
 }: let
   vulkanPkg = pkgs.llama-cpp.override {vulkanSupport = true;};
 in {
-  environment.systemPackages = [vulkanPkg];
-
   boot.kernelParams = [
     "ttm.pages_limit=14155776"
     "ttm.page_pool_size=14155776"
@@ -25,6 +23,8 @@ in {
     port = 8080;
     hfRepo = "bartowski/Qwen_Qwen3.5-27B-GGUF";
     hfFile = "Qwen_Qwen3.5-27B-Q4_K_M.gguf";
+    modelId = "bartowski/Qwen_Qwen3.5-27B-GGUF";
+    modelName = "Local Qwen 3.5 27B Dense (llama.cpp)";
     nGpuLayers = 99;
     threads = 12;
     contextSize = 131072;

@@ -99,6 +99,21 @@
         description = "Absolute path to a pre-downloaded GGUF model file.";
       };
 
+      modelId = lib.mkOption {
+        type = lib.types.str;
+        default = "local-llama";
+        description = ''
+          Short identifier for this model, used by PI to reference it.
+          Defaults to "local-llama"; set per-instance if you run multiple.
+        '';
+      };
+
+      modelName = lib.mkOption {
+        type = lib.types.str;
+        default = "Local LLM (llama.cpp)";
+        description = "Human-readable model name shown in PI's model selector.";
+      };
+
       contextSize = lib.mkOption {
         type = lib.types.int;
         default = 32768;
@@ -142,6 +157,7 @@
       };
     };
   };
+
 in {
   options.services.llama-servers = lib.mkOption {
     type = lib.types.attrsOf instanceSubmodule;
@@ -163,6 +179,12 @@ in {
         message = "services.llama-servers.${name}: hfFile must be set when hfRepo is set.";
       }
     ]) enabledInstances);
+
+    # Install the llama-cpp CLI system-wide so it's available on every host
+    # that runs at least one llama-server instance.
+    environment.systemPackages = [
+      (builtins.elemAt (lib.attrValues enabledInstances) 0).package
+    ];
 
     users.users = lib.mapAttrs' (name: _:
       lib.nameValuePair "llama-server-${name}" {

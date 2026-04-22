@@ -41,6 +41,20 @@
     };
   };
 
+  # ── Local llama models — set per-host via pi.llamaModels ─────────────────
+  llamaModels = config.pi.llamaModels;
+
+  # Build enabled model IDs for PI settings.json.
+  # Includes all Synthetic cloud models + all local llama models.
+  syntheticModelIds = [
+    "synthetic/hf:zai-org/GLM-5.1"
+    "synthetic/hf:moonshotai/Kimi-K2.5"
+    "synthetic/hf:MiniMaxAI/MiniMax-M2.5"
+    "synthetic/hf:Qwen/Qwen3-Coder-480B-A35B-Instruct"
+  ];
+
+  llamaModelIds = map (m: "llama/${m.id}") llamaModels;
+
   piModelsBase = {
     providers = {
       synthetic = {
@@ -119,27 +133,30 @@
           supportsReasoningEffort = false;
           maxTokensField = "max_tokens";
         };
-        models = [
-          {
-            id = "bartowski/Qwen_Qwen3.5-27B-GGUF";
-            name = "Local Qwen 3.5 27B Dense (llama.cpp)";
-            reasoning = false;
-            input = ["text"];
-            contextWindow = 131072;
-            maxTokens = 8192;
-            cost = {
-              input = 0;
-              output = 0;
-              cacheRead = 0;
-              cacheWrite = 0;
-            };
-          }
-        ];
+        models = llamaModels;
       };
     };
   };
 
   piModelsBaseJson = pkgs.writeText "pi-models-base.json" (builtins.toJSON piModelsBase);
+
+  # ── PI settings.json — fully declarative ──────────────────────────────────
+  piSettings = {
+    lastChangelogVersion = "0.67.68";
+    defaultThinkingLevel = "high";
+    hideThinkingBlock = true;
+    defaultProvider = "synthetic";
+    defaultModel = "hf:zai-org/GLM-5.1";
+    enabledModels = syntheticModelIds ++ llamaModelIds;
+    mcpServers = {
+      qmd = {
+        command = "qmd";
+        args = ["mcp"];
+      };
+    };
+  };
+
+  piSettingsJson = pkgs.writeText "pi-settings.json" (builtins.toJSON piSettings);
 in {
   # ── qmd — local retrieval layer ───────────────────────────────────────────
   home.file.".config/qmd/index.yml".text = ''
@@ -230,19 +247,39 @@ in {
     fi
   '';
 
-  # ── Activation: PI settings — merge qmd MCP (never overwrites user prefs) ──
+  # ── Activation: PI settings — fully declarative ───────────────────────────
+  #
+  # settings.json is now regenerated from Nix config on every activation.
+  # This ensures enabledModels, defaultModel, and mcpServers stay in sync
+  # with the NixOS configuration.  User-only prefs (e.g. keybindings, UI
+  # state) are preserved by merging the declarative fields into the
+  # existing file rather than overwriting it entirely.
   home.activation.piSettings = lib.hm.dag.entryAfter ["writeBoundary"] ''
     settings_path="$HOME/.pi/agent/settings.json"
     mkdir -p "$(dirname "$settings_path")"
+
     if [ ! -e "$settings_path" ]; then
-      printf '{"mcpServers":{"qmd":{"command":"qmd","args":["mcp"]}}}\n' > "$settings_path"
-    elif ! ${pkgs.jq}/bin/jq -e '.mcpServers.qmd' "$settings_path" > /dev/null 2>&1; then
-      ${pkgs.jq}/bin/jq '.mcpServers.qmd = {"command":"qmd","args":["mcp"]}' \
-        "$settings_path" > "$settings_path.tmp" && mv "$settings_path.tmp" "$settings_path"
+      # Fresh install — write the full declarative settings
+      cp ${piSettingsJson} "$settings_path"
+      chmod 0600 "$settings_path"
+    else
+      # Existing settings — merge declarative fields, preserving user prefs
+      # like keybindings, hideThinkingBlock, etc.
+      ${pkgs.jq}/bin/jq -n \
+        --slurpfile decl ${piSettingsJson} \
+        --slurpfile cur "$settings_path" \
+        '$decl[0] as $d | $cur[0] as $c |
+         $c * {
+           enabledModels: $d.enabledModels,
+           defaultProvider: $d.defaultProvider,
+           defaultModel: $d.defaultModel,
+           mcpServers: ($c.mcpServers // {} | . + $d.mcpServers)
+         }' \
+        > "$settings_path.tmp" && mv "$settings_path.tmp" "$settings_path"
     fi
   '';
 
-  # ── Activation: Pi custom providers/models (env-var based) ───────────────
+  # ── Activation: Pi custom providers/models (declarative) ─────────────────
   home.activation.piModels = lib.hm.dag.entryAfter ["writeBoundary"] ''
     models_path="$HOME/.pi/agent/models.json"
     mkdir -p "$(dirname "$models_path")"
