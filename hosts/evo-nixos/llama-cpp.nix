@@ -4,7 +4,7 @@
 #
 #   vulkan → AMD Radeon 890M iGPU (64 GB unified RAM, Vulkan) port 8080
 #            Model: Qwen3.6-35B-A3B (MoE, ~3B active, Q4_K_M ~21-23 GB)
-#            Main/default local model endpoint, tuned for 128K-class context
+#            Main/default local text endpoint, tuned for 128K-class context
 #
 # Secondary CUDA instance is kept in config but disabled by default:
 #
@@ -137,6 +137,9 @@ in {
       };
 
       extraArgs = [
+        "--no-mmproj" # text-only mode; do not load the multimodal projector
+        "--reasoning-budget"
+        "0" # disable Qwen thinking mode for faster visible answers
         "--metrics" # enable Prometheus /metrics endpoint
         "--slots" # enable /slots monitoring endpoint
       ];

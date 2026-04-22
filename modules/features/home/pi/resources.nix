@@ -20,9 +20,9 @@
   llmRouterBase = {
     _comment = "LLM Router config — managed by NixOS (modules/features/home/pi/resources.nix). Manual edits are overwritten on rebuild.";
     private = {
-      provider = "cortecs";
-      model = "minimax-m2.7";
-      label = "Private";
+      provider = "local-qwen";
+      model = "bartowski/Qwen_Qwen3.6-35B-A3B-GGUF";
+      label = "Private (Local Qwen)";
     };
     technical = {
       provider = "github-copilot";
@@ -30,6 +30,29 @@
       label = "Technical";
     };
     providers = {
+      local-qwen = {
+        baseUrl = "http://127.0.0.1:8080/v1";
+        # llama.cpp's OpenAI-compatible endpoint does not require auth, but the
+        # client expects a string here.
+        apiKey = "local";
+        api = "openai-completions";
+        models = [
+          {
+            id = "bartowski/Qwen_Qwen3.6-35B-A3B-GGUF";
+            name = "Local Qwen 3.6 35B-A3B (Vulkan)";
+            reasoning = false;
+            input = ["text"];
+            cost = {
+              input = 0;
+              output = 0;
+              cacheRead = 0;
+              cacheWrite = 0;
+            };
+            contextWindow = 131072;
+            maxTokens = 8192;
+          }
+        ];
+      };
       cortecs = {
         baseUrl = "https://api.cortecs.ai/v1";
         # apiKey is injected at activation time from /run/secrets/cortecs-api-key
@@ -66,7 +89,7 @@
         keywords = [];
       };
     };
-    defaultMode = "technical";
+    defaultMode = "private";
     autoSwitch = true;
     showNotifications = true;
   };
@@ -298,7 +321,7 @@ in {
     Install.WantedBy = ["timers.target"];
   };
 
-  # ── Activation: LLM router (always refreshed — injects SOPS secret) ──────
+  # ── Activation: LLM router (always refreshed; Cortecs key injected when present) ──
   home.activation.llmRouter = lib.hm.dag.entryAfter ["writeBoundary"] ''
     llm_router_path="$HOME/.pi/agent/llm-router.json"
     secret_path="/run/secrets/cortecs-api-key"
@@ -310,9 +333,8 @@ in {
         ${llmRouterBaseJson} > "$llm_router_path"
     else
       ${pkgs.jq}/bin/jq \
-        '.private = (.technical + {label: "Private (secret missing; using technical provider)"})
-         | .providers |= with_entries(select(.key != "cortecs"))
-         | ._warning = "cortecs-api-key missing at activation time; private mode fell back to the technical provider"' \
+        '.providers |= with_entries(select(.key != "cortecs"))
+         | ._warning = "cortecs-api-key missing at activation time; Cortecs provider omitted, private mode remains local"' \
         ${llmRouterBaseJson} > "$llm_router_path"
     fi
   '';
