@@ -12,7 +12,48 @@ in {
     pkgs,
     system,
     ...
-  }: {
+  }: let
+    nixpi-vcp = pkgs.writeShellApplication {
+      name = "nixpi-vcp";
+      runtimeInputs = [pkgs.git pkgs.nix pkgs.coreutils];
+      text = ''
+        set -euo pipefail
+
+        repo_root="$(git rev-parse --show-toplevel)"
+        cd "$repo_root"
+
+        echo "== git status =="
+        git status --short
+        echo
+
+        if git diff --quiet && git diff --cached --quiet; then
+          echo "No changes to validate/commit/push."
+          exit 0
+        fi
+
+        echo "== nix flake check =="
+        nix flake check
+        echo
+
+        echo "== git add -A =="
+        git add -A
+
+        if git diff --cached --quiet; then
+          echo "Nothing staged after git add -A."
+          exit 0
+        fi
+
+        message="''${*:-Update NixPI — $(date +%F)}"
+
+        echo "== git commit =="
+        git commit -m "$message"
+        echo
+
+        echo "== git push =="
+        git push
+      '';
+    };
+  in {
     _module.args.pkgs = import inputs.nixpkgs {
       inherit system;
       overlays = [
@@ -59,19 +100,22 @@ in {
       wg-admin = pkgs.wg-admin;
       pi-gateway = pkgs.pi-gateway;
       qmd = pkgs.qmd;
+      nixpi-vcp = nixpi-vcp;
       default = pkgs.pi;
     };
 
     apps = let
       mkApp = package: {
         type = "app";
-        program = "${package}/bin/${package.meta.mainProgram or package.pname}";
-        meta.description = package.meta.description or package.pname;
+        program = "${package}/bin/${package.meta.mainProgram or package.name}";
+        meta.description = package.meta.description or package.name;
       };
 
       piApp = mkApp pkgs.pi;
+      nixpiVcpApp = mkApp nixpi-vcp;
     in {
       pi = piApp;
+      nixpi-vcp = nixpiVcpApp;
       default = piApp;
     };
   };

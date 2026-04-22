@@ -203,6 +203,27 @@ codex login
 copilot login
 ```
 
+## NixPI helper command
+
+This repo exposes a small helper that runs validate + commit + push in one command:
+
+```bash
+nix run .#nixpi-vcp
+```
+
+Optional custom commit message:
+
+```bash
+nix run .#nixpi-vcp -- "Your commit message"
+```
+
+What it does:
+- shows `git status --short`
+- runs `nix flake check`
+- stages all changes with `git add -A`
+- commits with the provided message, or `Update NixPI — YYYY-MM-DD`
+- pushes the current branch
+
 ## WireGuard hub-and-spoke overlay
 
 This repo now includes a small WireGuard module for a simple private overlay:
