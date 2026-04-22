@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "better-sqlite3": "^11.7.0",
+    "chrono-node": "^2.9.0",
     "eventsource-parser": "^3.0.0",
+    "whatsapp-web.js": "^1.34.6",
     "yaml": "^2.5.1"
   },
   "devDependencies": {

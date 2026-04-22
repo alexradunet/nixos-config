@@ -1,3 +1,4 @@
+import { PersonalRouter } from "./personal-router.js";
 import { chunkText, normalizeReply } from "./formatter.js";
 import { KeyedSerialQueue } from "./queue.js";
 export class Router {
@@ -7,6 +8,7 @@ export class Router {
     maxReplyChars;
     maxReplyChunks;
     queue = new KeyedSerialQueue();
+    personalRouter = new PersonalRouter();
     constructor(store, pi, policy, maxReplyChars, maxReplyChunks) {
         this.store = store;
         this.pi = pi;
@@ -35,8 +37,17 @@ export class Router {
             };
         }
         try {
+            const personalRoute = await this.personalRouter.route(msg, text);
+            if (personalRoute.kind === "reply") {
+                return {
+                    replies: chunkText(normalizeReply(personalRoute.text), this.maxReplyChars, this.maxReplyChunks),
+                    markProcessed: true,
+                };
+            }
             const existing = this.store.getChatSession(msg.chatId);
-            const reply = await this.pi.prompt(text, existing?.sessionPath ?? null);
+            const reply = await this.pi.prompt(personalRoute.message, existing?.sessionPath ?? null, {
+                systemPromptAddendum: personalRoute.systemPromptAddendum,
+            });
             this.store.upsertChatSession(msg.chatId, msg.senderId, reply.sessionPath);
             return {
                 replies: chunkText(normalizeReply(reply.text), this.maxReplyChars, this.maxReplyChunks),
@@ -64,7 +75,12 @@ export class Router {
             ];
             if (isAdmin)
                 lines.push("  status — show session info (admin)");
-            lines.push("", "Everything else goes to Pi.");
+            if (msg.channel === "whatsapp") {
+                lines.push("", "WhatsApp is personal mode: reminders, tasks, journaling, agenda, and life management.", "Use Pi Console/TUI for development, infrastructure, and technical operations.");
+            }
+            else {
+                lines.push("", "Everything else goes to Pi.");
+            }
             return lines.join("\n");
         }
         if (lowered === "reset") {

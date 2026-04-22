@@ -24,5 +24,8 @@ export class SignalTransport {
     async sendText(message, text) {
         await this.http.sendText(message.senderId, text);
     }
+    async sendTextToRecipient(recipientId, text) {
+        await this.http.sendText(recipientId, text);
+    }
 }
 //# sourceMappingURL=index.js.map

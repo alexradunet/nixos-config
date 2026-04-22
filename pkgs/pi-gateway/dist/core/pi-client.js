@@ -16,12 +16,12 @@ export class PiClient {
         this.timeoutMs = timeoutMs;
         mkdirSync(this.sessionDir, { recursive: true });
     }
-    async prompt(message, sessionPath) {
+    async prompt(message, sessionPath, options = {}) {
         const resolved = sessionPath ?? join(this.sessionDir, `session-${Date.now()}-${Math.random().toString(36).slice(2)}.jsonl`);
         const args = [
             "--print",
             "--session", resolved,
-            "--system-prompt", this.buildSystemPrompt(),
+            "--system-prompt", this.buildSystemPrompt(options.systemPromptAddendum),
             message,
         ];
         const { stdout, stderr } = await execFileAsync(this.piBin, args, {
@@ -45,13 +45,16 @@ export class PiClient {
         if (!stdout.trim())
             throw new Error("pi binary returned no version output");
     }
-    buildSystemPrompt() {
+    buildSystemPrompt(addendum) {
         return [
             "You are replying through a messaging gateway.",
             "Keep replies concise, plain-text, and mobile-friendly.",
             "Avoid markdown-heavy formatting, large code blocks, and tables unless explicitly requested.",
             "Do not perform privileged or destructive system actions from this channel.",
-        ].join(" ");
+            addendum?.trim() ?? "",
+        ]
+            .filter(Boolean)
+            .join(" ");
     }
 }
 //# sourceMappingURL=pi-client.js.map

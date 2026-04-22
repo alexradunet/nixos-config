@@ -32,4 +32,8 @@ export class SignalTransport implements GatewayTransport {
   async sendText(message: InboundMessage, text: string): Promise<void> {
     await this.http.sendText(message.senderId, text);
   }
+
+  async sendTextToRecipient(recipientId: string, text: string): Promise<void> {
+    await this.http.sendText(recipientId, text);
+  }
 }

@@ -20,16 +20,28 @@
         cwd = cfg.cwd;
         timeoutMs = cfg.piTimeoutMs;
       };
-      transports = lib.optionalAttrs cfg.signal.enable {
-        signal = {
-          enabled = true;
-          account = cfg.signal.account;
-          httpUrl = cfg.signal.httpUrl;
-          allowedNumbers = cfg.signal.allowedNumbers;
-          adminNumbers = cfg.signal.adminNumbers;
-          directMessagesOnly = cfg.signal.directMessagesOnly;
+      transports =
+        lib.optionalAttrs cfg.signal.enable {
+          signal = {
+            enabled = true;
+            account = cfg.signal.account;
+            httpUrl = cfg.signal.httpUrl;
+            allowedNumbers = cfg.signal.allowedNumbers;
+            adminNumbers = cfg.signal.adminNumbers;
+            directMessagesOnly = cfg.signal.directMessagesOnly;
+          };
+        }
+        // lib.optionalAttrs cfg.whatsapp.enable {
+          whatsapp = {
+            enabled = true;
+            trustedNumbers = cfg.whatsapp.trustedNumbers;
+            adminNumbers = cfg.whatsapp.adminNumbers;
+            directMessagesOnly = cfg.whatsapp.directMessagesOnly;
+            sessionDataPath = cfg.whatsapp.sessionDataPath;
+            chromiumExecutablePath = cfg.whatsapp.chromiumExecutablePath;
+            headless = cfg.whatsapp.headless;
+          };
         };
-      };
     }
   );
 in {
@@ -116,6 +128,46 @@ in {
         description = "When true, only direct messages are handled (no group chats).";
       };
     };
+
+    whatsapp = {
+      enable = lib.mkEnableOption "WhatsApp transport for pi-gateway";
+
+      trustedNumbers = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [];
+        description = "WhatsApp phone numbers in E.164 format allowed to message Pi.";
+      };
+
+      adminNumbers = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [];
+        description = "WhatsApp phone numbers with admin access (subset of trustedNumbers).";
+      };
+
+      directMessagesOnly = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "When true, only direct WhatsApp messages are handled (no group chats).";
+      };
+
+      sessionDataPath = lib.mkOption {
+        type = lib.types.str;
+        default = "${cfg.stateDir}/whatsapp/auth";
+        description = "Directory used by whatsapp-web.js LocalAuth to persist session state.";
+      };
+
+      chromiumExecutablePath = lib.mkOption {
+        type = lib.types.str;
+        default = "${pkgs.chromium}/bin/chromium";
+        description = "Chromium executable used by whatsapp-web.js/Puppeteer.";
+      };
+
+      headless = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Whether to run WhatsApp Web in headless Chromium mode.";
+      };
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -127,6 +179,10 @@ in {
       {
         assertion = cfg.signal.enable -> cfg.signal.allowedNumbers != [];
         message = "services.pi-gateway.signal.allowedNumbers must not be empty when signal transport is enabled.";
+      }
+      {
+        assertion = cfg.whatsapp.enable -> cfg.whatsapp.trustedNumbers != [];
+        message = "services.pi-gateway.whatsapp.trustedNumbers must not be empty when whatsapp transport is enabled.";
       }
     ];
 
@@ -141,12 +197,56 @@ in {
         user = cfg.user;
         group = cfg.group;
       };
+    }
+    // lib.optionalAttrs cfg.whatsapp.enable {
+      "${cfg.stateDir}/whatsapp".d = {
+        mode = "0750";
+        user = cfg.user;
+        group = cfg.group;
+      };
+      "${cfg.stateDir}/whatsapp/auth".d = {
+        mode = "0750";
+        user = cfg.user;
+        group = cfg.group;
+      };
+      "${cfg.stateDir}/whatsapp/cache".d = {
+        mode = "0750";
+        user = cfg.user;
+        group = cfg.group;
+      };
+      "${cfg.stateDir}/whatsapp/browser".d = {
+        mode = "0750";
+        user = cfg.user;
+        group = cfg.group;
+      };
+      "${cfg.stateDir}/xdg".d = {
+        mode = "0750";
+        user = cfg.user;
+        group = cfg.group;
+      };
+      "${cfg.stateDir}/xdg/config".d = {
+        mode = "0750";
+        user = cfg.user;
+        group = cfg.group;
+      };
+      "${cfg.stateDir}/xdg/cache".d = {
+        mode = "0750";
+        user = cfg.user;
+        group = cfg.group;
+      };
     };
 
     systemd.services.nixpi-gateway = {
       description = "NixPI generic transport gateway";
       after = ["network.target"];
       wantedBy = ["multi-user.target"];
+      path = lib.optionals cfg.whatsapp.enable [pkgs.chromium];
+      environment = lib.optionalAttrs cfg.whatsapp.enable {
+        HOME = cfg.stateDir;
+        XDG_CONFIG_HOME = "${cfg.stateDir}/xdg/config";
+        XDG_CACHE_HOME = "${cfg.stateDir}/xdg/cache";
+        PUPPETEER_EXECUTABLE_PATH = cfg.whatsapp.chromiumExecutablePath;
+      };
 
       serviceConfig = {
         Type = "simple";

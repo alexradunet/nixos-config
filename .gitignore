@@ -8,3 +8,4 @@ coverage
 
 # Host-local private overlays / secrets
 hosts/*/wireguard.private.nix
+hosts/*/pi-gateway.private.nix

@@ -32,6 +32,7 @@ Each host folder now contains only machine-local files such as:
 - `hardware-configuration.nix` for machine-specific hardware
 - optional host-local files like `syncthing.nix`
 - optional untracked `wireguard.private.nix`
+- optional untracked `pi-gateway.private.nix`
 
 Current hosts:
 
@@ -39,8 +40,14 @@ Current hosts:
 - `vps-nixos` - canonical VPS / WireGuard hub
 - `pad-nixos` - laptop
 
-Each host can also import an optional untracked `wireguard.private.nix` file for local WireGuard role/peer data.
-See `hosts/*/wireguard.private.example.nix`.
+Each host can also import optional untracked private host files for local secrets or transport config.
+Currently used patterns:
+- `wireguard.private.nix` for local WireGuard role/peer data
+- `pi-gateway.private.nix` for local Pi messaging transport config
+
+See:
+- `hosts/*/wireguard.private.example.nix`
+- `hosts/evo-nixos/pi-gateway.private.example.nix`
 
 ### `modules/`
 
@@ -91,6 +98,7 @@ The `modules/features/nixos/service-pi-gateway/` NixOS module manages the pi-gat
 It provides:
 - `services.pi-gateway.enable`
 - `services.pi-gateway.signal.*` — Signal transport config
+- `services.pi-gateway.whatsapp.*` — WhatsApp transport config
 - `services.pi-gateway.maxReplyChars` / `maxReplyChunks`
 - runs as the primary user so it inherits pi auth credentials
 
@@ -99,16 +107,25 @@ Typical usage (e.g. in a host file):
 ```nix
 services.pi-gateway = {
   enable = true;
+
   signal = {
     enable = true;
     account = "+15550001111";
     allowedNumbers = [ "+15550002222" ];
     adminNumbers = [ "+15550002222" ];
   };
+
+  whatsapp = {
+    enable = true;
+    trustedNumbers = [ "+15550002222" ];
+    adminNumbers = [ "+15550002222" ];
+  };
 };
 ```
 
 The Signal transport requires `signal-cli-rest-api` running at `http://127.0.0.1:8080` (configurable).
+
+The WhatsApp transport uses `whatsapp-web.js`, persists auth state under the gateway state directory, and needs Chromium available at runtime.
 
 ### Home Manager
 

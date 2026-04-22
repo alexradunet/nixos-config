@@ -2,11 +2,13 @@ import type { InboundMessage, RouterResult } from "./types.js";
 import { Store } from "./store.js";
 import { PiClient } from "./pi-client.js";
 import { Policy } from "./policy.js";
+import { PersonalRouter } from "./personal-router.js";
 import { chunkText, normalizeReply } from "./formatter.js";
 import { KeyedSerialQueue } from "./queue.js";
 
 export class Router {
   private readonly queue = new KeyedSerialQueue();
+  private readonly personalRouter = new PersonalRouter();
 
   constructor(
     private readonly store: Store,
@@ -37,8 +39,18 @@ export class Router {
     }
 
     try {
+      const personalRoute = await this.personalRouter.route(msg, text);
+      if (personalRoute.kind === "reply") {
+        return {
+          replies: chunkText(normalizeReply(personalRoute.text), this.maxReplyChars, this.maxReplyChunks),
+          markProcessed: true,
+        };
+      }
+
       const existing = this.store.getChatSession(msg.chatId);
-      const reply = await this.pi.prompt(text, existing?.sessionPath ?? null);
+      const reply = await this.pi.prompt(personalRoute.message, existing?.sessionPath ?? null, {
+        systemPromptAddendum: personalRoute.systemPromptAddendum,
+      });
       this.store.upsertChatSession(msg.chatId, msg.senderId, reply.sessionPath);
 
       return {
@@ -71,7 +83,15 @@ export class Router {
         "  reset  — start a fresh conversation",
       ];
       if (isAdmin) lines.push("  status — show session info (admin)");
-      lines.push("", "Everything else goes to Pi.");
+      if (msg.channel === "whatsapp") {
+        lines.push(
+          "",
+          "WhatsApp is personal mode: reminders, tasks, journaling, agenda, and life management.",
+          "Use Pi Console/TUI for development, infrastructure, and technical operations.",
+        );
+      } else {
+        lines.push("", "Everything else goes to Pi.");
+      }
       return lines.join("\n");
     }
 

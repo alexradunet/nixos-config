@@ -9,5 +9,7 @@ export declare class Store {
     getChatSession(chatId: string): ChatSession | null;
     upsertChatSession(chatId: string, senderId: string, sessionPath: string): void;
     resetChatSession(chatId: string): void;
+    hasSentReminder(reminderKey: string, channel: string, recipientId: string): boolean;
+    markReminderSent(reminderKey: string, channel: string, recipientId: string): void;
 }
 //# sourceMappingURL=store.d.ts.map

@@ -10,6 +10,16 @@ export type SignalTransportConfig = {
   directMessagesOnly: boolean;
 };
 
+export type WhatsAppTransportConfig = {
+  enabled: boolean;
+  trustedNumbers: string[];
+  adminNumbers: string[];
+  directMessagesOnly: boolean;
+  sessionDataPath: string;
+  chromiumExecutablePath?: string;
+  headless?: boolean;
+};
+
 export type GatewayConfig = {
   gateway: {
     dbPath: string;
@@ -24,6 +34,7 @@ export type GatewayConfig = {
   };
   transports: {
     signal?: SignalTransportConfig;
+    whatsapp?: WhatsAppTransportConfig;
   };
 };
 

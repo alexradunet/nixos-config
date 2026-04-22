@@ -6,4 +6,5 @@ export interface GatewayTransport {
   healthCheck(): Promise<void>;
   startReceiving(onMessage: (msg: InboundMessage) => Promise<void>): Promise<never>;
   sendText(message: InboundMessage, text: string): Promise<void>;
+  sendTextToRecipient(recipientId: string, text: string): Promise<void>;
 }

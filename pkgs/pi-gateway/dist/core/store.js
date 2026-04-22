@@ -40,6 +40,14 @@ export class Store {
       );
 
       CREATE INDEX IF NOT EXISTS idx_cs_sender ON chat_sessions(sender_id);
+
+      CREATE TABLE IF NOT EXISTS sent_reminders (
+        reminder_key TEXT NOT NULL,
+        channel      TEXT NOT NULL,
+        recipient_id TEXT NOT NULL,
+        sent_at      TEXT NOT NULL,
+        PRIMARY KEY (reminder_key, channel, recipient_id)
+      );
     `);
     }
     hasProcessedMessage(messageId) {
@@ -81,6 +89,18 @@ export class Store {
     }
     resetChatSession(chatId) {
         this.db.prepare("DELETE FROM chat_sessions WHERE chat_id = ?").run(chatId);
+    }
+    hasSentReminder(reminderKey, channel, recipientId) {
+        return !!this.db
+            .prepare("SELECT 1 FROM sent_reminders WHERE reminder_key = ? AND channel = ? AND recipient_id = ?")
+            .get(reminderKey, channel, recipientId);
+    }
+    markReminderSent(reminderKey, channel, recipientId) {
+        this.db
+            .prepare(`INSERT OR IGNORE INTO sent_reminders
+           (reminder_key, channel, recipient_id, sent_at)
+         VALUES (?, ?, ?, ?)`)
+            .run(reminderKey, channel, recipientId, utcNow());
     }
 }
 //# sourceMappingURL=store.js.map

@@ -9,6 +9,7 @@ export declare class Router {
     private readonly maxReplyChars;
     private readonly maxReplyChunks;
     private readonly queue;
+    private readonly personalRouter;
     constructor(store: Store, pi: PiClient, policy: Policy, maxReplyChars: number, maxReplyChunks: number);
     handleMessage(msg: InboundMessage): Promise<RouterResult>;
     private handleMessageInner;
