@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -36,14 +36,9 @@ export class PiClient {
 
     console.log(`pi: prompt start session=${resolved} chars=${message.length}`);
 
-    const { stdout, stderr } = await execFileAsync(this.piBin, args, {
-      cwd: this.cwd,
-      timeout: this.timeoutMs,
-      maxBuffer: 10 * 1024 * 1024,
-      env: process.env,
-    }).catch((err: any) => {
+    const { stdout, stderr } = await this.runPromptProcess(args).catch((err: any) => {
       const out = err.stdout ?? "";
-      const text = out.trim() || err.stderr?.trim() || "Pi returned an error.";
+      const text = out.trim() || err.stderr?.trim() || err.message || "Pi returned an error.";
       console.error(`pi: prompt failed session=${resolved}: ${text}`);
       throw new Error(`pi exited with code ${err.code ?? "?"}: ${text}`);
     });
@@ -65,6 +60,50 @@ export class PiClient {
     } catch (err) {
       console.warn("pi health check failed, but continuing:", err);
     }
+  }
+
+  private runPromptProcess(args: string[]): Promise<{ stdout: string; stderr: string }> {
+    return new Promise((resolve, reject) => {
+      const child = spawn(this.piBin, args, {
+        cwd: this.cwd,
+        env: process.env,
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+
+      let stdout = "";
+      let stderr = "";
+      let settled = false;
+
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        child.kill("SIGTERM");
+        reject({ code: "timeout", stdout, stderr: stderr || `Timed out after ${this.timeoutMs}ms` });
+      }, this.timeoutMs);
+
+      child.stdout.on("data", (chunk) => {
+        stdout += chunk.toString();
+      });
+      child.stderr.on("data", (chunk) => {
+        stderr += chunk.toString();
+      });
+      child.on("error", (err) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        reject({ code: "spawn", stdout, stderr, message: err.message });
+      });
+      child.on("close", (code) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (code === 0) {
+          resolve({ stdout, stderr });
+        } else {
+          reject({ code, stdout, stderr });
+        }
+      });
+    });
   }
 
   private buildSystemPrompt(addendum?: string): string {

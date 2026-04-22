@@ -13,6 +13,7 @@ export declare class PiClient {
         sessionPath: string;
     }>;
     healthCheck(): Promise<void>;
+    private runPromptProcess;
     private buildSystemPrompt;
 }
 export {};
