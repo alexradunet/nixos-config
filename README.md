@@ -153,6 +153,11 @@ The Pi runtime now restores several capabilities that previously lived in `NixPI
   - `/nixpi status`
   - `/nixpi update-blueprints`
   - `/nixpi evolution <title>`
+- `subagent` extension
+  - `subagent` tool for isolated helper agents
+  - supports single, parallel, and chain execution
+  - subagents inherit the active Pi model and thinking level by default
+  - supports lightweight scout / planner / worker / reviewer profiles under `~/.pi/agent/agents/`
 - restored PI skills
   - `os-operations`
   - `self-evolution`

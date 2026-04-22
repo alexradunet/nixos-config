@@ -16,91 +16,6 @@
   # Syncthing wins once it syncs; the seed only fills gaps.
   wikiSeed = ./wiki-seed;
 
-  # ── LLM Router ────────────────────────────────────────────────────────────
-  llmRouterBase = {
-    _comment = "LLM Router config — managed by NixOS (modules/features/home/pi/resources.nix). Manual edits are overwritten on rebuild.";
-    private = {
-      provider = "local-qwen";
-      model = "bartowski/Qwen_Qwen3.6-35B-A3B-GGUF";
-      label = "Private (Local Qwen)";
-    };
-    technical = {
-      provider = "github-copilot";
-      model = "claude-sonnet-4.6";
-      label = "Technical";
-    };
-    technicalLocal = {
-      provider = "local-qwen";
-      model = "bartowski/Qwen_Qwen3.6-35B-A3B-GGUF";
-      label = "Technical (Local Qwen)";
-    };
-    providers = {
-      local-qwen = {
-        baseUrl = "http://127.0.0.1:8080/v1";
-        # llama.cpp's OpenAI-compatible endpoint does not require auth, but the
-        # client expects a string here.
-        apiKey = "local";
-        api = "openai-completions";
-        models = [
-          {
-            id = "bartowski/Qwen_Qwen3.6-35B-A3B-GGUF";
-            name = "Local Qwen 3.6 35B-A3B (Vulkan)";
-            reasoning = false;
-            input = ["text"];
-            cost = {
-              input = 0;
-              output = 0;
-              cacheRead = 0;
-              cacheWrite = 0;
-            };
-            contextWindow = 131072;
-            maxTokens = 8192;
-          }
-        ];
-      };
-      cortecs = {
-        baseUrl = "https://api.cortecs.ai/v1";
-        # apiKey is injected at activation time from /run/secrets/cortecs-api-key
-        apiKey = "SOPS_PLACEHOLDER";
-        api = "openai-completions";
-        models = [
-          {
-            # eu_native: true is injected per-request via the before_provider_request extension hook
-            id = "minimax-m2.7";
-            name = "MiniMax M2.7 (via Cortecs)";
-            reasoning = false;
-            input = ["text"];
-            cost = {
-              input = 0.3;
-              output = 1.2;
-              cacheRead = 0;
-              cacheWrite = 0;
-            };
-            contextWindow = 204800;
-            maxTokens = 131072;
-          }
-        ];
-      };
-    };
-    rules = {
-      technical = {
-        cwdContains = ["/NixPI" "/code" "/src" "/projects"];
-        filePathContains = [
-          "pages/technical"
-          "pages/resources/technical"
-          "pages/areas/infrastructure"
-          "areas/infrastructure"
-        ];
-        keywords = [];
-      };
-    };
-    defaultMode = "private";
-    autoSwitch = true;
-    showNotifications = true;
-  };
-
-  llmRouterBaseJson = pkgs.writeText "llm-router-base.json" (builtins.toJSON llmRouterBase);
-
   starterConfig = builtins.toJSON {
     provider = "exa";
     workflow = "summary-review";
@@ -165,6 +80,7 @@ in {
   home.file.".pi/agent/prompts/wiki.md".source = ./prompts/wiki.md;
   home.file.".pi/agent/skills/.keep".text = "";
   home.file.".pi/agent/themes/.keep".text = "";
+  home.file.".pi/agent/agents/.keep".text = "";
 
   # ── PI extensions ─────────────────────────────────────────────────────────
   home.file.".pi/agent/extensions/pi-web-access".source = piWebAccessRoot;
@@ -173,6 +89,7 @@ in {
   home.file.".pi/agent/extensions/persona".source = ./extensions/persona;
   home.file.".pi/agent/extensions/os".source = ./extensions/os;
   home.file.".pi/agent/extensions/nixpi".source = ./extensions/nixpi;
+  home.file.".pi/agent/extensions/subagent".source = ./extensions/subagent;
   home.file.".pi/agent/extensions/tmux-manager" = {
     source = ./extensions/tmux-manager;
     force = true;
@@ -193,6 +110,12 @@ in {
   home.file.".pi/agent/skills/self-evolution/SKILL.md".source = ./skills/self-evolution/SKILL.md;
   home.file.".pi/agent/skills/provisioning/SKILL.md".source = ./skills/provisioning/SKILL.md;
   home.file.".pi/agent/skills/first-boot/SKILL.md".source = ./skills/first-boot/SKILL.md;
+
+  # ── PI subagents ──────────────────────────────────────────────────────────
+  home.file.".pi/agent/agents/scout.md".source = ./agents/scout.md;
+  home.file.".pi/agent/agents/planner.md".source = ./agents/planner.md;
+  home.file.".pi/agent/agents/worker.md".source = ./agents/worker.md;
+  home.file.".pi/agent/agents/reviewer.md".source = ./agents/reviewer.md;
 
   # ── Session variables ─────────────────────────────────────────────────────
   home.sessionVariables.PI_LLM_WIKI_DIR = wikiDir;
@@ -326,21 +249,4 @@ in {
     Install.WantedBy = ["timers.target"];
   };
 
-  # ── Activation: LLM router (always refreshed; Cortecs key injected when present) ──
-  home.activation.llmRouter = lib.hm.dag.entryAfter ["writeBoundary"] ''
-    llm_router_path="$HOME/.pi/agent/llm-router.json"
-    secret_path="/run/secrets/cortecs-api-key"
-    mkdir -p "$(dirname "$llm_router_path")"
-    if [ -r "$secret_path" ]; then
-      api_key=$(cat "$secret_path")
-      ${pkgs.jq}/bin/jq --arg key "$api_key" \
-        '.providers.cortecs.apiKey = $key' \
-        ${llmRouterBaseJson} > "$llm_router_path"
-    else
-      ${pkgs.jq}/bin/jq \
-        '.providers |= with_entries(select(.key != "cortecs"))
-         | ._warning = "cortecs-api-key missing at activation time; Cortecs provider omitted, private mode remains local"' \
-        ${llmRouterBaseJson} > "$llm_router_path"
-    fi
-  '';
 }

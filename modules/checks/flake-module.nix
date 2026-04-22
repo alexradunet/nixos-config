@@ -39,7 +39,6 @@
           extension_source=${lib.escapeShellArg (toString alexHome.file.".pi/agent/extensions/llm-wiki".source)}
           activation_script=${lib.escapeShellArg llmWikiActivation.data}
           guardrails_activation=${lib.escapeShellArg piGuardrailsActivation.data}
-          llm_router_activation=${lib.escapeShellArg padConfig.home-manager.users.alex.home.activation.llmRouter.data}
 
           test "$session_var" = "/home/alex/Workspace/Knowledge"
           test -d "$extension_source"
@@ -54,9 +53,6 @@
           # Source-content checks for the PI runtime now live in the dedicated
           # NixOS VM smoke test (pi-runtime-smoke), which validates the files
           # after Home Manager activation on a booted machine.
-
-          printf '%s\n' "$llm_router_activation" | grep -F 'with_entries(select(.key != "cortecs"))' >/dev/null
-          printf '%s\n' "$llm_router_activation" | grep -F 'Private (secret missing; using technical provider)' >/dev/null
 
           touch $out
         '';
