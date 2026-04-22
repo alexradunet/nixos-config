@@ -124,6 +124,55 @@ function resolveModelArg(options: {
   return options.inheritedModel;
 }
 
+function preview(text: string, max = 160): string {
+  const compact = text.replace(/\s+/g, " ").trim();
+  if (!compact) return "(no output)";
+  return compact.length > max ? `${compact.slice(0, max - 1)}…` : compact;
+}
+
+function summarizeResult(result: SingleResult): string {
+  const text = result.errorMessage || result.stderr || getFinalOutput(result.messages);
+  return preview(text || "(no output)");
+}
+
+type SubagentInput = {
+  agent?: string;
+  task?: string;
+  model?: string;
+  cwd?: string;
+  tasks?: Array<{ agent: string; task: string; model?: string; cwd?: string }>;
+  chain?: Array<{ agent: string; task: string; model?: string; cwd?: string }>;
+  agentScope?: AgentScope;
+  confirmProjectAgents?: boolean;
+};
+
+function requestedAgentNames(params: SubagentInput): string[] {
+  const names = new Set<string>();
+  if (params.agent) names.add(params.agent);
+  for (const task of params.tasks ?? []) names.add(task.agent);
+  for (const task of params.chain ?? []) names.add(task.agent);
+  return Array.from(names);
+}
+
+function hasRequestedAgentModel(params: SubagentInput, agents: AgentConfig[]): boolean {
+  const names = requestedAgentNames(params);
+  return names.some((name) => {
+    const agent = agents.find((entry) => entry.name === name);
+    return Boolean(agent?.model && agent.model !== CURRENT_MODEL_SENTINEL);
+  });
+}
+
+function discoveryHint(scope: AgentScope, projectAgentsDir: string | null): string {
+  const userHint = "User agents live in ~/.pi/agent/agents/*.md";
+  const projectHint = projectAgentsDir
+    ? `Project agents live in ${projectAgentsDir}/*.md`
+    : "Project agents live in the nearest .pi/agents/*.md under the current working tree";
+
+  if (scope === "user") return userHint;
+  if (scope === "project") return projectHint;
+  return `${userHint}. ${projectHint}.`;
+}
+
 type RunContext = {
   cwd: string;
   inheritedModel?: string;
@@ -370,11 +419,35 @@ export default function subagentExtension(pi: ExtensionAPI) {
           results,
         });
 
+      if (agents.length === 0) {
+        return {
+          content: [{ type: "text", text: `No agents found for scope \"${agentScope}\". ${discoveryHint(agentScope, discovery.projectAgentsDir)}` }],
+          details: makeDetails("single")([]),
+          isError: true,
+        };
+      }
+
       if (modeCount !== 1) {
         const available = agents.map((entry) => `${entry.name} (${entry.source})`).join(", ") || "none";
         return {
           content: [{ type: "text", text: `Invalid parameters. Provide exactly one mode. Available agents: ${available}` }],
           details: makeDetails("single")([]),
+          isError: true,
+        };
+      }
+
+      const modelAvailable = Boolean(
+        inheritedModel ||
+          params.model ||
+          params.tasks?.some((task) => task.model) ||
+          params.chain?.some((task) => task.model) ||
+          hasRequestedAgentModel(params, agents),
+      );
+
+      if (!modelAvailable) {
+        return {
+          content: [{ type: "text", text: "No active Pi model is available for subagent inheritance. Pick a model with /model or pass a model override in the subagent call." }],
+          details: makeDetails(hasChain ? "chain" : hasParallel ? "parallel" : "single")([]),
           isError: true,
         };
       }
@@ -484,8 +557,12 @@ export default function subagentExtension(pi: ExtensionAPI) {
         });
 
         const successCount = results.filter((entry) => entry.exitCode === 0).length;
+        const lines = results.map((entry) => {
+          const status = entry.exitCode === 0 ? "ok" : "error";
+          return `[${entry.agent}] ${status}: ${summarizeResult(entry)}`;
+        });
         return {
-          content: [{ type: "text", text: `Parallel: ${successCount}/${results.length} succeeded` }],
+          content: [{ type: "text", text: `Parallel: ${successCount}/${results.length} succeeded\n\n${lines.join("\n")}` }],
           details: makeDetails("parallel")(results),
           isError: successCount !== results.length,
         };
