@@ -264,7 +264,7 @@ in {
         NoNewPrivileges = true;
         ProtectSystem = "strict";
         ProtectHome = "read-only";
-        ReadWritePaths = [cfg.stateDir];
+        ReadWritePaths = [cfg.stateDir "/home/${cfg.user}/.pi"];
         PrivateTmp = true;
         PrivateDevices = true;
         ProtectKernelTunables = true;
