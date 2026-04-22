@@ -68,7 +68,7 @@ in {
 
     piBin = lib.mkOption {
       type = lib.types.str;
-      default = "/run/current-system/sw/bin/pi";
+      default = "${pkgs.pi}/bin/pi";
       description = "Absolute path to the pi binary used to run prompts.";
     };
 
