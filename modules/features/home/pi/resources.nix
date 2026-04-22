@@ -121,8 +121,8 @@
         };
         models = [
           {
-            id = "bartowski/Qwen_Qwen3.6-35B-A3B-GGUF";
-            name = "Local Qwen 3.6 35B-A3B (llama.cpp)";
+            id = "bartowski/Qwen_Qwen3.5-27B-GGUF";
+            name = "Local Qwen 3.5 27B Dense (llama.cpp)";
             reasoning = false;
             input = ["text"];
             contextWindow = 131072;
