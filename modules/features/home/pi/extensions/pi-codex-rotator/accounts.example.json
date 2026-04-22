@@ -1,0 +1,20 @@
+{
+  "provider": "openai-codex",
+  "model": "gpt-5.4",
+  "autoSwitchOn429": false,
+  "accounts": [
+    {
+      "name": "work",
+      "provider": "openai-codex",
+      "model": "gpt-5.4",
+      "email": "user@example.com",
+      "auth": {
+        "type": "oauth",
+        "access": "PASTE_ACCESS_TOKEN_HERE",
+        "refresh": "PASTE_REFRESH_TOKEN_HERE",
+        "expires": 0,
+        "accountId": "PASTE_ACCOUNT_ID_HERE"
+      }
+    }
+  ]
+}
