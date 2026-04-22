@@ -45,6 +45,54 @@ export class WhatsAppBaileysTransport {
         await socket.sendMessage(chatId, { text });
         console.log(`whatsapp: sent message to ${recipient}`);
     }
+    async markSeen(message) {
+        if (message.channel !== "whatsapp" || !message.transportRef)
+            return;
+        const socket = this.requireSocket();
+        await socket.readMessages([
+            {
+                remoteJid: message.transportRef.remoteJid,
+                id: message.transportRef.keyId,
+                participant: message.transportRef.participant,
+                fromMe: false,
+            },
+        ]);
+        console.log(`whatsapp: marked seen ${message.messageId}`);
+    }
+    async startThinkingIndicator(message) {
+        if (message.channel !== "whatsapp" || message.isGroup || !message.transportRef?.remoteJid)
+            return null;
+        const socket = this.requireSocket();
+        const chatJid = message.transportRef.remoteJid;
+        const intervalMs = 8_000;
+        let stopped = false;
+        const send = async (type) => {
+            await socket.presenceSubscribe(chatJid).catch(() => undefined);
+            await socket.sendPresenceUpdate(type, chatJid);
+            console.log(`whatsapp: presence ${type} -> ${chatJid}`);
+        };
+        await send("composing").catch((err) => {
+            console.error(`whatsapp: failed to start thinking indicator for ${chatJid}:`, err);
+        });
+        const timer = setInterval(() => {
+            if (stopped)
+                return;
+            void send("composing").catch((err) => {
+                console.error(`whatsapp: failed to refresh thinking indicator for ${chatJid}:`, err);
+            });
+        }, intervalMs);
+        return {
+            stop: async () => {
+                if (stopped)
+                    return;
+                stopped = true;
+                clearInterval(timer);
+                await send("paused").catch((err) => {
+                    console.error(`whatsapp: failed to stop thinking indicator for ${chatJid}:`, err);
+                });
+            },
+        };
+    }
     async startReceiving(onMessage) {
         for (;;) {
             try {

@@ -27,5 +27,11 @@ export class WhatsAppTransport {
     async sendTextToRecipient(recipientId, text) {
         await this.transport.sendText(recipientId, text);
     }
+    async markSeen(message) {
+        await this.transport.markSeen(message);
+    }
+    async startThinkingIndicator(message) {
+        return this.transport.startThinkingIndicator(message);
+    }
 }
 //# sourceMappingURL=index.js.map

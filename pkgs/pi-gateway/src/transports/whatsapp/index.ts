@@ -1,6 +1,6 @@
 import type { WhatsAppTransportConfig } from "../../config.js";
 import type { InboundMessage } from "../../core/types.js";
-import type { GatewayTransport } from "../types.js";
+import type { GatewayTransport, ThinkingIndicator } from "../types.js";
 import { WhatsAppBaileysTransport } from "./transport.js";
 
 export class WhatsAppTransport implements GatewayTransport {
@@ -35,5 +35,13 @@ export class WhatsAppTransport implements GatewayTransport {
 
   async sendTextToRecipient(recipientId: string, text: string): Promise<void> {
     await this.transport.sendText(recipientId, text);
+  }
+
+  async markSeen(message: InboundMessage): Promise<void> {
+    await this.transport.markSeen(message);
+  }
+
+  async startThinkingIndicator(message: InboundMessage): Promise<ThinkingIndicator | null> {
+    return this.transport.startThinkingIndicator(message);
   }
 }

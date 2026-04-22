@@ -11,6 +11,7 @@ import type { Boom } from "@hapi/boom";
 import pino from "pino";
 import type { WhatsAppTransportConfig } from "../../config.js";
 import type { InboundMessage } from "../../core/types.js";
+import type { ThinkingIndicator } from "../types.js";
 import { parseWhatsAppMessage } from "./parser.js";
 
 type WhatsAppInbound = Omit<InboundMessage, "access">;
@@ -65,6 +66,58 @@ export class WhatsAppBaileysTransport {
     console.log(`whatsapp: sending message to ${recipient} (${chatId}) chars=${text.length}`);
     await socket.sendMessage(chatId, { text });
     console.log(`whatsapp: sent message to ${recipient}`);
+  }
+
+  async markSeen(message: InboundMessage): Promise<void> {
+    if (message.channel !== "whatsapp" || !message.transportRef) return;
+
+    const socket = this.requireSocket();
+    await socket.readMessages([
+      {
+        remoteJid: message.transportRef.remoteJid,
+        id: message.transportRef.keyId,
+        participant: message.transportRef.participant,
+        fromMe: false,
+      },
+    ]);
+    console.log(`whatsapp: marked seen ${message.messageId}`);
+  }
+
+  async startThinkingIndicator(message: InboundMessage): Promise<ThinkingIndicator | null> {
+    if (message.channel !== "whatsapp" || message.isGroup || !message.transportRef?.remoteJid) return null;
+
+    const socket = this.requireSocket();
+    const chatJid = message.transportRef.remoteJid;
+    const intervalMs = 8_000;
+    let stopped = false;
+
+    const send = async (type: "composing" | "paused") => {
+      await socket.presenceSubscribe(chatJid).catch(() => undefined);
+      await socket.sendPresenceUpdate(type, chatJid);
+      console.log(`whatsapp: presence ${type} -> ${chatJid}`);
+    };
+
+    await send("composing").catch((err) => {
+      console.error(`whatsapp: failed to start thinking indicator for ${chatJid}:`, err);
+    });
+
+    const timer = setInterval(() => {
+      if (stopped) return;
+      void send("composing").catch((err) => {
+        console.error(`whatsapp: failed to refresh thinking indicator for ${chatJid}:`, err);
+      });
+    }, intervalMs);
+
+    return {
+      stop: async () => {
+        if (stopped) return;
+        stopped = true;
+        clearInterval(timer);
+        await send("paused").catch((err) => {
+          console.error(`whatsapp: failed to stop thinking indicator for ${chatJid}:`, err);
+        });
+      },
+    };
   }
 
   async startReceiving(onMessage: (msg: WhatsAppInbound) => Promise<void>): Promise<never> {

@@ -4,6 +4,11 @@ export type InboundAccessPolicy = {
     directMessagesOnly: boolean;
     selfSenderIds: string[];
 };
+export type InboundTransportRef = {
+    remoteJid: string;
+    keyId: string;
+    participant?: string;
+};
 export type InboundMessage = {
     channel: string;
     chatId: string;
@@ -13,6 +18,7 @@ export type InboundMessage = {
     timestamp: string;
     text: string;
     isGroup: boolean;
+    transportRef?: InboundTransportRef;
     access: InboundAccessPolicy;
 };
 export type ChatSession = {

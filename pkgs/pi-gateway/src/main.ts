@@ -62,20 +62,36 @@ async function main(): Promise<void> {
     transports.map((transport) =>
       transport.startReceiving(async (msg) => {
         console.log(`router: handling ${msg.channel} message ${msg.messageId} from ${msg.senderId}`);
-        const result = await router.handleMessage(msg);
-        console.log(
-          `router: result for ${msg.messageId} -> replies=${result.replies.length} markProcessed=${result.markProcessed}`,
-        );
 
-        for (const [index, reply] of result.replies.entries()) {
-          console.log(`router: sending reply ${index + 1}/${result.replies.length} for ${msg.messageId}`);
-          await transport.sendText(msg, reply);
-          console.log(`router: sent reply ${index + 1}/${result.replies.length} for ${msg.messageId}`);
-        }
+        await transport.markSeen?.(msg).catch((err) => {
+          console.error(`transport: failed to mark seen for ${msg.messageId}:`, err);
+        });
 
-        if (result.markProcessed) {
-          store.markProcessed(msg.messageId, msg.chatId, msg.senderId, msg.timestamp);
-          console.log(`router: marked processed ${msg.messageId}`);
+        const thinking = await transport.startThinkingIndicator?.(msg).catch((err) => {
+          console.error(`transport: failed to start thinking indicator for ${msg.messageId}:`, err);
+          return null;
+        });
+
+        try {
+          const result = await router.handleMessage(msg);
+          console.log(
+            `router: result for ${msg.messageId} -> replies=${result.replies.length} markProcessed=${result.markProcessed}`,
+          );
+
+          for (const [index, reply] of result.replies.entries()) {
+            console.log(`router: sending reply ${index + 1}/${result.replies.length} for ${msg.messageId}`);
+            await transport.sendText(msg, reply);
+            console.log(`router: sent reply ${index + 1}/${result.replies.length} for ${msg.messageId}`);
+          }
+
+          if (result.markProcessed) {
+            store.markProcessed(msg.messageId, msg.chatId, msg.senderId, msg.timestamp);
+            console.log(`router: marked processed ${msg.messageId}`);
+          }
+        } finally {
+          await thinking?.stop().catch((err) => {
+            console.error(`transport: failed to stop thinking indicator for ${msg.messageId}:`, err);
+          });
         }
       }),
     ),

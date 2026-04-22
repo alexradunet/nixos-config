@@ -127,5 +127,12 @@ export function parseWhatsAppMessage(
     timestamp: toIsoFromUnixSeconds(unixSeconds(input.messageTimestamp)),
     text,
     isGroup,
+    transportRef: input.key.id
+      ? {
+          remoteJid,
+          keyId: input.key.id,
+          participant: input.key.participant ?? undefined,
+        }
+      : undefined,
   };
 }
