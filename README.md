@@ -180,7 +180,7 @@ Current custom providers:
 
 On `evo-nixos`, the local llama endpoint is served by `llama-server-vulkan` and bound to localhost only.
 
-The runtime also overrides `web_search` with a local extension that routes searches through Synthetic's zero-data-retention `/v2/search` endpoint when `SYNTHETIC_API_KEY` is present in the environment.
+The runtime uses a local Synthetic-only `web_search` extension that routes searches through Synthetic's zero-data-retention `/v2/search` endpoint when `SYNTHETIC_API_KEY` is present in the environment. The separate `pi-web-access` extension is not installed in this profile to avoid `web_search` registration conflicts.
 
 Typical shell setup before launching `pi`:
 

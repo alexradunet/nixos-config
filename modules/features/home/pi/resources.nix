@@ -183,7 +183,6 @@ in {
   home.file.".pi/agent/agents/.keep".text = "";
 
   # ── PI extensions ─────────────────────────────────────────────────────────
-  home.file.".pi/agent/extensions/pi-web-access".source = piWebAccessRoot;
   home.file.".pi/agent/extensions/zz-synthetic-search".source = ./extensions/zz-synthetic-search;
   home.file.".pi/agent/extensions/llm-wiki".source = llmWikiRoot;
   home.file.".pi/agent/extensions/wg-admin".source = ./extensions/wg-admin;
