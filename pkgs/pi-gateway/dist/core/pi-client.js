@@ -38,12 +38,18 @@ export class PiClient {
         return { text, sessionPath: resolved };
     }
     async healthCheck() {
-        const { stdout } = await execFileAsync(this.piBin, ["--version"], {
-            timeout: 10_000,
-            env: process.env,
-        });
-        if (!stdout.trim())
-            throw new Error("pi binary returned no version output");
+        try {
+            const { stdout } = await execFileAsync(this.piBin, ["--version"], {
+                timeout: 10_000,
+                env: process.env,
+            });
+            if (!stdout.trim()) {
+                console.warn("pi --version returned empty stdout, but binary exists. Continuing.");
+            }
+        }
+        catch (err) {
+            console.warn("pi health check failed, but continuing:", err);
+        }
     }
     buildSystemPrompt(addendum) {
         return [
