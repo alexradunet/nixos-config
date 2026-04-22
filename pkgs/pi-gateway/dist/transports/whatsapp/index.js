@@ -1,11 +1,11 @@
-import { WhatsAppWebTransport } from "./transport.js";
+import { WhatsAppBaileysTransport } from "./transport.js";
 export class WhatsAppTransport {
     config;
     name = "whatsapp";
     transport;
     constructor(config) {
         this.config = config;
-        this.transport = new WhatsAppWebTransport(config);
+        this.transport = new WhatsAppBaileysTransport(config);
     }
     async healthCheck() {
         await this.transport.healthCheck();

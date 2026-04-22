@@ -1,15 +1,25 @@
 import type { WhatsAppTransportConfig } from "../../config.js";
 import type { InboundMessage } from "../../core/types.js";
 type WhatsAppInbound = Omit<InboundMessage, "access">;
-export declare class WhatsAppWebTransport {
+export declare class WhatsAppBaileysTransport {
     private readonly config;
-    private client;
+    private socket;
     private messageChain;
+    private readonly logger;
+    private readonly lidToPn;
     constructor(config: WhatsAppTransportConfig);
     healthCheck(): Promise<void>;
     sendText(recipient: string, text: string): Promise<void>;
     startReceiving(onMessage: (msg: WhatsAppInbound) => Promise<void>): Promise<never>;
-    private requireClient;
+    private runSocket;
+    private handleConnectionUpdate;
+    private learnMessageJidMappings;
+    private rememberLidMapping;
+    private resolvePnForJid;
+    private saveQrImage;
+    private getAuthDir;
+    private getQrPath;
+    private requireSocket;
     private toChatJid;
 }
 export {};

@@ -11,10 +11,11 @@ buildNpmPackage {
 
   src = ./.;
 
-  npmDepsHash = "sha256-uQeaippjdX900136oYEVUXW+Vbvgl4yzEYb/JgRoTOc=";
+  npmDepsHash = "sha256-rEUISTmORNHB1LaRnBxzdWoKtoucTvgFsSmVzkVJVqc=";
 
   nativeBuildInputs = [makeWrapper];
 
+  makeCacheWritable = true;
   env.PUPPETEER_SKIP_DOWNLOAD = "1";
 
   buildPhase = ''

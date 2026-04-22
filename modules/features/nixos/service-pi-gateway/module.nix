@@ -153,19 +153,19 @@ in {
       sessionDataPath = lib.mkOption {
         type = lib.types.str;
         default = "${cfg.stateDir}/whatsapp/auth";
-        description = "Directory used by whatsapp-web.js LocalAuth to persist session state.";
+        description = "Directory used by the WhatsApp transport to persist Baileys auth state and QR artifacts.";
       };
 
       chromiumExecutablePath = lib.mkOption {
         type = lib.types.str;
         default = "${pkgs.chromium}/bin/chromium";
-        description = "Chromium executable used by whatsapp-web.js/Puppeteer.";
+        description = "Legacy browser executable option from the previous whatsapp-web.js transport; ignored by Baileys.";
       };
 
       headless = lib.mkOption {
         type = lib.types.bool;
         default = true;
-        description = "Whether to run WhatsApp Web in headless Chromium mode.";
+        description = "Legacy headless browser option from the previous whatsapp-web.js transport; ignored by Baileys.";
       };
     };
   };

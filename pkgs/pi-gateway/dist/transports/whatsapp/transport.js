@@ -1,120 +1,201 @@
-import { access, mkdir } from "node:fs/promises";
-import WhatsAppWeb from "whatsapp-web.js";
-const { Client, LocalAuth } = WhatsAppWeb;
+import { mkdir } from "node:fs/promises";
+import path from "node:path";
+import makeWASocket, { DisconnectReason, fetchLatestBaileysVersion, makeCacheableSignalKeyStore, } from "@whiskeysockets/baileys";
+import pino from "pino";
 import { parseWhatsAppMessage } from "./parser.js";
-export class WhatsAppWebTransport {
+function createDeferred() {
+    let resolve;
+    let reject;
+    const deferred = {
+        promise: new Promise((res, rej) => {
+            resolve = (value) => {
+                deferred.settled = true;
+                res(value);
+            };
+            reject = (reason) => {
+                deferred.settled = true;
+                rej(reason);
+            };
+        }),
+        resolve: (value) => resolve(value),
+        reject: (reason) => reject(reason),
+        settled: false,
+    };
+    return deferred;
+}
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+export class WhatsAppBaileysTransport {
     config;
-    client = null;
+    socket = null;
     messageChain = Promise.resolve();
+    logger = pino({ level: "silent" });
+    lidToPn = new Map();
     constructor(config) {
         this.config = config;
     }
     async healthCheck() {
-        await mkdir(this.config.sessionDataPath, { recursive: true });
-        if (this.config.chromiumExecutablePath) {
-            await access(this.config.chromiumExecutablePath);
-        }
+        await mkdir(this.getAuthDir(), { recursive: true });
     }
     async sendText(recipient, text) {
-        const client = this.requireClient();
+        const socket = this.requireSocket();
         const chatId = this.toChatJid(recipient);
-        await client.sendMessage(chatId, text);
+        await socket.sendMessage(chatId, { text });
     }
     async startReceiving(onMessage) {
-        await mkdir(this.config.sessionDataPath, { recursive: true });
-        const client = new Client({
-            authStrategy: new LocalAuth({ dataPath: this.config.sessionDataPath }),
-            puppeteer: {
-                headless: this.config.headless ?? true,
-                executablePath: this.config.chromiumExecutablePath,
-                args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
-            },
-        });
-        this.client = client;
-        client.on("qr", async (qr) => {
-            console.log("WhatsApp QR received. Pair the dedicated Pi account to continue.");
+        for (;;) {
             try {
-                const QRCode = (await import("qrcode")).default;
-                const fs = await import("node:fs");
-                const path = await import("node:path");
-                const qrDir = path.join(this.config.sessionDataPath, "..");
-                const qrPath = path.join(qrDir, "whatsapp-qr.png");
-                await QRCode.toFile(qrPath, qr, { width: 512 });
-                console.log(`WhatsApp QR saved as image: ${qrPath}`);
+                await this.runSocket(onMessage);
             }
             catch (err) {
-                console.error("Failed to save QR image:", err);
+                console.error("WhatsApp Baileys transport failed:", err);
             }
+            finally {
+                this.socket = null;
+            }
+            await sleep(3_000);
+        }
+    }
+    async runSocket(onMessage) {
+        const authDir = this.getAuthDir();
+        await mkdir(authDir, { recursive: true });
+        const [{ state, saveCreds }, versionInfo] = await Promise.all([
+            import("@whiskeysockets/baileys").then(({ useMultiFileAuthState }) => useMultiFileAuthState(authDir)),
+            fetchLatestBaileysVersion().catch((err) => {
+                console.warn("Failed to fetch latest Baileys WhatsApp version, using package defaults:", err);
+                return null;
+            }),
+        ]);
+        if (versionInfo) {
+            console.log(`Using WhatsApp Web version ${versionInfo.version.join(".")}${versionInfo.isLatest ? "" : " (not latest)"}`);
+        }
+        const socket = makeWASocket({
+            ...(versionInfo ? { version: versionInfo.version } : {}),
+            auth: {
+                creds: state.creds,
+                keys: makeCacheableSignalKeyStore(state.keys, this.logger),
+            },
+            logger: this.logger,
+            markOnlineOnConnect: false,
+            syncFullHistory: false,
+            generateHighQualityLinkPreview: false,
+            browser: ["NixPI", "Chrome", "1.0.0"],
         });
-        client.on("authenticated", () => {
-            console.log("WhatsApp authenticated.");
-        });
-        client.on("ready", () => {
-            console.log("WhatsApp client ready — receiving messages.");
-        });
-        client.on("message", (message) => {
-            console.log(`WhatsApp message received from ${message.from}`);
-            this.messageChain = this.messageChain
-                .catch(() => undefined)
-                .then(async () => {
-                const parsed = await parseWhatsAppMessage(message);
-                if (parsed)
-                    await onMessage(parsed);
-            })
-                .catch((err) => {
-                console.error("Failed to handle WhatsApp message:", err);
+        this.socket = socket;
+        const ready = createDeferred();
+        const closed = createDeferred();
+        const rejectLifecycle = (message, error) => {
+            const reason = error instanceof Error ? error : new Error(message);
+            if (!ready.settled)
+                ready.reject(reason);
+            if (!closed.settled)
+                closed.reject(reason);
+        };
+        socket.ev.on("creds.update", () => {
+            void saveCreds().catch((err) => {
+                console.error("Failed to persist Baileys credentials:", err);
             });
         });
-        client.on("disconnected", (reason) => {
-            console.log("WhatsApp disconnected:", String(reason));
+        socket.ev.on("connection.update", (update) => {
+            void this.handleConnectionUpdate(update, ready, closed, rejectLifecycle);
         });
-        const readyPromise = new Promise((resolve, reject) => {
-            let settled = false;
-            const resolveOnce = () => {
-                if (settled)
-                    return;
-                settled = true;
-                console.log("WhatsApp readyPromise resolved.");
-                resolve();
-            };
-            const rejectOnce = (err) => {
-                if (settled)
-                    return;
-                settled = true;
-                reject(err);
-            };
-            client.once("ready", resolveOnce);
-            client.once("auth_failure", (message) => rejectOnce(new Error(`WhatsApp auth failure: ${message}`)));
-            client.once("disconnected", (reason) => rejectOnce(new Error(`WhatsApp disconnected before ready: ${String(reason)}`)));
-            // Timeout: if ready doesn't fire within 60s after authenticated, resolve anyway
-            // (whatsapp-web.js sometimes doesn't emit 'ready' but is actually connected)
-            setTimeout(() => {
-                if (!settled) {
-                    console.warn("WhatsApp ready event timeout after 60s — proceeding without ready.");
-                    resolveOnce();
-                }
-            }, 60_000);
+        socket.ev.on("lid-mapping.update", (update) => {
+            this.rememberLidMapping(update.lid, update.pn);
         });
-        await client.initialize();
-        await readyPromise;
-        return new Promise((_resolve, reject) => {
-            client.on("auth_failure", (message) => reject(new Error(`WhatsApp auth failure: ${message}`)));
-            client.on("disconnected", (reason) => reject(new Error(`WhatsApp disconnected: ${String(reason)}`)));
+        socket.ev.on("messages.upsert", (upsert) => {
+            if (upsert.type !== "notify")
+                return;
+            for (const message of upsert.messages) {
+                this.learnMessageJidMappings(message);
+                this.messageChain = this.messageChain
+                    .catch(() => undefined)
+                    .then(async () => {
+                    const parsed = parseWhatsAppMessage(message, (jid) => this.resolvePnForJid(jid));
+                    if (!parsed)
+                        return;
+                    console.log(`WhatsApp message received from ${parsed.senderId}`);
+                    await onMessage(parsed);
+                })
+                    .catch((err) => {
+                    console.error("Failed to handle WhatsApp message:", err);
+                });
+            }
         });
+        await ready.promise;
+        return closed.promise;
     }
-    requireClient() {
-        if (!this.client)
-            throw new Error("WhatsApp client is not initialized yet");
-        return this.client;
+    async handleConnectionUpdate(update, ready, closed, rejectLifecycle) {
+        const { connection, lastDisconnect, qr } = update;
+        if (qr) {
+            console.log("WhatsApp QR received. Pair the dedicated Pi account to continue.");
+            await this.saveQrImage(qr);
+        }
+        if (connection === "open" && !ready.settled) {
+            console.log("WhatsApp client ready — receiving messages.");
+            ready.resolve();
+            return;
+        }
+        if (connection !== "close")
+            return;
+        const error = lastDisconnect?.error;
+        const statusCode = error?.output?.statusCode;
+        const reason = statusCode === DisconnectReason.loggedOut
+            ? "WhatsApp logged out — re-pair the Baileys session."
+            : `WhatsApp disconnected${statusCode ? ` (code ${statusCode})` : ""}`;
+        if (!ready.settled) {
+            rejectLifecycle(`${reason} before ready.`, error ?? new Error(reason));
+            return;
+        }
+        if (!closed.settled) {
+            closed.reject(error ?? new Error(reason));
+        }
+    }
+    learnMessageJidMappings(message) {
+        this.rememberLidMapping(message.key.remoteJid, message.key.remoteJidAlt);
+        this.rememberLidMapping(message.key.participant, message.key.participantAlt);
+    }
+    rememberLidMapping(lidJid, pnJid) {
+        if (!lidJid || !pnJid || !lidJid.endsWith("@lid"))
+            return;
+        this.lidToPn.set(lidJid, pnJid);
+    }
+    resolvePnForJid(jid) {
+        return this.lidToPn.get(jid);
+    }
+    async saveQrImage(qr) {
+        try {
+            const QRCode = (await import("qrcode")).default;
+            const qrPath = this.getQrPath();
+            await QRCode.toFile(qrPath, qr, { width: 512 });
+            console.log(`WhatsApp QR saved as image: ${qrPath}`);
+        }
+        catch (err) {
+            console.error("Failed to save QR image:", err);
+        }
+    }
+    getAuthDir() {
+        return path.join(this.config.sessionDataPath, "baileys");
+    }
+    getQrPath() {
+        return path.resolve(this.config.sessionDataPath, "..", "whatsapp-qr.png");
+    }
+    requireSocket() {
+        if (!this.socket)
+            throw new Error("WhatsApp socket is not initialized yet");
+        return this.socket;
     }
     toChatJid(recipient) {
+        if (recipient.startsWith("whatsapp-group:")) {
+            return `${recipient.slice("whatsapp-group:".length)}@g.us`;
+        }
         const raw = recipient.startsWith("whatsapp:") ? recipient.slice("whatsapp:".length) : recipient;
         if (raw.startsWith("+"))
-            return `${raw.slice(1)}@c.us`;
+            return `${raw.slice(1)}@s.whatsapp.net`;
         if (raw.includes("@"))
             return raw;
         if (/^\d+$/.test(raw))
-            return `${raw}@c.us`;
+            return `${raw}@s.whatsapp.net`;
         throw new Error(`Unsupported WhatsApp recipient id: ${recipient}`);
     }
 }

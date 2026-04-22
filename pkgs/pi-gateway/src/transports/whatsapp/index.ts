@@ -1,14 +1,14 @@
 import type { WhatsAppTransportConfig } from "../../config.js";
 import type { InboundMessage } from "../../core/types.js";
 import type { GatewayTransport } from "../types.js";
-import { WhatsAppWebTransport } from "./transport.js";
+import { WhatsAppBaileysTransport } from "./transport.js";
 
 export class WhatsAppTransport implements GatewayTransport {
   readonly name = "whatsapp";
-  private readonly transport: WhatsAppWebTransport;
+  private readonly transport: WhatsAppBaileysTransport;
 
   constructor(private readonly config: WhatsAppTransportConfig) {
-    this.transport = new WhatsAppWebTransport(config);
+    this.transport = new WhatsAppBaileysTransport(config);
   }
 
   async healthCheck(): Promise<void> {
