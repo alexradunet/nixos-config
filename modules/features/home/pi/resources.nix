@@ -29,6 +29,11 @@
       model = "claude-sonnet-4.6";
       label = "Technical";
     };
+    technicalLocal = {
+      provider = "local-qwen";
+      model = "bartowski/Qwen_Qwen3.6-35B-A3B-GGUF";
+      label = "Technical (Local Qwen)";
+    };
     providers = {
       local-qwen = {
         baseUrl = "http://127.0.0.1:8080/v1";
