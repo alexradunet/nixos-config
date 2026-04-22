@@ -145,7 +145,6 @@ in {
   home.file.".pi/agent/extensions/persona".source = ./extensions/persona;
   home.file.".pi/agent/extensions/os".source = ./extensions/os;
   home.file.".pi/agent/extensions/nixpi".source = ./extensions/nixpi;
-  home.file.".pi/agent/extensions/pi-codex-rotator".source = ./extensions/pi-codex-rotator;
   home.file.".pi/agent/extensions/tmux-manager" = {
     source = ./extensions/tmux-manager;
     force = true;
