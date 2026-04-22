@@ -53,12 +53,14 @@ function writeJsonFile(path: string, value: unknown) {
 
 function getPaths() {
   const agentDir = getAgentDir();
+  const dataDir = join(agentDir, "data", "pi-codex-rotator");
   return {
     agentDir,
+    dataDir,
     authPath: join(agentDir, "auth.json"),
     settingsPath: join(agentDir, "settings.json"),
-    configPath: join(agentDir, "extensions", "pi-codex-rotator", "accounts.json"),
-    statePath: join(agentDir, "extensions", "pi-codex-rotator", "state.json"),
+    configPath: join(dataDir, "accounts.json"),
+    statePath: join(dataDir, "state.json"),
   };
 }
 
@@ -296,7 +298,7 @@ export default function codexRotator(pi: ExtensionAPI) {
       state = loadState();
 
       if (config.accounts.length === 0) {
-        ctx.ui.notify(`No accounts configured in ${getPaths().configPath}`, "warning");
+        ctx.ui.notify(`No accounts configured yet. Use /codex-add or /codex-login. Data path: ${getPaths().configPath}`, "warning");
         return;
       }
 
@@ -314,9 +316,14 @@ export default function codexRotator(pi: ExtensionAPI) {
   pi.registerCommand("codex-add", {
     description: "Save the current live Codex OAuth auth as a named rotator account",
     handler: async (args, ctx) => {
-      const name = args?.trim();
+      let name = args?.trim();
       if (!name) {
-        ctx.ui.notify("Usage: /codex-add <account>", "warning");
+        name = (await ctx.ui.input("Account name", {
+          placeholder: "work | personal | alt",
+        }))?.trim();
+      }
+      if (!name) {
+        ctx.ui.notify("Cancelled", "warning");
         return;
       }
 
@@ -519,7 +526,7 @@ export default function codexRotator(pi: ExtensionAPI) {
       state = loadState();
       const active = getActiveAccount(config, state);
       if (!active) {
-        ctx.ui.notify(`No active account. Configure ${getPaths().configPath}`, "warning");
+        ctx.ui.notify(`No active account. Accounts live in ${getPaths().configPath}`, "warning");
         return;
       }
       const email = active.email ? ` <${active.email}>` : "";
