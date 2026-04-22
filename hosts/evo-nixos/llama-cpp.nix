@@ -1,20 +1,22 @@
 # llama-server configuration for evo-nixos
 #
-# Two independent inference instances, each pinned to its own GPU:
+# Primary inference instance on evo-nixos:
 #
-#   cuda   → NVIDIA RTX 5060 Ti (16 GB VRAM, CUDA)   port 8080
-#            Model: Gemma 4 27B-IT (MoE, ~4B active, Q4_K_M ~12.4 GB)
-#            Fast dense inference, 128K context, flash-attn
+#   vulkan → AMD Radeon 890M iGPU (64 GB unified RAM, Vulkan) port 8080
+#            Model: Qwen3.6-35B-A3B (MoE, ~3B active, Q4_K_M ~21-23 GB)
+#            Main/default local model endpoint, tuned for 128K-class context
 #
-#   vulkan → AMD Radeon 890M iGPU (64 GB unified RAM, Vulkan) port 8081
-#            Model: Qwen3-30B-A3B (MoE, ~3B active, Q4_K_M ~17 GB)
-#            Huge context / long-document work, flash-attn
+# Secondary CUDA instance is kept in config but disabled by default:
+#
+#   cuda   → NVIDIA RTX 5060 Ti (16 GB VRAM, CUDA)   port 8081
+#            Model: Gemma 4 27B-IT (MoE, ~4B active, IQ3_XS)
+#            Fast dense inference profile if re-enabled later
 #
 # Vulkan device mapping (confirmed via vulkaninfo --summary):
 #   GPU0 = AMD Radeon 890M  (RADV)   ← GGML_VK_VISIBLE_DEVICES=0
 #   GPU1 = NVIDIA RTX 5060 Ti        ← hidden from vulkan instance via CUDA_VISIBLE_DEVICES=-1
 #
-# First-start model downloads (~12 GB CUDA, ~17 GB Vulkan) land in each
+# First-start model downloads (~12 GB CUDA, ~21-23 GB Vulkan) land in each
 # instance's own HF cache:
 #   /var/lib/llama-server-cuda/hf-cache
 #   /var/lib/llama-server-vulkan/hf-cache
@@ -25,10 +27,10 @@
 #   sudo chown -R llama-server-cuda:llama-server-cuda /var/lib/llama-server-cuda
 #
 # Monitor:
-#   journalctl -u llama-server-cuda   -f
 #   journalctl -u llama-server-vulkan -f
-#   curl http://127.0.0.1:8080/health
-#   curl http://127.0.0.1:8081/health
+#   journalctl -u llama-server-cuda   -f   # if re-enabled
+#   curl http://127.0.0.1:8080/health      # primary/default endpoint
+#   curl http://127.0.0.1:8081/health      # CUDA if re-enabled
 {
   config,
   lib,
@@ -76,9 +78,9 @@ in {
   services.llama-servers = {
     # ── NVIDIA RTX 5060 Ti — CUDA ─────────────────────────────────────────
     cuda = {
-      enable = true;
+      enable = false;
       package = cudaPkg;
-      port = 8080;
+      port = 8081;
 
       hfRepo = "bartowski/google_gemma-4-26B-A4B-it-GGUF";
       hfFile = "google_gemma-4-26B-A4B-it-IQ3_XS.gguf";
@@ -113,16 +115,16 @@ in {
     vulkan = {
       enable = true;
       package = vulkanPkg;
-      port = 8081;
+      port = 8080;
 
-      # Qwen3-30B-A3B: 30B total / 3B active MoE — ideal for unified RAM
-      # ~17 GB at Q4_K_M, leaving ~47 GB for KV cache and OS
-      hfRepo = "Qwen/Qwen3-30B-A3B-GGUF";
-      hfFile = "Qwen3-30B-A3B-Q4_K_M.gguf";
+      # Qwen3.6-35B-A3B: 35B total / ~3B active MoE — strong long-context fit
+      # ~21-23 GB at Q4_K_M, still leaving room for 128K KV/cache on unified RAM
+      hfRepo = "bartowski/Qwen_Qwen3.6-35B-A3B-GGUF";
+      hfFile = "Qwen_Qwen3.6-35B-A3B-Q4_K_M.gguf";
 
       nGpuLayers = 99;
       threads = 12; # more CPU threads — expert routing on MoE
-      contextSize = 65536; # 64K — comfortable within unified RAM budget
+      contextSize = 131072; # 128K target
 
       environmentVariables = {
         # Hide NVIDIA from CUDA detection so it doesn't interfere
@@ -133,10 +135,6 @@ in {
       };
 
       extraArgs = [
-        "--cache-type-k"
-        "q8_0"
-        "--cache-type-v"
-        "q8_0"
         "--metrics" # enable Prometheus /metrics endpoint
         "--slots" # enable /slots monitoring endpoint
       ];
