@@ -240,7 +240,7 @@ in {
       description = "NixPI generic transport gateway";
       after = ["network.target"];
       wantedBy = ["multi-user.target"];
-      path = lib.optionals cfg.whatsapp.enable [pkgs.chromium];
+      path = lib.optionals cfg.whatsapp.enable [pkgs.chromium] ++ [pkgs.pi];
       environment = lib.optionalAttrs cfg.whatsapp.enable {
         HOME = cfg.stateDir;
         XDG_CONFIG_HOME = "${cfg.stateDir}/xdg/config";
