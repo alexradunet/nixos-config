@@ -23,11 +23,6 @@
 
     initExtra =
       ''
-        if [ -r /run/secrets/github-token ]; then
-          export GITHUB_TOKEN="$(< /run/secrets/github-token)"
-          export GH_TOKEN="$GITHUB_TOKEN"
-        fi
-
         # Knowledge wiki shortcut
         obsidian-wiki() {
           nohup obsidian "$HOME/Workspace/Knowledge" >/dev/null 2>&1 &

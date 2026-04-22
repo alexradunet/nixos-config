@@ -1,7 +1,6 @@
 {config, ...}: {
   flake.homeModules.profile-base = {
     imports = [
-      config.flake.homeModules.sops
       config.flake.homeModules.git
       config.flake.homeModules.packages
       config.flake.homeModules.paths

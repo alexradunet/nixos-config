@@ -83,12 +83,9 @@ in {
 
     devShells.default = pkgs.mkShellNoCC {
       packages = with pkgs; [
-        age
         alejandra
         deadnix
         nodejs
-        sops
-        ssh-to-age
         statix
       ];
     };

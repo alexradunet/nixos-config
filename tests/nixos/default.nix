@@ -193,7 +193,6 @@ in {
 
     nodes.machine = {pkgs, ...}: {
       imports = [
-        config.flake.nixosModules.sops
         config.flake.nixosModules.common
         config.flake.nixosModules.desktop
         config.flake.nixosModules.users
@@ -204,9 +203,6 @@ in {
         config.flake.nixosModules.service-reaction
         config.flake.nixosModules.service-syncthing
         config.flake.nixosModules.service-llama-cpp
-        config.flake.nixosModules.sops-common
-        config.flake.nixosModules.sops-shared-common
-        config.flake.nixosModules.sops-evo-nixos
         ../../hosts/evo-nixos/syncthing.nix
         inputs.home-manager.nixosModules.home-manager
         {
@@ -252,7 +248,6 @@ in {
 
     nodes.machine = {...}: {
       imports = [
-        config.flake.nixosModules.sops
         config.flake.nixosModules.common
         config.flake.nixosModules.desktop
         config.flake.nixosModules.laptop
@@ -263,9 +258,6 @@ in {
         config.flake.nixosModules.service-openssh
         config.flake.nixosModules.service-reaction
         config.flake.nixosModules.service-syncthing
-        config.flake.nixosModules.sops-common
-        config.flake.nixosModules.sops-shared-common
-        config.flake.nixosModules.sops-pad-nixos
         ../../hosts/pad-nixos/syncthing.nix
         inputs.home-manager.nixosModules.home-manager
         {
@@ -305,15 +297,11 @@ in {
 
     nodes.machine = {pkgs, ...}: {
       imports = [
-        config.flake.nixosModules.sops
         config.flake.nixosModules.common
         config.flake.nixosModules.users
         config.flake.nixosModules.service-openssh
         config.flake.nixosModules.service-reaction
         config.flake.nixosModules.service-wireguard
-        config.flake.nixosModules.sops-common
-        config.flake.nixosModules.sops-shared-common
-        config.flake.nixosModules.sops-vps-nixos
         config.flake.nixosModules.service-wg-admin
         inputs.home-manager.nixosModules.home-manager
         {

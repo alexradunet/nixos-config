@@ -1,7 +1,6 @@
 {config, ...}: {
   flake.nixosModules.profile-desktop-workstation = {
     imports = [
-      config.flake.nixosModules.sops
       config.flake.nixosModules.common
       config.flake.nixosModules.desktop
       config.flake.nixosModules.users

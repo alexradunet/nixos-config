@@ -1,7 +1,6 @@
 {config, ...}: {
   flake.nixosModules.profile-server-base = {
     imports = [
-      config.flake.nixosModules.sops
       config.flake.nixosModules.common
       config.flake.nixosModules.users
       config.flake.nixosModules.host-unfree

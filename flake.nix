@@ -20,11 +20,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    sops-nix = {
-      url = "github:Mic92/sops-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     qmd = {
       url = "github:tobi/qmd";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -41,7 +36,6 @@
         ./modules/core/flake-module.nix
         ./modules/packages/flake-module.nix
         ./modules/checks/flake-module.nix
-        ./modules/secrets/flake-module.nix
 
         ./modules/features/nixos/common/flake-module.nix
         ./modules/features/nixos/desktop/flake-module.nix

@@ -21,9 +21,7 @@ modules/hosts/*.nix              # flake host composition modules
 modules/users/*.nix              # user-level feature composition
 modules/packages/flake-module.nix# overlay, packages, apps, dev shell, formatter
 modules/checks/flake-module.nix  # flake checks
-modules/secrets/flake-module.nix # sops-nix exports
 pkgs/                            # locally maintained packages, exposed via overlay
-secrets/                         # sops-nix secret scaffold
 .gitignore                       # ignore build artifacts like result symlinks
 ```
 
@@ -54,7 +52,6 @@ This repo now follows a dendritic pattern with flake-parts.
 - `modules/users/*.nix` - user composition using exported home features
 - `modules/profiles/nixos/*.nix` - higher-level system profile bundles
 - `modules/profiles/home/*.nix` - higher-level home profile bundles
-- `modules/secrets/flake-module.nix` - exported `sops-nix` modules
 - `modules/packages/flake-module.nix` - overlay, packages, apps, formatter, dev shell
 - `modules/checks/flake-module.nix` - flake checks
 
@@ -347,40 +344,6 @@ Syncthing currently syncs:
 
 The infrastructure repo under `~/Workspace/NixPI` is **not** synced with Syncthing.
 Use Git/GitHub for code and infrastructure history.
-
-## Secrets
-
-`sops-nix` is now scaffolded for all hosts.
-
-Current behavior:
-
-- each host enables shared sops settings
-- each host auto-loads `secrets/<host>.yaml` only when that file exists
-- shared secrets from `secrets/common.yaml` are also loaded when present
-- default host decryption identity is `/etc/ssh/ssh_host_ed25519_key`
-- Home Manager also has the `sops` module available
-
-Files:
-
-- `secrets/.sops.yaml`
-- `secrets/recipients.example.yaml`
-- `secrets/*.yaml.example`
-- `secrets/setup.md`
-- `modules/secrets/common.nix`
-- `modules/secrets/shared/common-secrets.nix`
-- `modules/secrets/hosts/*.nix`
-
-Current example shared secret:
-
-- `github.token` in `secrets/common.yaml`
-- materialized at `/run/secrets/github-token`
-- exported in interactive bash shells as `GITHUB_TOKEN` and `GH_TOKEN` when present
-
-The dev shell now includes:
-
-- `sops`
-- `age`
-- `ssh-to-age`
 
 ## Rebuild
 
