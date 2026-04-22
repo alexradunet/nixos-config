@@ -6,7 +6,7 @@
 }: let
   wireguardPrivate = ../../hosts/evo-nixos/wireguard.private.nix;
   hasWireguardPrivate = builtins.pathExists wireguardPrivate;
-  piGatewayPrivate = /home/alex/Workspace/NixPI/hosts/evo-nixos/pi-gateway.private.nix;
+  piGatewayPrivate = ../../hosts/evo-nixos/pi-gateway.private.nix;
   hasPiGatewayPrivate = builtins.pathExists piGatewayPrivate;
   # Declarative gate: import the private config unconditionally when it exists.
   # The file itself uses networking.wireguardHubAndSpoke.enable = true to activate.
