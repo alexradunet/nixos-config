@@ -24,6 +24,7 @@ export class PiClient {
             "--system-prompt", this.buildSystemPrompt(options.systemPromptAddendum),
             message,
         ];
+        console.log(`pi: prompt start session=${resolved} chars=${message.length}`);
         const { stdout, stderr } = await execFileAsync(this.piBin, args, {
             cwd: this.cwd,
             timeout: this.timeoutMs,
@@ -32,9 +33,11 @@ export class PiClient {
         }).catch((err) => {
             const out = err.stdout ?? "";
             const text = out.trim() || err.stderr?.trim() || "Pi returned an error.";
+            console.error(`pi: prompt failed session=${resolved}: ${text}`);
             throw new Error(`pi exited with code ${err.code ?? "?"}: ${text}`);
         });
         const text = stdout.trim() || stderr.trim() || "Pi returned an empty reply.";
+        console.log(`pi: prompt done session=${resolved} replyChars=${text.length}`);
         return { text, sessionPath: resolved };
     }
     async healthCheck() {

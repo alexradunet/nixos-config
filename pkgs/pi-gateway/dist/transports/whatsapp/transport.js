@@ -41,7 +41,9 @@ export class WhatsAppBaileysTransport {
     async sendText(recipient, text) {
         const socket = this.requireSocket();
         const chatId = this.toChatJid(recipient);
+        console.log(`whatsapp: sending message to ${recipient} (${chatId}) chars=${text.length}`);
         await socket.sendMessage(chatId, { text });
+        console.log(`whatsapp: sent message to ${recipient}`);
     }
     async startReceiving(onMessage) {
         for (;;) {
@@ -116,6 +118,7 @@ export class WhatsAppBaileysTransport {
                         return;
                     console.log(`WhatsApp message received from ${parsed.senderId}`);
                     await onMessage(parsed);
+                    console.log(`WhatsApp message handling completed for ${parsed.messageId}`);
                 })
                     .catch((err) => {
                     console.error("Failed to handle WhatsApp message:", err);

@@ -61,12 +61,21 @@ async function main(): Promise<void> {
   await Promise.all(
     transports.map((transport) =>
       transport.startReceiving(async (msg) => {
+        console.log(`router: handling ${msg.channel} message ${msg.messageId} from ${msg.senderId}`);
         const result = await router.handleMessage(msg);
-        for (const reply of result.replies) {
+        console.log(
+          `router: result for ${msg.messageId} -> replies=${result.replies.length} markProcessed=${result.markProcessed}`,
+        );
+
+        for (const [index, reply] of result.replies.entries()) {
+          console.log(`router: sending reply ${index + 1}/${result.replies.length} for ${msg.messageId}`);
           await transport.sendText(msg, reply);
+          console.log(`router: sent reply ${index + 1}/${result.replies.length} for ${msg.messageId}`);
         }
+
         if (result.markProcessed) {
           store.markProcessed(msg.messageId, msg.chatId, msg.senderId, msg.timestamp);
+          console.log(`router: marked processed ${msg.messageId}`);
         }
       }),
     ),
