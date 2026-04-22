@@ -40,6 +40,106 @@
       activity = "ctrl+shift+w";
     };
   };
+
+  piModelsBase = {
+    providers = {
+      synthetic = {
+        baseUrl = "https://api.synthetic.new/openai/v1";
+        apiKey = "SYNTHETIC_API_KEY";
+        api = "openai-completions";
+        compat = {
+          supportsDeveloperRole = false;
+          supportsReasoningEffort = false;
+        };
+        models = [
+          {
+            id = "hf:zai-org/GLM-5.1";
+            name = "GLM 5.1 (Synthetic)";
+            reasoning = true;
+            input = ["text"];
+            contextWindow = 196608;
+            maxTokens = 65536;
+            cost = {
+              input = 0;
+              output = 0;
+              cacheRead = 0;
+              cacheWrite = 0;
+            };
+          }
+          {
+            id = "hf:moonshotai/Kimi-K2.5";
+            name = "Kimi K2.5 (Synthetic)";
+            reasoning = true;
+            input = ["text" "image"];
+            contextWindow = 262144;
+            maxTokens = 65536;
+            cost = {
+              input = 0;
+              output = 0;
+              cacheRead = 0;
+              cacheWrite = 0;
+            };
+          }
+          {
+            id = "hf:MiniMaxAI/MiniMax-M2.5";
+            name = "MiniMax M2.5 (Synthetic)";
+            reasoning = true;
+            input = ["text"];
+            contextWindow = 196608;
+            maxTokens = 65536;
+            cost = {
+              input = 0;
+              output = 0;
+              cacheRead = 0;
+              cacheWrite = 0;
+            };
+          }
+          {
+            id = "hf:Qwen/Qwen3-Coder-480B-A35B-Instruct";
+            name = "Qwen3 Coder 480B A35B Instruct (Synthetic)";
+            reasoning = true;
+            input = ["text"];
+            contextWindow = 262144;
+            maxTokens = 65536;
+            cost = {
+              input = 0;
+              output = 0;
+              cacheRead = 0;
+              cacheWrite = 0;
+            };
+          }
+        ];
+      };
+      llama = {
+        baseUrl = "http://127.0.0.1:8080/v1";
+        apiKey = "local";
+        api = "openai-completions";
+        compat = {
+          supportsDeveloperRole = false;
+          supportsReasoningEffort = false;
+          maxTokensField = "max_tokens";
+        };
+        models = [
+          {
+            id = "bartowski/Qwen_Qwen3.6-35B-A3B-GGUF";
+            name = "Local Qwen 3.6 35B-A3B (llama.cpp)";
+            reasoning = false;
+            input = ["text"];
+            contextWindow = 131072;
+            maxTokens = 8192;
+            cost = {
+              input = 0;
+              output = 0;
+              cacheRead = 0;
+              cacheWrite = 0;
+            };
+          }
+        ];
+      };
+    };
+  };
+
+  piModelsBaseJson = pkgs.writeText "pi-models-base.json" (builtins.toJSON piModelsBase);
 in {
   # ── qmd — local retrieval layer ───────────────────────────────────────────
   home.file.".config/qmd/index.yml".text = ''
@@ -84,6 +184,7 @@ in {
 
   # ── PI extensions ─────────────────────────────────────────────────────────
   home.file.".pi/agent/extensions/pi-web-access".source = piWebAccessRoot;
+  home.file.".pi/agent/extensions/zz-synthetic-search".source = ./extensions/zz-synthetic-search;
   home.file.".pi/agent/extensions/llm-wiki".source = llmWikiRoot;
   home.file.".pi/agent/extensions/wg-admin".source = ./extensions/wg-admin;
   home.file.".pi/agent/extensions/persona".source = ./extensions/persona;
@@ -140,6 +241,15 @@ in {
       ${pkgs.jq}/bin/jq '.mcpServers.qmd = {"command":"qmd","args":["mcp"]}' \
         "$settings_path" > "$settings_path.tmp" && mv "$settings_path.tmp" "$settings_path"
     fi
+  '';
+
+  # ── Activation: Pi custom providers/models (env-var based) ───────────────
+  home.activation.piModels = lib.hm.dag.entryAfter ["writeBoundary"] ''
+    models_path="$HOME/.pi/agent/models.json"
+    mkdir -p "$(dirname "$models_path")"
+    cp ${piModelsBaseJson} "$models_path.tmp"
+    chmod 0600 "$models_path.tmp"
+    mv "$models_path.tmp" "$models_path"
   '';
 
   # ── Activation: guardrails seed (idempotent) ──────────────────────────────

@@ -203,12 +203,17 @@ in {
         config.flake.nixosModules.service-openssh
         config.flake.nixosModules.service-reaction
         config.flake.nixosModules.service-syncthing
+        config.flake.nixosModules.service-llama-cpp
         config.flake.nixosModules.sops-common
         config.flake.nixosModules.sops-shared-common
         config.flake.nixosModules.sops-evo-nixos
         ../../hosts/evo-nixos/syncthing.nix
         inputs.home-manager.nixosModules.home-manager
         {
+          services.llama-servers.default = {
+            enable = true;
+            modelPath = "/tmp/test-model.gguf";
+          };
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
           home-manager.backupFileExtension = "hm-backup";
@@ -234,6 +239,7 @@ in {
       with subtest("evo host enables expected desktop workstation stack"):
           machine.succeed("systemctl is-active display-manager.service")
           machine.succeed("systemctl is-active NetworkManager.service")
+          machine.succeed("systemctl cat llama-server-default.service >/dev/null")
 
       with subtest("evo host keeps syncthing and ssh active"):
           machine.succeed("systemctl is-active syncthing.service")
@@ -462,7 +468,9 @@ in {
           machine.wait_until_succeeds("test -f /home/alex/.pi/agent/extensions/os/index.ts")
           machine.wait_until_succeeds("test -f /home/alex/.pi/agent/extensions/nixpi/index.ts")
           machine.wait_until_succeeds("test -f /home/alex/.pi/agent/extensions/subagent/index.ts")
+          machine.wait_until_succeeds("test -f /home/alex/.pi/agent/extensions/zz-synthetic-search/index.ts")
           machine.wait_until_succeeds("grep -F 'inherit the current Pi model' /home/alex/.pi/agent/extensions/subagent/index.ts")
+          machine.wait_until_succeeds("grep -F 'Synthetic' /home/alex/.pi/agent/extensions/zz-synthetic-search/index.ts")
           machine.wait_until_succeeds("grep -F 'nixpi_status' /home/alex/.pi/agent/extensions/nixpi/index.ts")
           machine.wait_until_succeeds("grep -F 'nixpi_evolution_note' /home/alex/.pi/agent/extensions/nixpi/index.ts")
           machine.wait_until_succeeds("grep -F 'update-blueprints' /home/alex/.pi/agent/extensions/nixpi/index.ts")
@@ -477,6 +485,8 @@ in {
           machine.wait_until_succeeds("test -f /home/alex/.pi/agent/prompts/wiki.md")
           machine.wait_until_succeeds("test -f /home/alex/.pi/agent/settings.json")
           machine.wait_until_succeeds("grep -F '\"qmd\"' /home/alex/.pi/agent/settings.json")
+          machine.wait_until_succeeds("test -f /home/alex/.pi/agent/models.json")
+          machine.wait_until_succeeds("grep -F '\"providers\"' /home/alex/.pi/agent/models.json")
           machine.wait_until_succeeds("test -f /home/alex/.pi/agent/agents/scout.md")
           machine.wait_until_succeeds("grep -F 'name: scout' /home/alex/.pi/agent/agents/scout.md")
 

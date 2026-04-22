@@ -168,6 +168,30 @@ The Pi runtime now restores several capabilities that previously lived in `NixPI
 
 These runtime files are installed under `~/.pi/agent/` by Home Manager and validated by flake checks plus the dedicated `pi-runtime-smoke` VM test.
 
+### Synthetic + local llama provider wiring
+
+Pi now seeds a Nix-managed `~/.pi/agent/models.json` for custom providers.
+
+Current custom providers:
+
+- `synthetic`
+  - OpenAI-compatible base URL: `https://api.synthetic.new/openai/v1`
+  - authenticated via the shell environment variable `SYNTHETIC_API_KEY`
+- `llama`
+  - local OpenAI-compatible llama.cpp endpoint: `http://127.0.0.1:8080/v1`
+  - uses the standard local placeholder API key `local`
+
+On `evo-nixos`, the local llama endpoint is served by `llama-server-vulkan` and bound to localhost only.
+
+The runtime also overrides `web_search` with a local extension that routes searches through Synthetic's zero-data-retention `/v2/search` endpoint when `SYNTHETIC_API_KEY` is present in the environment.
+
+Typical shell setup before launching `pi`:
+
+```bash
+export SYNTHETIC_API_KEY=your_synthetic_key
+pi
+```
+
 ### Privileged PI flows
 
 PI stays unprivileged.
