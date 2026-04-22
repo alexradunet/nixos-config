@@ -1,5 +1,6 @@
 import { access, mkdir } from "node:fs/promises";
-import { Client, LocalAuth } from "whatsapp-web.js";
+import WhatsAppWeb from "whatsapp-web.js";
+const { Client, LocalAuth } = WhatsAppWeb;
 import { parseWhatsAppMessage } from "./parser.js";
 export class WhatsAppWebTransport {
     config;

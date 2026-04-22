@@ -1,5 +1,9 @@
 import { access, mkdir } from "node:fs/promises";
-import { Client, LocalAuth, type Message } from "whatsapp-web.js";
+import WhatsAppWeb from "whatsapp-web.js";
+import type { Message } from "whatsapp-web.js";
+
+const { Client, LocalAuth } = WhatsAppWeb;
+type WhatsAppClient = InstanceType<typeof Client>;
 import type { WhatsAppTransportConfig } from "../../config.js";
 import type { InboundMessage } from "../../core/types.js";
 import { parseWhatsAppMessage } from "./parser.js";
@@ -7,7 +11,7 @@ import { parseWhatsAppMessage } from "./parser.js";
 type WhatsAppInbound = Omit<InboundMessage, "access">;
 
 export class WhatsAppWebTransport {
-  private client: Client | null = null;
+  private client: WhatsAppClient | null = null;
   private messageChain: Promise<void> = Promise.resolve();
 
   constructor(private readonly config: WhatsAppTransportConfig) {}
@@ -88,7 +92,7 @@ export class WhatsAppWebTransport {
     });
   }
 
-  private requireClient(): Client {
+  private requireClient(): WhatsAppClient {
     if (!this.client) throw new Error("WhatsApp client is not initialized yet");
     return this.client;
   }
