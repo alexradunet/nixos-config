@@ -50,9 +50,10 @@ export class WhatsAppWebTransport {
             console.log("WhatsApp authenticated.");
         });
         client.on("ready", () => {
-            console.log("WhatsApp client ready.");
+            console.log("WhatsApp client ready — receiving messages.");
         });
         client.on("message", (message) => {
+            console.log(`WhatsApp message received from ${message.from}`);
             this.messageChain = this.messageChain
                 .catch(() => undefined)
                 .then(async () => {
@@ -64,12 +65,16 @@ export class WhatsAppWebTransport {
                 console.error("Failed to handle WhatsApp message:", err);
             });
         });
+        client.on("disconnected", (reason) => {
+            console.log("WhatsApp disconnected:", String(reason));
+        });
         const readyPromise = new Promise((resolve, reject) => {
             let settled = false;
             const resolveOnce = () => {
                 if (settled)
                     return;
                 settled = true;
+                console.log("WhatsApp readyPromise resolved.");
                 resolve();
             };
             const rejectOnce = (err) => {
@@ -81,6 +86,14 @@ export class WhatsAppWebTransport {
             client.once("ready", resolveOnce);
             client.once("auth_failure", (message) => rejectOnce(new Error(`WhatsApp auth failure: ${message}`)));
             client.once("disconnected", (reason) => rejectOnce(new Error(`WhatsApp disconnected before ready: ${String(reason)}`)));
+            // Timeout: if ready doesn't fire within 60s after authenticated, resolve anyway
+            // (whatsapp-web.js sometimes doesn't emit 'ready' but is actually connected)
+            setTimeout(() => {
+                if (!settled) {
+                    console.warn("WhatsApp ready event timeout after 60s — proceeding without ready.");
+                    resolveOnce();
+                }
+            }, 60_000);
         });
         await client.initialize();
         await readyPromise;
