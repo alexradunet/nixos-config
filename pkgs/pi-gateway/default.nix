@@ -11,7 +11,7 @@ buildNpmPackage {
 
   src = ./.;
 
-  npmDepsHash = lib.fakeHash;
+  npmDepsHash = "sha256-uQeaippjdX900136oYEVUXW+Vbvgl4yzEYb/JgRoTOc=";
 
   nativeBuildInputs = [makeWrapper];
 
