@@ -242,7 +242,7 @@ in {
       wantedBy = ["multi-user.target"];
       path = lib.optionals cfg.whatsapp.enable [pkgs.chromium] ++ [pkgs.pi];
       environment = lib.optionalAttrs cfg.whatsapp.enable {
-        HOME = cfg.stateDir;
+        HOME = "/home/${cfg.user}";
         XDG_CONFIG_HOME = "${cfg.stateDir}/xdg/config";
         XDG_CACHE_HOME = "${cfg.stateDir}/xdg/cache";
         PUPPETEER_EXECUTABLE_PATH = cfg.whatsapp.chromiumExecutablePath;
