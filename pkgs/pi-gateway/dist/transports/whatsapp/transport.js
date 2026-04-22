@@ -31,8 +31,20 @@ export class WhatsAppWebTransport {
             },
         });
         this.client = client;
-        client.on("qr", () => {
+        client.on("qr", async (qr) => {
             console.log("WhatsApp QR received. Pair the dedicated Pi account to continue.");
+            try {
+                const QRCode = (await import("qrcode")).default;
+                const fs = require("node:fs");
+                const path = require("node:path");
+                const qrDir = path.join(this.config.sessionDataPath, "..");
+                const qrPath = path.join(qrDir, "whatsapp-qr.png");
+                await QRCode.toFile(qrPath, qr, { width: 512 });
+                console.log(`WhatsApp QR saved as image: ${qrPath}`);
+            }
+            catch (err) {
+                console.error("Failed to save QR image:", err);
+            }
         });
         client.on("authenticated", () => {
             console.log("WhatsApp authenticated.");
