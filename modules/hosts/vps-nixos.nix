@@ -5,6 +5,14 @@
   ...
 }: let
   flakeConfig = config;
+  wireguardPrivate = ../../hosts/vps-nixos/wireguard.private.nix;
+  hasWireguardPrivate = builtins.pathExists wireguardPrivate;
+  wgModule =
+    if hasWireguardPrivate
+    then {imports = [wireguardPrivate];}
+    else {
+      networking.wireguardHubAndSpoke.enable = lib.mkDefault false;
+    };
 in {
   flake.nixosConfigurations.vps-nixos = inputs.nixpkgs.lib.nixosSystem {
     system = "x86_64-linux";
@@ -40,6 +48,7 @@ in {
         config.flake.nixosModules.sops-shared-common
         config.flake.nixosModules.sops-vps-nixos
         config.flake.nixosModules.service-wg-admin
+        wgModule
         inputs.home-manager.nixosModules.home-manager
         {
           home-manager.useGlobalPkgs = true;
@@ -50,7 +59,6 @@ in {
             config.flake.homeModules.profile-host-vps-nixos
           ];
         }
-      ]
-      ++ lib.optional (builtins.pathExists ../../hosts/vps-nixos/wireguard.private.nix) ../../hosts/vps-nixos/wireguard.private.nix;
+      ];
   };
 }

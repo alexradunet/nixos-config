@@ -3,7 +3,16 @@
   inputs,
   lib,
   ...
-}: {
+}: let
+  wireguardPrivate = ../../hosts/pad-nixos/wireguard.private.nix;
+  hasWireguardPrivate = builtins.pathExists wireguardPrivate;
+  wgModule =
+    if hasWireguardPrivate
+    then {imports = [wireguardPrivate];}
+    else {
+      networking.wireguardHubAndSpoke.enable = lib.mkDefault false;
+    };
+in {
   flake.nixosConfigurations.pad-nixos = inputs.nixpkgs.lib.nixosSystem {
     system = "x86_64-linux";
     modules =
@@ -19,6 +28,7 @@
         config.flake.nixosModules.sops-shared-common
         config.flake.nixosModules.sops-pad-nixos
         ../../hosts/pad-nixos/syncthing.nix
+        wgModule
         inputs.home-manager.nixosModules.home-manager
         {
           home-manager.useGlobalPkgs = true;
@@ -29,7 +39,6 @@
             config.flake.homeModules.profile-host-pad-nixos
           ];
         }
-      ]
-      ++ lib.optional (builtins.pathExists ../../hosts/pad-nixos/wireguard.private.nix) ../../hosts/pad-nixos/wireguard.private.nix;
+      ];
   };
 }

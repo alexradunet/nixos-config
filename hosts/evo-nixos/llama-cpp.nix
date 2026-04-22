@@ -36,6 +36,9 @@
   ...
 }: let
   secretFile = ../../secrets/evo-nixos.yaml;
+  # When the host's secret file is absent (e.g. fresh install before sops keys
+  # are provisioned), sops.templates will simply not be created. The
+  # environmentFile = null fallback in each instance keeps the service functional.
   hasSecrets = builtins.pathExists secretFile;
 
   cudaPkg = pkgs.llama-cpp.override {cudaSupport = true;};

@@ -88,6 +88,19 @@ in {
       description = "Absolute path to this host's private WireGuard key file.";
     };
 
+    privateConfigFile = mkOption {
+      type = types.nullOr types.path;
+      default = null;
+      example = "/etc/nixos/wireguard.private.nix";
+      description = ''
+        Optional path to a host-specific Nix file containing the private
+        WireGuard overlay configuration (keys, endpoints, etc.).
+        When non-null, this file is imported into the host's module list
+        unconditionally — the file is expected to exist.
+        This replaces the old builtins.pathExists conditional-import pattern.
+      '';
+    };
+
     mtu = mkOption {
       type = types.nullOr types.int;
       default = null;
@@ -194,8 +207,8 @@ in {
         message = "networking.wireguardHubAndSpoke.address must be set when the overlay is enabled.";
       }
       {
-        assertion = cfg.privateKeyFile != null;
-        message = "networking.wireguardHubAndSpoke.privateKeyFile must be set when the overlay is enabled.";
+        assertion = cfg.privateKeyFile != null || cfg.privateConfigFile != null;
+        message = "networking.wireguardHubAndSpoke.privateKeyFile must be set when the overlay is enabled (or use privateConfigFile to provide it from an external file).";
       }
       {
         assertion = cfg.role != "client" || cfg.client.publicKey != null;

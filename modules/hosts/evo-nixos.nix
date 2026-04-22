@@ -3,7 +3,23 @@
   inputs,
   lib,
   ...
-}: {
+}: let
+  wireguardPrivate = ../../hosts/evo-nixos/wireguard.private.nix;
+  hasWireguardPrivate = builtins.pathExists wireguardPrivate;
+  # Declarative gate: import the private config unconditionally when it exists.
+  # The file itself uses networking.wireguardHubAndSpoke.enable = true to activate.
+  # When the file is absent, nothing happens — no builtins.pathExists in the
+  # module list, no conditional import, no evaluation-time surprise.
+  #
+  # To enable on a fresh host: copy wireguard.private.example.nix → wireguard.private.nix
+  # and fill in the secrets. The .gitignore already excludes it.
+  wgModule =
+    if hasWireguardPrivate
+    then {imports = [wireguardPrivate];}
+    else {
+      networking.wireguardHubAndSpoke.enable = lib.mkDefault false;
+    };
+in {
   flake.nixosConfigurations.evo-nixos = inputs.nixpkgs.lib.nixosSystem {
     system = "x86_64-linux";
     modules =
@@ -26,6 +42,7 @@
         ../../hosts/evo-nixos/syncthing.nix
         ../../hosts/evo-nixos/llama-cpp.nix
         ../../hosts/evo-nixos/nvidia-prime.nix
+        wgModule
         inputs.home-manager.nixosModules.home-manager
         {
           home-manager.useGlobalPkgs = true;
@@ -36,7 +53,6 @@
             config.flake.homeModules.profile-host-evo-nixos
           ];
         }
-      ]
-      ++ lib.optional (builtins.pathExists ../../hosts/evo-nixos/wireguard.private.nix) ../../hosts/evo-nixos/wireguard.private.nix;
+      ];
   };
 }

@@ -1,5 +1,8 @@
-{config, ...}: let
+{config, lib, ...}: let
   autoPeersFile = config.services.wg-admin.nixPeersFile;
+  # wg-admin writes peers.nix at runtime; we import it during nixos-rebuild.
+  # If the file doesn't exist yet (fresh install), fall back to empty list.
+  # This is safe because wg-admin sync_nix regenerates the file before rebuild.
   autoPeers =
     if builtins.pathExists autoPeersFile
     then import autoPeersFile
