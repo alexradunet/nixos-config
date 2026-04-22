@@ -3,6 +3,7 @@
   buildNpmPackage,
   nodejs,
   makeWrapper,
+  chromium,
 }:
 buildNpmPackage {
   pname = "nixpi-gateway";
@@ -10,9 +11,13 @@ buildNpmPackage {
 
   src = ./.;
 
-  npmDepsHash = "sha256-ZqB9u8od6VWGUtA7fpMQk7MmAPiOqSMm08jVyOtQNno=";
+  npmDepsHash = lib.fakeHash;
 
   nativeBuildInputs = [makeWrapper];
+
+  preBuild = ''
+    export PUPPETEER_SKIP_DOWNLOAD=1
+  '';
 
   buildPhase = ''
     runHook preBuild
@@ -33,7 +38,7 @@ buildNpmPackage {
   '';
 
   meta = {
-    description = "NixPI generic transport gateway — routes messages from Signal (and future transports) to Pi";
+    description = "NixPI generic transport gateway — routes messages from Signal and WhatsApp to Pi";
     license = lib.licenses.mit;
     mainProgram = "nixpi-gateway";
   };
