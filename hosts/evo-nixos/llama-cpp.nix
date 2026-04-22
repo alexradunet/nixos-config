@@ -60,15 +60,17 @@ in {
   # Ensure amdgpu is loaded early so the iGPU is ready before the service starts
   boot.initrd.kernelModules = ["amdgpu"];
 
-  # Sops environment files — one per instance, each owned by its service user
-  sops.templates."llama-server-cuda-env" = lib.mkIf hasSecrets {
+  # Sops environment files — only render templates for enabled instances,
+  # otherwise activation can fail because the corresponding service user does
+  # not exist.
+  sops.templates."llama-server-cuda-env" = lib.mkIf (hasSecrets && lib.attrByPath ["services" "llama-servers" "cuda" "enable"] false config) {
     content = ''HF_TOKEN=${config.sops.placeholder."hf-token"}'';
     owner = "llama-server-cuda";
     group = "llama-server-cuda";
     mode = "0400";
   };
 
-  sops.templates."llama-server-vulkan-env" = lib.mkIf hasSecrets {
+  sops.templates."llama-server-vulkan-env" = lib.mkIf (hasSecrets && lib.attrByPath ["services" "llama-servers" "vulkan" "enable"] false config) {
     content = ''HF_TOKEN=${config.sops.placeholder."hf-token"}'';
     owner = "llama-server-vulkan";
     group = "llama-server-vulkan";
