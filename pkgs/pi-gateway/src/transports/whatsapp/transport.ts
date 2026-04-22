@@ -46,8 +46,8 @@ export class WhatsAppWebTransport {
       console.log("WhatsApp QR received. Pair the dedicated Pi account to continue.");
       try {
         const QRCode = (await import("qrcode")).default;
-        const fs = require("node:fs");
-        const path = require("node:path");
+        const fs = await import("node:fs");
+        const path = await import("node:path");
         const qrDir = path.join(this.config.sessionDataPath, "..");
         const qrPath = path.join(qrDir, "whatsapp-qr.png");
         await QRCode.toFile(qrPath, qr, { width: 512 });
