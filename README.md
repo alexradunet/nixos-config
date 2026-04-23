@@ -150,17 +150,12 @@ The Pi runtime now restores several capabilities that previously lived in `NixPI
   - `nixos_update`
   - `systemd_control`
   - `schedule_reboot`
-- `tmux-manager` extension
-  - tracks PI-owned temporary tmux panes used by runtime workflows
-  - labels temporary panes clearly and watches their status files
-  - auto-closes successful temporary panes after a short grace period
-  - keeps failed panes open for inspection
-  - adds `/tmux-temp list|cleanup|close <pane-id>`
-- `sudo-handoff` extension
-  - overrides `bash` for `sudo ...` commands
-  - opens a tmux side pane instead of asking PI to capture a password
-  - registers the pane with `tmux-manager` for lifecycle tracking
-  - returns pane/log/status paths back to PI for follow-up reading
+- `sudo-auth` extension
+  - intercepts `bash` tool calls containing `sudo` and rewrites to `sudo -n`
+  - tracks sudo credential state via `sudo -n true` probes
+  - shows footer status indicator (active/inactive + approximate timer)
+  - prompts user to run `sudo -v` in another session when credentials are needed
+  - adds `/sudo-status`, `/sudo-refresh`, `/sudo-invalidate`
 - `nixpi` extension
   - `nixpi_status` tool
   - `nixpi_evolution_note` tool
@@ -212,19 +207,19 @@ PI stays unprivileged.
 
 Current model:
 
-- read-only inspection tools run directly without sudo handoff
-- privileged mutations open a tmux side pane for human-mediated sudo handoff
+- read-only inspection tools run directly without sudo
+- privileged mutations use `sudo -n` (non-interactive) after ensuring credentials are available
   - `bash` commands containing `sudo ...`
   - `nixos_update apply|rollback`
   - `systemd_control start|stop|restart`
   - `schedule_reboot`
   - `nix_config_proposal apply`
-- the user types the sudo password directly in tmux if prompted
-- successful privileged panes self-close after a short grace period; failed ones stay open for inspection
-- `tmux-manager` tracks PI-owned temporary panes for visibility and manual cleanup
-- long-running logs stay in tmux and are also written to a per-run log path for PI to inspect later
+- common privileged operations (nixos-rebuild, allowed systemctl units) have NOPASSWD sudoers rules
+- for other commands, PI prompts the user to run `sudo -v` in another terminal or SSH session
+- `sudoers` is configured with `timestamp_type=global` so credentials propagate across sessions
+- the `sudo-auth` extension shows a footer timer and provides `/sudo-status`, `/sudo-refresh`, `/sudo-invalidate`
 
-This keeps PI unprivileged, uses one privilege-escalation flow, and avoids storing sudo passwords in PI session logs.
+This keeps PI unprivileged, uses one privilege-escalation flow, works on both desktop and VPS, and avoids storing sudo passwords in PI session logs.
 
 ### `evo-nixos` AI coding CLIs
 

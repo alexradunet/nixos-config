@@ -32,6 +32,12 @@ in {
     ];
   };
 
+  # Global timestamp so 'sudo -v' in one session makes 'sudo -n' work
+  # in all sessions for the same user until the timeout expires.
+  security.sudo.extraConfig = ''
+    Defaults timestamp_type=global
+  '';
+
   security.sudo.extraRules = [
     {
       users = ["alex"];
@@ -42,6 +48,14 @@ in {
         }
         {
           command = "/run/current-system/sw/bin/nixos-rebuild switch --rollback";
+          options = ["NOPASSWD"];
+        }
+        {
+          command = "/run/current-system/sw/bin/systemctl reboot --no-pager";
+          options = ["NOPASSWD"];
+        }
+        {
+          command = "/run/current-system/sw/bin/shutdown -r";
           options = ["NOPASSWD"];
         }
       ] ++ staticUnitRules ++ [

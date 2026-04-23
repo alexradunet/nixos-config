@@ -207,12 +207,8 @@ in {
   home.file.".pi/agent/extensions/os".source = ./extensions/os;
   home.file.".pi/agent/extensions/nixpi".source = ./extensions/nixpi;
   home.file.".pi/agent/extensions/subagent".source = ./extensions/subagent;
-  home.file.".pi/agent/extensions/tmux-manager" = {
-    source = ./extensions/tmux-manager;
-    force = true;
-  };
-  home.file.".pi/agent/extensions/sudo-handoff" = {
-    source = ./extensions/sudo-handoff;
+  home.file.".pi/agent/extensions/sudo-auth" = {
+    source = ./extensions/sudo-auth;
     force = true;
   };
 
@@ -297,9 +293,11 @@ in {
     fi
   '';
 
-  # Remove the older local sudo-password extension so only tmux handoff remains.
+  # Remove the older privilege extensions replaced by sudo-auth.
   home.activation.piSudoCleanup = lib.hm.dag.entryAfter ["writeBoundary"] ''
     rm -rf "$HOME/.pi/agent/extensions/sudo-prompt"
+    rm -rf "$HOME/.pi/agent/extensions/sudo-handoff"
+    rm -rf "$HOME/.pi/agent/extensions/tmux-manager"
   '';
 
   # ── Activation: wiki seed (idempotent — never overwrites existing files) ──

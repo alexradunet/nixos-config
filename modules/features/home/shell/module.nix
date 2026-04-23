@@ -34,15 +34,7 @@
           echo "Wiki context: Knowledge ($PI_LLM_WIKI_DIR)"
         }
       ''
-      + lib.optionalString config.programs.tmux.enable ''
-        if command -v tmux >/dev/null 2>&1 \
-          && [ -z "$TMUX" ] \
-          && [ -z "$SSH_TTY" ] \
-          && [ "''${TERM_PROGRAM-}" != "vscode" ] \
-          && [ -z "''${INSIDE_EMACS-}" ]; then
-          exec tmux new-session -A -s main
-        fi
-      '';
+;
   };
 
   programs.fzf = {

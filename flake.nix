@@ -61,7 +61,6 @@
         ./modules/features/home/pi/flake-module.nix
         ./modules/features/home/shell/flake-module.nix
         ./modules/features/home/ssh/flake-module.nix
-        ./modules/features/home/tmux/flake-module.nix
         ./modules/features/home/ghostty/flake-module.nix
         ./modules/features/home/wezterm/flake-module.nix
         ./modules/features/home/host-evo-nixos/flake-module.nix

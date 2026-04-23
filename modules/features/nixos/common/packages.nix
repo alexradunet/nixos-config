@@ -6,6 +6,5 @@
     wget
     curl
     pi
-    tmux
   ];
 }
