@@ -202,7 +202,6 @@ in {
   # ── PI extensions ─────────────────────────────────────────────────────────
   home.file.".pi/agent/extensions/zz-synthetic-search".source = ./extensions/zz-synthetic-search;
   home.file.".pi/agent/extensions/llm-wiki".source = llmWikiRoot;
-  home.file.".pi/agent/extensions/wg-admin".source = ./extensions/wg-admin;
   home.file.".pi/agent/extensions/persona".source = ./extensions/persona;
   home.file.".pi/agent/extensions/os".source = ./extensions/os;
   home.file.".pi/agent/extensions/nixpi".source = ./extensions/nixpi;
@@ -214,7 +213,6 @@ in {
 
   # ── PI skills ─────────────────────────────────────────────────────────────
   home.file.".pi/agent/skills/librarian/SKILL.md".source = "${piWebAccessRoot}/skills/librarian/SKILL.md";
-  home.file.".pi/agent/skills/wg-admin/SKILL.md".source = ./skills/wg-admin/SKILL.md;
   home.file.".pi/agent/skills/wiki/SKILL.md".source = ./skills/wiki/SKILL.md;
   home.file.".pi/agent/skills/wiki-migration/SKILL.md".source = ./skills/wiki-migration/SKILL.md;
   home.file.".pi/agent/skills/wiki-migration/scripts/scan.sh".source = ./skills/wiki-migration/scripts/scan.sh;

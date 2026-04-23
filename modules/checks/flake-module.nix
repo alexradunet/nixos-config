@@ -133,18 +133,7 @@
             then "1"
             else "0"
           }' = '1'
-          test '${
-            if builtins.hasAttr "wg-admin" padConfig.services
-            then "1"
-            else "0"
-          }' = '0'
 
-          test '${
-            if vpsConfig.services."wg-admin".enable
-            then "1"
-            else "0"
-          }' = '1'
-          test '${vpsConfig.services."wg-admin".stateDir}' = '/home/alex/.local/state/wg-admin'
           test '${
             if vpsConfig.services.openssh.openFirewall
             then "1"

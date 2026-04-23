@@ -12,84 +12,56 @@ Personal multi-host NixOS fleet config.
 ## Structure
 
 ```text
-flake.nix                        # flake-parts entrypoint
-.github/workflows/               # CI for flake validation
-hosts/                           # hardware configs and host-local data
-modules/features/nixos/*/        # dendritic NixOS feature modules
-modules/features/home/*/         # dendritic Home Manager feature modules
-modules/hosts/*.nix              # flake host composition modules
-modules/users/*.nix              # user-level feature composition
+flake.nix                        # flake-parts entrypoint (auto-discovers feature modules)
+modules/core/                    # option definitions + auto-discovery
+modules/features/nixos/*/        # NixOS feature modules (auto-registered)
+modules/features/home/*/         # Home Manager feature modules (auto-registered)
+modules/hosts/*.nix              # host composition (imports features directly)
+modules/users/*.nix              # user-level composition
 modules/packages/flake-module.nix# overlay, packages, apps, dev shell, formatter
 modules/checks/flake-module.nix  # flake checks
 pkgs/                            # locally maintained packages, exposed via overlay
-.gitignore                       # ignore build artifacts like result symlinks
+hosts/                           # hardware configs and host-local data
 ```
+
+Adding a new feature: create `modules/features/{nixos,home}/my-feature/module.nix` — it's auto-registered, no boilerplate needed.
 
 ### `hosts/`
 
-Each host folder now contains only machine-local files such as:
+Each host folder contains only machine-local files:
 
 - `hardware-configuration.nix` for machine-specific hardware
 - optional host-local files like `syncthing.nix`
-- optional untracked `wireguard.private.nix`
 - optional untracked `pi-gateway.private.nix`
 
 Current hosts:
 
-- `evo-nixos` - mini PC / desktop workstation
-- `vps-nixos` - canonical VPS / WireGuard hub
+- `evo-nixos` - mini PC / desktop workstation (gaming + NVIDIA)
 - `pad-nixos` - laptop
-
-Each host can also import optional untracked private host files for local secrets or transport config.
-Currently used patterns:
-- `wireguard.private.nix` for local WireGuard role/peer data
-- `pi-gateway.private.nix` for local Pi messaging transport config
-
-See:
-- `hosts/*/wireguard.private.example.nix`
-- `hosts/evo-nixos/pi-gateway.private.example.nix`
+- `vps-nixos` - canonical VPS
 
 ### `modules/`
 
-This repo now follows a dendritic pattern with flake-parts.
+Features are auto-discovered from `modules/features/{nixos,home}/` — any directory containing a `module.nix` is registered automatically as `flake.nixosModules.<name>` or `flake.homeModules.<name>`.
 
-- `modules/features/nixos/*` - reusable exported NixOS features
-- `modules/features/home/*` - reusable exported Home Manager features
-- `modules/hosts/*.nix` - host composition using exported features and profiles
-- `modules/users/*.nix` - user composition using exported home features
-- `modules/profiles/nixos/*.nix` - higher-level system profile bundles
-- `modules/profiles/home/*.nix` - higher-level home profile bundles
-- `modules/packages/flake-module.nix` - overlay, packages, apps, formatter, dev shell
-- `modules/checks/flake-module.nix` - flake checks
-
-Notable exported features include:
+Notable features:
 
 - `common`, `desktop`, `laptop`
 - `role-gaming`, `role-nvidia`
-- `service-networkmanager`, `service-openssh`, `service-fail2ban`, `service-syncthing`
-- `service-wireguard`, a simple hub-and-spoke overlay built on `networking.wireguard` with the networkd backend
-- `service-wg-admin`
+- `service-networkmanager`, `service-openssh`, `service-reaction`, `service-syncthing`
+- `service-llama-cpp`, `service-pi-gateway`
 
-Current higher-level profiles include:
-
-- `profile-desktop-workstation`
-- `profile-laptop-workstation`
-- `profile-server-base`
-- `profile-gaming-nvidia`
-- `profile-base`
-- `profile-host-evo-nixos`
-- `profile-host-pad-nixos`
-- `profile-host-vps-nixos`
+Host definitions in `modules/hosts/` import features directly — no intermediate profile layer.
 
 ### `pkgs/`
 
 Locally maintained package definitions.
 
 - `pkgs/pi` builds the Pi binary under our control
-- `pkgs/pi-gateway` is the generic transport gateway (Signal and future transports)
-- local packages are exported through `overlays.default` and reused everywhere
-- package version/dependency hashes are pinned in this repo
-- see `pkgs/pi/README.md` for the Pi update workflow
+- `pkgs/pi-gateway` is the generic transport gateway (Signal and WhatsApp)
+- `pkgs/pi-web-access` provides the web-search extension
+- `pkgs/llm-wiki` provides the wiki extension
+- packages are exported through `overlays.default` and reused everywhere
 
 ### `service-pi-gateway`
 
@@ -98,7 +70,7 @@ The `modules/features/nixos/service-pi-gateway/` NixOS module manages the pi-gat
 It provides:
 - `services.pi-gateway.enable`
 - `services.pi-gateway.signal.*` — Signal transport config
-- `services.pi-gateway.whatsapp.*` — WhatsApp transport config
+- `services.pi-gateway.whatsapp.*` — WhatsApp transport config (Baileys-based)
 - `services.pi-gateway.maxReplyChars` / `maxReplyChunks`
 - runs as the primary user so it inherits pi auth credentials
 
@@ -125,11 +97,11 @@ services.pi-gateway = {
 
 The Signal transport requires `signal-cli-rest-api` running at `http://127.0.0.1:8080` (configurable).
 
-The WhatsApp transport uses `whatsapp-web.js`, persists auth state under the gateway state directory, and needs Chromium available at runtime.
+The WhatsApp transport uses Baileys and persists auth state under the gateway state directory.
 
 ### Home Manager
 
-Shared Home Manager config for `alex` is now composed from dendritic home features.
+Shared Home Manager config for `alex` is composed from dendritic home features.
 
 - `modules/users/alex.nix` is the shared entrypoint
 - `modules/features/home/*` splits user config by concern
@@ -138,61 +110,23 @@ Shared Home Manager config for `alex` is now composed from dendritic home featur
 
 ### Restored PI runtime capabilities
 
-The Pi runtime now restores several capabilities that previously lived in `NixPI-old`, adapted to the current multi-host repo:
+The Pi runtime includes several capabilities:
 
-- `persona` extension
-  - enforces `guardrails.yaml` for dangerous bash commands
-  - injects persona layers from `Knowledge/pages/projects/nixpi/persona/` into every session
-  - preserves compacted session context across compaction cycles
-  - tracks blueprint state for seeded PI runtime files
-- `os` extension
-  - `system_health`
-  - `nixos_update`
-  - `systemd_control`
-  - `schedule_reboot`
-- `sudo-auth` extension
-  - intercepts `bash` tool calls containing `sudo` and rewrites to `sudo -n`
-  - tracks sudo credential state via `sudo -n true` probes
-  - shows footer status indicator (active/inactive + approximate timer)
-  - prompts user to run `sudo -v` in another session when credentials are needed
-  - adds `/sudo-status`, `/sudo-refresh`, `/sudo-invalidate`
-- `nixpi` extension
-  - `nixpi_status` tool
-  - `nixpi_evolution_note` tool
-  - `/nixpi status`
-  - `/nixpi update-blueprints`
-  - `/nixpi evolution <title>`
-- `subagent` extension
-  - `subagent` tool for isolated helper agents
-  - supports single, parallel, and chain execution
-  - subagents inherit the active Pi model and thinking level by default
-  - supports lightweight scout / planner / worker / reviewer profiles under `~/.pi/agent/agents/`
-- restored PI skills
-  - `os-operations`
-  - `self-evolution`
-  - `provisioning`
-  - `first-boot`
-- persona layers as first-class editable wiki pages under `Knowledge/pages/projects/nixpi/persona/`
-- evolution notes under `Knowledge/pages/projects/nixpi/evolution/`
+- `persona` extension — guardrails, persona layers, session context tracking
+- `os` extension — `system_health`, `nixos_update`, `systemd_control`, `schedule_reboot`
+- `sudo-auth` extension — intercepts sudo, tracks credentials, footer status
+- `nixpi` extension — `nixpi_status`, `nixpi_evolution_note`, `/nixpi status`
+- `subagent` extension — isolated helper agents (scout/planner/worker/reviewer)
+- restored PI skills — `os-operations`, `self-evolution`, `provisioning`, `first-boot`
 
 These runtime files are installed under `~/.pi/agent/` by Home Manager and validated by flake checks plus the dedicated `pi-runtime-smoke` VM test.
 
 ### Synthetic + local llama provider wiring
 
-Pi now seeds a Nix-managed `~/.pi/agent/models.json` for custom providers.
+Pi seeds a Nix-managed `~/.pi/agent/models.json` for custom providers:
 
-Current custom providers:
-
-- `synthetic`
-  - OpenAI-compatible base URL: `https://api.synthetic.new/openai/v1`
-  - authenticated via the shell environment variable `SYNTHETIC_API_KEY`
-- `llama`
-  - local OpenAI-compatible llama.cpp endpoint: `http://127.0.0.1:8080/v1`
-  - uses the standard local placeholder API key `local`
-
-On `evo-nixos`, the local llama endpoint is served by `llama-server-vulkan` and bound to localhost only.
-
-The runtime uses a local Synthetic-only `web_search` extension that routes searches through Synthetic's zero-data-retention `/v2/search` endpoint when `SYNTHETIC_API_KEY` is present in the environment. The separate `pi-web-access` extension is not installed in this profile to avoid `web_search` registration conflicts.
+- `synthetic` — OpenAI-compatible, authenticated via `SYNTHETIC_API_KEY`
+- `llama` — local llama.cpp endpoint on `evo-nixos`
 
 Typical shell setup before launching `pi`:
 
@@ -203,145 +137,27 @@ pi
 
 ### Privileged PI flows
 
-PI stays unprivileged.
-
-Current model:
+PI stays unprivileged:
 
 - read-only inspection tools run directly without sudo
-- privileged mutations use `sudo -n` (non-interactive) after ensuring credentials are available
-  - `bash` commands containing `sudo ...`
-  - `nixos_update apply|rollback`
-  - `systemd_control start|stop|restart`
-  - `schedule_reboot`
-  - `nix_config_proposal apply`
-- common privileged operations (nixos-rebuild, allowed systemctl units) have NOPASSWD sudoers rules
-- for other commands, PI prompts the user to run `sudo -v` in another terminal or SSH session
-- `sudoers` is configured with `timestamp_type=global` so credentials propagate across sessions
-- the `sudo-auth` extension shows a footer timer and provides `/sudo-status`, `/sudo-refresh`, `/sudo-invalidate`
-
-This keeps PI unprivileged, uses one privilege-escalation flow, works on both desktop and VPS, and avoids storing sudo passwords in PI session logs.
+- privileged mutations use `sudo -n` after ensuring credentials are available
+- common operations have NOPASSWD sudoers rules
+- `sudoers` uses `timestamp_type=global` so credentials propagate across sessions
 
 ### `evo-nixos` AI coding CLIs
 
-`evo-nixos` integrates `github:numtide/llm-agents.nix` through the dedicated Home Manager feature `modules/features/home/llm-agents/` and installs these tools for `alex`:
-
-- `claude-code`
-- `codex`
-- `copilot-cli`
-
-They are intended to be used with OAuth/subscription login on this host.
-Host-specific bash wrappers unset API-key/token environment variables before launching them so OAuth takes precedence over token-based auth.
-This is especially relevant for `copilot`, because the shared shell config exports `GITHUB_TOKEN` / `GH_TOKEN` when present.
-
-Typical first-time login flow after rebuild:
-
-```bash
-claude
-codex login
-copilot login
-```
+`evo-nixos` integrates `github:numtide/llm-agents.nix` and installs `claude-code`, `codex`, `copilot-cli`. Bash wrappers unset API-key environment variables so OAuth takes precedence.
 
 ## NixPI helper command
 
-This repo exposes a small helper that runs validate + commit + push in one command:
-
 ```bash
-nix run .#nixpi-vcp
+nix run .#nixpi-vcp              # validate + commit + push
+nix run .#nixpi-vcp -- "message" # with custom commit message
 ```
-
-Optional custom commit message:
-
-```bash
-nix run .#nixpi-vcp -- "Your commit message"
-```
-
-What it does:
-- shows `git status --short`
-- runs `nix flake check`
-- stages all changes with `git add -A`
-- commits with the provided message, or `Update NixPI — YYYY-MM-DD`
-- pushes the current branch
-
-## WireGuard hub-and-spoke overlay
-
-This repo now includes a small WireGuard module for a simple private overlay:
-
-- one host is the **hub**
-- other hosts are **clients/spokes**
-- clients route only the overlay subnet through the hub
-- the hub keeps the peer inventory
-- `vps-nixos` is the canonical hub
-
-Recommended flow:
-
-1. Copy the example file for a host:
-   - `hosts/vps-nixos/wireguard.private.example.nix` for the hub
-   - `hosts/evo-nixos/wireguard.private.example.nix` for a desktop spoke
-   - `hosts/pad-nixos/wireguard.private.example.nix` for a laptop spoke
-2. Save it as `wireguard.private.nix`
-3. Generate the host key on the host itself:
-
-```bash
-sudo install -d -m 700 /var/lib/wireguard
-sudo sh -c 'umask 077 && wg genkey > /var/lib/wireguard/<host>.key'
-sudo wg pubkey < /var/lib/wireguard/<host>.key
-```
-
-4. Put the public key into the hub's peer list and the client's hub config
-5. Rebuild the host
-
-This setup intentionally stays simple:
-
-- no full-tunnel `0.0.0.0/0`
-- no NAT for internet egress
-- no raw full mesh
-- `vps-nixos` is the canonical hub in the current layout
-- SSH can optionally be exposed only on `wg0`
-
-## wg-admin helper
-
-`vps-nixos` also installs `wg-admin`, a small shell-based helper for runtime peer onboarding.
-
-On `vps-nixos` it keeps peer metadata under:
-
-- `/home/alex/.local/state/wg-admin/peers/`
-- generated configs and QR artifacts under `/home/alex/.local/state/wg-admin/generated/`
-- generated Nix peer inventory under `/home/alex/.local/state/wg-admin/nix/peers.nix`
-- shared defaults in `/etc/wg-admin/config.env`
-
-Typical low-level flow:
-
-```bash
-wg-admin list
-wg-admin add iphone-alex
-wg-admin conf iphone-alex
-wg-admin qr iphone-alex
-sudo nixos-rebuild switch --flake ~/Workspace/NixPI#vps-nixos
-```
-
-Higher-level shortcuts:
-
-```bash
-wg-admin onboard-mobile iphone-alex --rebuild
-wg-admin mobile-page iphone-alex
-wg-admin onboard-desktop macbook-alex --rebuild
-wg-admin rebuild
-```
-
-This helper is intentionally conservative but cleaner than manual copy/paste:
-
-- it generates client configs, QR codes, and a tiny static HTML mobile onboarding page quickly
-- it automatically regenerates the dedicated Nix peer inventory file consumed by `hosts/vps-nixos/wireguard.private.nix`
-- you still need to rebuild `vps-nixos` after changes so the WireGuard hub picks them up
-- `wg-admin nix-snippet <name>` still exists for inspection or manual copy when needed
-
-Pi also gets a bundled `wg-admin` extension + skill so the assistant can use the helper directly on hosts where it is installed, including a higher-level `wg_onboard` tool and `/wg-onboard` command.
 
 ## Current conventions
 
 ### Shared user folders
-
-These are the canonical workspace locations:
 
 - `~/Workspace`
 - `~/Workspace/NixPI`
@@ -350,90 +166,38 @@ These are the canonical workspace locations:
 
 ### Syncing
 
-Syncthing currently syncs:
-
-- `~/Workspace/Knowledge`
-
-The infrastructure repo under `~/Workspace/NixPI` is **not** synced with Syncthing.
-Use Git/GitHub for code and infrastructure history.
+Syncthing syncs `~/Workspace/Knowledge`. The infrastructure repo is synced via Git/GitHub.
 
 ## Rebuild
 
-Mini PC:
-
 ```bash
-sudo nixos-rebuild switch --flake ~/Workspace/NixPI#evo-nixos
-```
-
-VPS:
-
-```bash
+nh os switch   # evo-nixos (reads NH_FLAKE automatically)
 sudo nixos-rebuild switch --flake ~/Workspace/NixPI#vps-nixos
-```
-
-Laptop:
-
-```bash
 sudo nixos-rebuild switch --flake ~/Workspace/NixPI#pad-nixos
 ```
 
 ## Quality checks
 
-Format the repo:
-
 ```bash
-nix fmt
-```
-
-Run the flake checks:
-
-```bash
-nix flake check --accept-flake-config
+nix fmt                          # format all Nix files
+nix flake check --accept-flake-config  # run all checks
 ```
 
 ### Current test coverage
 
-The flake checks currently cover:
-
 - formatting for all Nix files
-- `llm-wiki` unit tests and coverage-oriented package checks
-- host contract checks for `evo-nixos`, `pad-nixos`, and `vps-nixos`
-- host build contract checks for all exported NixOS systems
-- gaming/NVIDIA contract checks for the `evo-nixos` profile
-- VM smoke tests for:
-  - `server-base`
-  - `desktop-workstation`
-  - `laptop-workstation`
-  - `wg-admin`
-  - WireGuard hub/client overlay connectivity
+- `llm-wiki` unit tests
+- host contract checks for `evo-nixos`, `pad-nixos`, `vps-nixos`
+- host build contract checks
+- gaming/NVIDIA contract checks
+- VM smoke tests: `server-base`, `desktop-workstation`, `laptop-workstation`, `evo-nixos`, `pad-nixos`, `vps-nixos`, `pi-runtime`
 
-Run an individual smoke test:
+Run individual smoke tests:
 
 ```bash
 nix build .#checks.x86_64-linux.server-base-smoke -L
 nix build .#checks.x86_64-linux.desktop-workstation-smoke -L
-nix build .#checks.x86_64-linux.laptop-workstation-smoke -L
-nix build .#checks.x86_64-linux.host-contracts -L
-nix build .#checks.x86_64-linux.host-build-contracts -L
-nix build .#checks.x86_64-linux.gaming-nvidia-contracts -L
-nix build .#checks.x86_64-linux.wg-admin-basic -L
-nix build .#checks.x86_64-linux.wireguard-hub-client -L
-```
-
-Run the llm-wiki unit + coverage suite only:
-
-```bash
-nix build .#checks.x86_64-linux.llm-wiki-tests
-nix build .#checks.x86_64-linux.llm-wiki-home
-```
-
-Or locally from the repo dev shell:
-
-```bash
-nix develop
-cd pkgs/llm-wiki
-npm test
-npm run test:coverage
+nix build .#checks.x86_64-linux.evo-nixos-smoke -L
 ```
 
 ## Notes
@@ -442,4 +206,3 @@ npm run test:coverage
 - shared user config lives in Home Manager
 - machine-specific overrides should stay small and obvious
 - repo-specific binary cache settings live in `flake.nix` via `nixConfig`
-- this repo is the canonical infrastructure layer inside the `~/Workspace` workspace

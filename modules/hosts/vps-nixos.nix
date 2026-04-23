@@ -20,18 +20,6 @@ in {
           services.openssh.openFirewall = true;
           system.stateVersion = "25.11";
           nixpkgs.config.allowUnfree = true;
-
-          services.wg-admin = {
-            enable = true;
-            stateDir = "${alexHome}/.local/state/wg-admin";
-            user = "alex";
-            group = "users";
-            subnet = "10.77.0.0/24";
-            allowedIPs = ["10.77.0.0/24"];
-            dns = ["10.77.0.1"];
-            ipStart = 30;
-            rebuildFlake = "${alexHome}/Workspace/NixPI#${config.networking.hostName}";
-          };
         })
         ../../hosts/vps-nixos/hardware-configuration.nix
 
@@ -40,9 +28,6 @@ in {
         config.flake.nixosModules.users
         config.flake.nixosModules.service-openssh
         config.flake.nixosModules.service-reaction
-
-        # VPS extras
-        config.flake.nixosModules.service-wg-admin
 
         inputs.home-manager.nixosModules.home-manager
         {

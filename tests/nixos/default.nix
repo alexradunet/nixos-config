@@ -11,42 +11,6 @@
     virtualisation.diskSize = 16384;
   };
 in {
-  wg-admin-basic = pkgs.testers.runNixOSTest {
-    name = "wg-admin-basic";
-
-    nodes.hub = {pkgs, ...}: {
-      imports = [../../modules/features/nixos/service-wg-admin/module.nix];
-
-      services.wg-admin = {
-        enable = true;
-        serverEndpoint = "vpn.example.com:51820";
-        serverPublicKey = "IujkG119YPr2cVQzJkSLYCdjpHIDjvr/qH1w1tdKswY=";
-      };
-
-      environment.systemPackages = [pkgs.jq];
-    };
-
-    testScript = ''
-      start_all()
-      hub.wait_for_unit("multi-user.target")
-
-      with subtest("wg-admin add creates peer metadata and generated artifacts"):
-          hub.succeed("wg-admin add iphone-alex")
-          hub.succeed("test -f /var/lib/wg-admin/peers/iphone-alex.env")
-          hub.succeed("test -f /var/lib/wg-admin/generated/iphone-alex.conf")
-          hub.succeed("grep -F 'Address = 10.77.0.30/32' /var/lib/wg-admin/generated/iphone-alex.conf")
-          hub.succeed("grep -F 'name = \"iphone-alex\";' /var/lib/wg-admin/nix/peers.nix")
-
-      with subtest("qr png and mobile share page are generated"):
-          hub.succeed("test -n \"$(wg-admin qr iphone-alex --png)\"")
-          hub.succeed("page=$(wg-admin mobile-page iphone-alex); test -f \"$page\"; grep -F 'WireGuard onboarding: iphone-alex' \"$page\"")
-
-      with subtest("sync-nix keeps the generated Nix inventory readable"):
-          hub.succeed("wg-admin sync-nix >/tmp/peers-path")
-          hub.succeed("test -f \"$(cat /tmp/peers-path)\"")
-    '';
-  };
-
   server-base-smoke = pkgs.testers.runNixOSTest {
     name = "server-base-smoke";
 
@@ -283,21 +247,9 @@ in {
         config.flake.nixosModules.users
         config.flake.nixosModules.service-openssh
         config.flake.nixosModules.service-reaction
-        config.flake.nixosModules.service-wg-admin
         inputs.home-manager.nixosModules.home-manager
         {
           services.openssh.openFirewall = true;
-          services.wg-admin = {
-            enable = true;
-            stateDir = "/home/alex/.local/state/wg-admin";
-            user = "alex";
-            group = "users";
-            subnet = "10.77.0.0/24";
-            allowedIPs = ["10.77.0.0/24"];
-            dns = ["10.77.0.1"];
-            ipStart = 30;
-            rebuildFlake = "/home/alex/Workspace/NixPI#vps-nixos";
-          };
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
           home-manager.backupFileExtension = "hm-backup";
@@ -319,13 +271,8 @@ in {
       machine.wait_for_unit("multi-user.target")
       machine.wait_for_unit("sshd.service")
 
-      with subtest("vps host enables server and wg-admin stack"):
+      with subtest("vps host enables server stack"):
           machine.succeed("systemctl is-active sshd.service")
-          machine.succeed("command -v wg-admin >/dev/null")
-          machine.succeed("test -f /etc/wg-admin/config.env")
-          machine.succeed("grep -F 'WG_ADMIN_HOME=' /etc/wg-admin/config.env >/dev/null")
-          machine.succeed("grep -F 'WG_ADMIN_SUBNET=' /etc/wg-admin/config.env >/dev/null")
-          machine.succeed("grep -F 'WG_ADMIN_NIX_PEERS_FILE=' /etc/wg-admin/config.env >/dev/null")
 
       with subtest("vps host keeps reaction and user setup active"):
           machine.succeed("systemctl is-active reaction.service")
