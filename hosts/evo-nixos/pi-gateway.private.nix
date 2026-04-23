@@ -13,7 +13,6 @@
       trustedNumbers = [ "+40724417990" ];
       adminNumbers = [ "+40724417990" ];
       directMessagesOnly = true;
-      headless = true;
     };
   };
 }

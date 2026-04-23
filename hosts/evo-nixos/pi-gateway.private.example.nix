@@ -29,11 +29,6 @@
       ];
 
       directMessagesOnly = true;
-      headless = true;
-
-      # Defaults are already sensible, but you can override them here if needed.
-      # sessionDataPath = "/var/lib/nixpi-gateway/whatsapp/auth";
-      # chromiumExecutablePath = "/run/current-system/sw/bin/chromium";
     };
   };
 }

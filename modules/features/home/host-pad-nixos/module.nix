@@ -1,11 +1,4 @@
 {lib, ...}: {
-  programs.bash.shellAliases = {
-    rb = "nh os switch";
-    rbb = "nh os boot";
-    rbt = "nh os test";
-    host = "echo pad-nixos";
-  };
-
   programs.wezterm.extraConfig = lib.mkAfter ''
     config.ssh_domains = config.ssh_domains or {}
     table.insert(config.ssh_domains, {

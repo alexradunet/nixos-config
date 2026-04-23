@@ -34,9 +34,7 @@
           type = "ip";
           # Never ban loopback or WireGuard overlay peers.
           ignore = ["127.0.0.1" "::1"];
-          ignorecidr =
-            lib.optional ((config.networking ? wireguardHubAndSpoke) && config.networking.wireguardHubAndSpoke.enable)
-            config.networking.wireguardHubAndSpoke.subnet;
+          ignorecidr = [];
         };
       };
 

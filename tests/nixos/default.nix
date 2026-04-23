@@ -4,30 +4,6 @@
   config,
   inputs,
 }: let
-  snakeoilKeys = {
-    hub = {
-      privateKey = "OPuVRS2T0/AtHDp3PXkNuLQYDiqJaBEEnYe42BSnJnQ=";
-      publicKey = "IujkG119YPr2cVQzJkSLYCdjpHIDjvr/qH1w1tdKswY=";
-    };
-
-    client = {
-      privateKey = "uO8JVo/sanx2DOM0L9GUEtzKZ82RGkRnYgpaYc7iXmg=";
-      publicKey = "Ks9yRJIi/0vYgRmn14mIOQRwkcUGBujYINbMpik2SBI=";
-    };
-  };
-
-  mkBaseNode = ip: {
-    virtualisation.vlans = [1];
-    networking.useDHCP = lib.mkForce false;
-    networking.useNetworkd = lib.mkForce true;
-    networking.interfaces.eth1.ipv4.addresses = [
-      {
-        address = ip;
-        prefixLength = 24;
-      }
-    ];
-  };
-
   mkVmHostBase = hostName: {
     networking.hostName = hostName;
     system.stateVersion = "25.11";
@@ -44,7 +20,7 @@ in {
       services.wg-admin = {
         enable = true;
         serverEndpoint = "vpn.example.com:51820";
-        serverPublicKey = snakeoilKeys.hub.publicKey;
+        serverPublicKey = "IujkG119YPr2cVQzJkSLYCdjpHIDjvr/qH1w1tdKswY=";
       };
 
       environment.systemPackages = [pkgs.jq];
@@ -198,7 +174,6 @@ in {
         config.flake.nixosModules.users
         config.flake.nixosModules.host-efi-systemd-boot
         config.flake.nixosModules.service-networkmanager
-        config.flake.nixosModules.service-wireguard
         config.flake.nixosModules.service-openssh
         config.flake.nixosModules.service-reaction
         config.flake.nixosModules.service-syncthing
@@ -254,7 +229,6 @@ in {
         config.flake.nixosModules.users
         config.flake.nixosModules.host-efi-systemd-boot
         config.flake.nixosModules.service-networkmanager
-        config.flake.nixosModules.service-wireguard
         config.flake.nixosModules.service-openssh
         config.flake.nixosModules.service-reaction
         config.flake.nixosModules.service-syncthing
@@ -301,7 +275,6 @@ in {
         config.flake.nixosModules.users
         config.flake.nixosModules.service-openssh
         config.flake.nixosModules.service-reaction
-        config.flake.nixosModules.service-wireguard
         config.flake.nixosModules.service-wg-admin
         inputs.home-manager.nixosModules.home-manager
         {
@@ -346,80 +319,6 @@ in {
           machine.succeed("systemctl is-active reaction.service")
           machine.succeed("id alex")
           machine.succeed("getent passwd alex | cut -d: -f7 | grep -F 'bash'")
-    '';
-  };
-
-  wireguard-hub-client = pkgs.testers.runNixOSTest {
-    name = "wireguard-hub-client";
-
-    nodes = {
-      hub = {pkgs, ...}:
-        (mkBaseNode "192.168.1.1")
-        // {
-          imports = [../../modules/features/nixos/service-wireguard/module.nix];
-
-          networking.wireguardHubAndSpoke = {
-            enable = true;
-            role = "hub";
-            address = "10.77.0.1/24";
-            subnet = "10.77.0.0/24";
-            privateKeyFile = toString (pkgs.writeText "wg-hub-private-key" snakeoilKeys.hub.privateKey);
-            listenPort = 51820;
-            openFirewall = true;
-            hubPeers = [
-              {
-                name = "client";
-                publicKey = snakeoilKeys.client.publicKey;
-                ip = "10.77.0.10";
-              }
-            ];
-          };
-        };
-
-      client = {pkgs, ...}:
-        (mkBaseNode "192.168.1.2")
-        // {
-          imports = [../../modules/features/nixos/service-wireguard/module.nix];
-
-          networking.wireguardHubAndSpoke = {
-            enable = true;
-            role = "client";
-            address = "10.77.0.10/32";
-            subnet = "10.77.0.0/24";
-            privateKeyFile = toString (pkgs.writeText "wg-client-private-key" snakeoilKeys.client.privateKey);
-            client = {
-              publicKey = snakeoilKeys.hub.publicKey;
-              endpoint = "192.168.1.2:51820";
-              allowedIPs = ["10.77.0.0/24"];
-              persistentKeepalive = 25;
-            };
-          };
-        };
-    };
-
-    testScript = ''
-      start_all()
-      hub.wait_for_unit("multi-user.target")
-      client.wait_for_unit("multi-user.target")
-
-      with subtest("underlay network is reachable"):
-          client.succeed("ping -c 3 192.168.1.2")
-          hub.succeed("ping -c 3 192.168.1.1")
-
-      with subtest("wireguard interfaces are configured"):
-          hub.wait_until_succeeds("ip addr show dev wg0 | grep -F '10.77.0.1/24'")
-          client.wait_until_succeeds("ip addr show dev wg0 | grep -F '10.77.0.10/32'")
-          hub.succeed("wg show wg0 | grep -F '${snakeoilKeys.client.publicKey}'")
-          client.succeed("wg show wg0 | grep -F '${snakeoilKeys.hub.publicKey}'")
-
-      with subtest("handshake is established"):
-          client.wait_until_succeeds("ping -c 1 -W 1 10.77.0.1")
-          client.wait_until_succeeds("wg show wg0 latest-handshakes | awk '{print $2}' | grep -v '^0$'")
-          hub.wait_until_succeeds("wg show wg0 latest-handshakes | awk '{print $2}' | grep -v '^0$'")
-
-      with subtest("overlay connectivity works both directions"):
-          client.succeed("ping -c 3 10.77.0.1")
-          hub.succeed("ping -c 3 10.77.0.10")
     '';
   };
 

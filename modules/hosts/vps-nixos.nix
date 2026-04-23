@@ -1,18 +1,9 @@
 {
   config,
   inputs,
-  lib,
   ...
 }: let
   flakeConfig = config;
-  wireguardPrivate = ../../hosts/vps-nixos/wireguard.private.nix;
-  hasWireguardPrivate = builtins.pathExists wireguardPrivate;
-  wgModule =
-    if hasWireguardPrivate
-    then {imports = [wireguardPrivate];}
-    else {
-      networking.wireguardHubAndSpoke.enable = lib.mkDefault false;
-    };
 in {
   flake.nixosConfigurations.vps-nixos = inputs.nixpkgs.lib.nixosSystem {
     system = "x86_64-linux";
@@ -20,7 +11,6 @@ in {
       [
         ({
           config,
-          pkgs,
           ...
         }: let
           alexHome = config.users.users.alex.home;
@@ -45,7 +35,6 @@ in {
         ../../hosts/vps-nixos/hardware-configuration.nix
         config.flake.nixosModules.profile-server-base
         config.flake.nixosModules.service-wg-admin
-        wgModule
         inputs.home-manager.nixosModules.home-manager
         {
           home-manager.useGlobalPkgs = true;

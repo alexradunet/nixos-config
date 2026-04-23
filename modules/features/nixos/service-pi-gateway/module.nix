@@ -38,8 +38,6 @@
             adminNumbers = cfg.whatsapp.adminNumbers;
             directMessagesOnly = cfg.whatsapp.directMessagesOnly;
             sessionDataPath = cfg.whatsapp.sessionDataPath;
-            chromiumExecutablePath = cfg.whatsapp.chromiumExecutablePath;
-            headless = cfg.whatsapp.headless;
           };
         };
     }
@@ -156,17 +154,7 @@ in {
         description = "Directory used by the WhatsApp transport to persist Baileys auth state and QR artifacts.";
       };
 
-      chromiumExecutablePath = lib.mkOption {
-        type = lib.types.str;
-        default = "${pkgs.chromium}/bin/chromium";
-        description = "Legacy browser executable option from the previous whatsapp-web.js transport; ignored by Baileys.";
-      };
 
-      headless = lib.mkOption {
-        type = lib.types.bool;
-        default = true;
-        description = "Legacy headless browser option from the previous whatsapp-web.js transport; ignored by Baileys.";
-      };
     };
   };
 
@@ -209,43 +197,17 @@ in {
         user = cfg.user;
         group = cfg.group;
       };
-      "${cfg.stateDir}/whatsapp/cache".d = {
-        mode = "0750";
-        user = cfg.user;
-        group = cfg.group;
-      };
-      "${cfg.stateDir}/whatsapp/browser".d = {
-        mode = "0750";
-        user = cfg.user;
-        group = cfg.group;
-      };
-      "${cfg.stateDir}/xdg".d = {
-        mode = "0750";
-        user = cfg.user;
-        group = cfg.group;
-      };
-      "${cfg.stateDir}/xdg/config".d = {
-        mode = "0750";
-        user = cfg.user;
-        group = cfg.group;
-      };
-      "${cfg.stateDir}/xdg/cache".d = {
-        mode = "0750";
-        user = cfg.user;
-        group = cfg.group;
-      };
     };
 
     systemd.services.nixpi-gateway = {
       description = "NixPI generic transport gateway";
       after = ["network.target"];
       wantedBy = ["multi-user.target"];
-      path = lib.optionals cfg.whatsapp.enable [pkgs.chromium] ++ [pkgs.pi];
+      path = [pkgs.pi];
       environment = lib.optionalAttrs cfg.whatsapp.enable {
         HOME = "/home/${cfg.user}";
         XDG_CONFIG_HOME = "${cfg.stateDir}/xdg/config";
         XDG_CACHE_HOME = "${cfg.stateDir}/xdg/cache";
-        PUPPETEER_EXECUTABLE_PATH = cfg.whatsapp.chromiumExecutablePath;
       };
 
       serviceConfig = {
