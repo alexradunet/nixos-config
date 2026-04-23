@@ -212,6 +212,31 @@ export interface CaptureDetails {
 	status: "captured";
 }
 
+export interface PreparedSource {
+	sourceId: string;
+	title: string;
+	kind: string;
+	status: SourceManifest["status"];
+	capturedAt: string;
+	integratedAt?: string;
+	packetDir: string;
+	manifestPath: string;
+	extractedPath: string;
+	sourcePagePath: string;
+	sourcePageExists: boolean;
+}
+
+export interface IngestPrepareDetails {
+	count: number;
+	sources: PreparedSource[];
+}
+
+export interface IngestFinalizeDetails {
+	integratedAt: string;
+	finalized: string[];
+	skipped: Array<{ sourceId: string; reason: string }>;
+}
+
 export interface EnsurePageConflictDetails {
 	resolved: false;
 	created: false;

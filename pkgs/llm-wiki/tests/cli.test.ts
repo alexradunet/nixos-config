@@ -1,4 +1,4 @@
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -75,5 +75,69 @@ describe("llm-wiki CLI", () => {
     expect(payload.ok).toBe(true);
     expect(payload.details.matches[0]?.title).toBe("Portable CLI Runtime");
     expect(payload.details.matches[0]?.domain).toBe("technical");
+  });
+
+  it("can prepare and finalize captured sources", () => {
+    const wikiRoot = mkdtempSync(path.join(os.tmpdir(), "llm-wiki-cli-ingest-"));
+
+    const capture = runCli([
+      "--json",
+      "--wiki-root",
+      wikiRoot,
+      "capture",
+      "text",
+      "captured source body",
+      "--title",
+      "Captured Source",
+      "--domain",
+      "technical",
+    ], path.resolve("extension"));
+
+    expect(capture.status).toBe(0);
+
+    const prepare = runCli([
+      "--json",
+      "--wiki-root",
+      wikiRoot,
+      "ingest",
+      "prepare",
+      "--status",
+      "captured",
+    ], path.resolve("extension"));
+
+    expect(prepare.status).toBe(0);
+    const prepared = JSON.parse(prepare.stdout) as {
+      ok: boolean;
+      details: { count: number; sources: Array<{ sourceId: string; status: string }> };
+    };
+    expect(prepared.ok).toBe(true);
+    expect(prepared.details.count).toBe(1);
+    expect(prepared.details.sources[0]?.status).toBe("captured");
+
+    const sourceId = prepared.details.sources[0]?.sourceId;
+    expect(sourceId).toBeTruthy();
+
+    const finalize = runCli([
+      "--json",
+      "--wiki-root",
+      wikiRoot,
+      "ingest",
+      "finalize",
+      "--source-id",
+      sourceId as string,
+    ], path.resolve("extension"));
+
+    expect(finalize.status).toBe(0);
+    const finalized = JSON.parse(finalize.stdout) as {
+      ok: boolean;
+      details: { finalized: string[] };
+    };
+    expect(finalized.ok).toBe(true);
+    expect(finalized.details.finalized).toEqual([sourceId]);
+
+    const manifest = JSON.parse(readFileSync(path.join(wikiRoot, "raw", sourceId as string, "manifest.json"), "utf8")) as {
+      status: string;
+    };
+    expect(manifest.status).toBe("integrated");
   });
 });

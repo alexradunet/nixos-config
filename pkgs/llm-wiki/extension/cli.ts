@@ -2,6 +2,7 @@
 
 import { parseArgs } from "node:util";
 import { captureFile, captureText } from "./actions-capture.ts";
+import { handleIngestFinalize, handleIngestPrepare } from "./actions-ingest.ts";
 import { handleWikiLint } from "./actions-lint.ts";
 import { handleEnsurePage } from "./actions-pages.ts";
 import { handleWikiSearch } from "./actions-search.ts";
@@ -143,6 +144,8 @@ function help(): string {
 		"  ensure-page --type <type> --title <title> [--object-type <kind>] [--aliases <csv>] [--tags <csv>] [--hosts <csv>] [--domain <domain>] [--areas <csv>] [--folder <path>] [--summary <text>]",
 		"  capture text <text> [--title <title>] [--kind <kind>] [--tags <csv>] [--hosts <csv>] [--domain <domain>] [--areas <csv>]",
 		"  capture file <absolute-path> [--title <title>] [--kind <kind>] [--tags <csv>] [--hosts <csv>] [--domain <domain>] [--areas <csv>]",
+		"  ingest prepare [--status captured|integrated|superseded] [--limit <n>]",
+		"  ingest finalize (--source-id <id> ... | --all)",
 		"  lint [--mode <mode>]",
 		"  rebuild",
 	].join("\n");
@@ -154,7 +157,7 @@ function describePayload(wikiRoot: string) {
 		version: "0.1.0",
 		wikiRoot,
 		designRule: "deterministic scoping, probabilistic reasoning",
-		commands: ["describe", "status", "search", "ensure-page", "capture", "lint", "rebuild"],
+		commands: ["describe", "status", "search", "ensure-page", "capture", "ingest", "lint", "rebuild"],
 		env: [
 			"PI_LLM_WIKI_DIR",
 			"PI_LLM_WIKI_HOST",
@@ -320,6 +323,43 @@ async function main() {
 		}
 
 		fail("capture requires a mode: text | file", options.json);
+	}
+
+	if (command === "ingest") {
+		const mode = commandArgs[0];
+		if (mode === "prepare") {
+			const parsed = parseArgs({
+				args: commandArgs.slice(1),
+				allowPositionals: false,
+				strict: true,
+				options: {
+					status: { type: "string" },
+					limit: { type: "string" },
+				},
+			});
+			finishResult(handleIngestPrepare(wikiRoot, {
+				status: parsed.values.status as "captured" | "integrated" | "superseded" | undefined,
+				limit: parsed.values.limit ? Number.parseInt(parsed.values.limit, 10) : undefined,
+			}), options.json);
+		}
+
+		if (mode === "finalize") {
+			const parsed = parseArgs({
+				args: commandArgs.slice(1),
+				allowPositionals: false,
+				strict: true,
+				options: {
+					"source-id": { type: "string", multiple: true },
+					all: { type: "boolean" },
+				},
+			});
+			finishMutationResult(wikiRoot, handleIngestFinalize(wikiRoot, {
+				sourceIds: parsed.values["source-id"],
+				all: parsed.values.all,
+			}), options.json);
+		}
+
+		fail("ingest requires a mode: prepare | finalize", options.json);
 	}
 
 	if (command === "lint") {

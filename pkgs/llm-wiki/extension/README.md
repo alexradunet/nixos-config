@@ -19,6 +19,8 @@ It also ships a portable CLI entrypoint:
 - `llm-wiki ensure-page ...`
 - `llm-wiki capture text ...`
 - `llm-wiki capture file ...`
+- `llm-wiki ingest prepare ...`
+- `llm-wiki ingest finalize ...`
 - `llm-wiki lint ...`
 - `llm-wiki rebuild`
 
