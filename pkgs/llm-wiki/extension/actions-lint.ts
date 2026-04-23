@@ -254,7 +254,7 @@ function lintFrontmatter(pages: ReturnType<typeof scanPages>): LintIssue[] {
 			pushFrontmatterIssue(issues, page.relativePath, `Invalid domain: ${String(domain)}`);
 		}
 
-		for (const field of ["aliases", "tags", "hosts", "areas", "source_ids", ...RELATION_FIELDS] as const) {
+		for (const field of ["aliases", "tags", "hosts", "areas", "source_ids", "integration_targets", ...RELATION_FIELDS] as const) {
 			const value = page.frontmatter[field];
 			if (value !== undefined && !isStringArray(value)) {
 				pushFrontmatterIssue(issues, page.relativePath, `Field ${field} must be an array of strings.`);
@@ -281,6 +281,20 @@ function lintFrontmatter(pages: ReturnType<typeof scanPages>): LintIssue[] {
 			const originValue = page.frontmatter.origin_value;
 			if (originValue !== undefined && !isNonEmptyString(originValue)) {
 				pushFrontmatterIssue(issues, page.relativePath, "Field origin_value must be a non-empty string.");
+			}
+			if (status === "integrated") {
+				const integratedAt = page.frontmatter.integrated_at;
+				if (integratedAt !== undefined && !isNonEmptyString(integratedAt)) {
+					pushFrontmatterIssue(issues, page.relativePath, "Field integrated_at must be a non-empty string.");
+				}
+				const summary = page.frontmatter.summary;
+				if (!isNonEmptyString(summary)) {
+					pushFrontmatterIssue(issues, page.relativePath, "Integrated sources require a non-empty summary.");
+				}
+				const targets = page.frontmatter.integration_targets;
+				if (!Array.isArray(targets) || targets.length === 0) {
+					pushFrontmatterIssue(issues, page.relativePath, "Integrated sources require integration_targets.");
+				}
 			}
 			continue;
 		}
@@ -364,18 +378,65 @@ function lintDuplicates(registry: RegistryData): LintIssue[] {
 	return issues;
 }
 
-function lintCoverage(registry: RegistryData, backlinks: BacklinksData): LintIssue[] {
+function lintCoverage(pages: ReturnType<typeof scanPages>, registry: RegistryData, _backlinks: BacklinksData): LintIssue[] {
 	const issues: LintIssue[] = [];
+	const pageByPath = new Map(pages.map((page) => [page.relativePath, page]));
 	for (const page of registry.pages) {
 		if (page.type === "source") {
-			const inbound = backlinks.byPath[page.path]?.inbound ?? [];
-			if (inbound.filter((pathValue) => !pathValue.includes("/sources/")).length === 0) {
+			const sourceId = page.sourceIds[0];
+			const citingPages = sourceId
+				? registry.pages.filter((entry) => entry.type !== "source" && entry.sourceIds.includes(sourceId))
+				: [];
+			if (citingPages.length === 0) {
 				issues.push({
 					kind: "coverage",
 					severity: "info",
 					path: page.path,
-					message: "Source not cited by any canonical page.",
+					message: "Source not cited by any canonical page via source_ids.",
 				});
+			}
+
+			const sourcePage = pageByPath.get(page.path);
+			const status = sourcePage?.frontmatter.status;
+			const integrationTargets = Array.isArray(sourcePage?.frontmatter.integration_targets)
+				? sourcePage?.frontmatter.integration_targets.filter((value): value is string => typeof value === "string" && value.trim() !== "")
+				: [];
+			if (status === "integrated") {
+				for (const rawTarget of integrationTargets) {
+					const normalizedTarget = rawTarget.trim().replace(/\\/g, "/").replace(/^\/+/, "");
+					const targetPath = normalizedTarget.startsWith("pages/")
+						? normalizedTarget
+						: normalizedTarget.endsWith(".md")
+							? `pages/${normalizedTarget}`
+							: `pages/${normalizedTarget}.md`;
+					const targetPage = registry.pages.find((entry) => entry.path === targetPath);
+					if (!targetPage) {
+						issues.push({
+							kind: "coverage",
+							severity: "warning",
+							path: page.path,
+							message: `integration target missing: ${rawTarget}`,
+						});
+						continue;
+					}
+					if (targetPage.type === "source") {
+						issues.push({
+							kind: "coverage",
+							severity: "warning",
+							path: page.path,
+							message: `integration target cannot be a source page: ${rawTarget}`,
+						});
+						continue;
+					}
+					if (sourceId && !targetPage.sourceIds.includes(sourceId)) {
+						issues.push({
+							kind: "coverage",
+							severity: "warning",
+							path: page.path,
+							message: `integration target missing source_ids reference: ${targetPath}`,
+						});
+					}
+				}
 			}
 			continue;
 		}
@@ -643,7 +704,7 @@ const LINT_CHECKS: Record<
 	orphans: (_pages, registry, backlinks) => lintOrphans(registry, backlinks),
 	frontmatter: (pages) => lintFrontmatter(pages),
 	duplicates: (_pages, registry) => lintDuplicates(registry),
-	coverage: (_pages, registry, backlinks) => lintCoverage(registry, backlinks),
+	coverage: (pages, registry, backlinks) => lintCoverage(pages, registry, backlinks),
 	staleness: (_pages, registry) => lintStaleness(registry),
 	"stale-reviews": (_pages, registry) => lintStaleReviews(registry),
 	"empty-summary": (_pages, registry) => lintEmptySummary(registry),

@@ -43,6 +43,7 @@
 
   # ── Local llama models — set per-host via pi.llamaModels ─────────────────
   llamaModels = config.pi.llamaModels;
+  packageSources = config.pi.packageSources;
 
   # Build enabled model IDs for PI settings.json.
   syntheticModelIds = [
@@ -155,6 +156,7 @@
     defaultProvider = "synthetic";
     defaultModel = "hf:zai-org/GLM-5.1";
     enabledModels = syntheticModelIds ++ llamaModelIds;
+    packages = packageSources;
     mcpServers = {
       qmd = {
         command = "qmd";
@@ -281,7 +283,8 @@ in {
       chmod 0600 "$settings_path"
     else
       # Existing settings — merge declarative fields, preserving user prefs
-      # like keybindings, hideThinkingBlock, etc.
+      # like keybindings, hideThinkingBlock, etc. Package sources remain
+      # declarative so PI extension installs can be pinned from Nix config.
       ${pkgs.jq}/bin/jq -n \
         --slurpfile decl ${piSettingsJson} \
         --slurpfile cur "$settings_path" \
@@ -290,6 +293,7 @@ in {
            enabledModels: $d.enabledModels,
            defaultProvider: $d.defaultProvider,
            defaultModel: $d.defaultModel,
+           packages: $d.packages,
            mcpServers: ($c.mcpServers // {} | . + $d.mcpServers)
          }' \
         > "$settings_path.tmp" && mv "$settings_path.tmp" "$settings_path"

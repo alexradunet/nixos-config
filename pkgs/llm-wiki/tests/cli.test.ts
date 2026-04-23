@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -108,14 +108,61 @@ describe("llm-wiki CLI", () => {
     expect(prepare.status).toBe(0);
     const prepared = JSON.parse(prepare.stdout) as {
       ok: boolean;
-      details: { count: number; sources: Array<{ sourceId: string; status: string }> };
+      details: { count: number; sources: Array<{ sourceId: string; status: string; ready: boolean; blockers: string[] }> };
     };
     expect(prepared.ok).toBe(true);
     expect(prepared.details.count).toBe(1);
     expect(prepared.details.sources[0]?.status).toBe("captured");
+    expect(prepared.details.sources[0]?.ready).toBe(false);
+    expect(prepared.details.sources[0]?.blockers).toContain("empty-summary");
 
     const sourceId = prepared.details.sources[0]?.sourceId;
     expect(sourceId).toBeTruthy();
+
+    const blockedFinalize = runCli([
+      "--json",
+      "--wiki-root",
+      wikiRoot,
+      "ingest",
+      "finalize",
+      "--source-id",
+      sourceId as string,
+    ], path.resolve("extension"));
+    expect(blockedFinalize.status).toBe(0);
+
+    const ensure = runCli([
+      "--json",
+      "--wiki-root",
+      wikiRoot,
+      "ensure-page",
+      "--type",
+      "concept",
+      "--title",
+      "Portable CLI Runtime",
+      "--domain",
+      "technical",
+      "--summary",
+      "Target page for integration.",
+    ], path.resolve("extension"));
+    expect(ensure.status).toBe(0);
+    const ensured = JSON.parse(ensure.stdout) as { details: { path: string } };
+    const targetPath = ensured.details.path;
+
+    const targetAbsPath = path.join(wikiRoot, targetPath);
+    writeFileSync(
+      targetAbsPath,
+      readFileSync(targetAbsPath, "utf8").replace("source_ids: []", `source_ids:\n  - ${sourceId}`),
+      "utf8",
+    );
+
+    const sourcePagePath = path.join(wikiRoot, "pages", "sources", `${sourceId}.md`);
+    writeFileSync(
+      sourcePagePath,
+      readFileSync(sourcePagePath, "utf8")
+        .replace("integration_targets: []", `integration_targets:\n  - ${targetPath}`)
+        .replace("summary: ''", "summary: Captured Source supports Portable CLI Runtime."),
+      "utf8",
+    );
 
     const finalize = runCli([
       "--json",

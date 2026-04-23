@@ -1,4 +1,8 @@
 {config, ...}: {
+  pi.packageSources = [
+    "git:github.com/NixPI-Dev/NixPI-Caveman-Lite@v0.1.0"
+  ];
+
   # ── Local llama models available on this host ────────────────────────────
   pi.llamaModels = [
     {

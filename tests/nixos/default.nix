@@ -339,6 +339,7 @@ in {
           machine.wait_until_succeeds("test -f /home/alex/.pi/agent/prompts/wiki.md")
           machine.wait_until_succeeds("test -f /home/alex/.pi/agent/settings.json")
           machine.wait_until_succeeds("grep -F '\"qmd\"' /home/alex/.pi/agent/settings.json")
+          machine.wait_until_succeeds("grep -F 'NixPI-Caveman-Lite' /home/alex/.pi/agent/settings.json")
           machine.wait_until_succeeds("test -f /home/alex/.pi/agent/models.json")
           machine.wait_until_succeeds("grep -F '\"providers\"' /home/alex/.pi/agent/models.json")
           machine.wait_until_succeeds("test -f /home/alex/.pi/agent/agents/scout.md")

@@ -507,9 +507,33 @@ tags: []
 hosts: []
 areas: []
 source_ids: nope
+integration_targets: nope
 summary: Broken source page
 ---
 # Broken Source
+`,
+      "utf8",
+    );
+    writeFileSync(
+      path.join(wikiRoot, "pages", "sources", "src-2.md"),
+      `---
+type: source
+source_id: SRC-2026-04-19-002
+title: Integrated Source
+status: integrated
+captured_at: 2026-04-19T00:00:00Z
+origin_type: text
+origin_value: (inline)
+aliases: []
+tags: []
+hosts: []
+areas: []
+source_ids:
+  - SRC-2026-04-19-002
+integration_targets: []
+summary: ''
+---
+# Integrated Source
 `,
       "utf8",
     );
@@ -524,6 +548,9 @@ summary: Broken source page
       expect(messages).toContain("Invalid origin_type: clipboard");
       expect(messages).toContain("Field origin_value must be a non-empty string.");
       expect(messages).toContain("Field source_ids must be an array of strings.");
+      expect(messages).toContain("Field integration_targets must be an array of strings.");
+      expect(messages).toContain("Integrated sources require a non-empty summary.");
+      expect(messages).toContain("Integrated sources require integration_targets.");
     }
   });
 
@@ -652,6 +679,62 @@ See [[resources/technical/system-landscape#Missing Heading]].
     }
   });
 
+  it("handleWikiLint reports integration target provenance mismatches", () => {
+    mkdirSync(path.join(wikiRoot, "pages", "sources"), { recursive: true });
+    mkdirSync(path.join(wikiRoot, "pages", "resources", "technical"), { recursive: true });
+    writeFileSync(
+      path.join(wikiRoot, "pages", "sources", "SRC-2026-04-19-001.md"),
+      `---
+type: source
+source_id: SRC-2026-04-19-001
+title: Integrated Source
+status: integrated
+captured_at: 2026-04-19T00:00:00Z
+integrated_at: 2026-04-19T01:00:00Z
+origin_type: text
+origin_value: (inline)
+aliases: []
+tags: []
+hosts: []
+areas: []
+source_ids:
+  - SRC-2026-04-19-001
+integration_targets:
+  - pages/resources/technical/portable-cli-runtime.md
+summary: Integrated source summary
+---
+# Integrated Source
+`,
+      "utf8",
+    );
+    writeFileSync(
+      path.join(wikiRoot, "pages", "resources", "technical", "portable-cli-runtime.md"),
+      `---
+type: concept
+title: Portable CLI Runtime
+domain: technical
+aliases: []
+tags: []
+hosts: []
+areas: [wiki]
+status: active
+updated: 2026-04-19
+source_ids: []
+summary: Target page
+---
+# Portable CLI Runtime
+`,
+      "utf8",
+    );
+
+    const result = handleWikiLint(wikiRoot, "coverage");
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      const messages = result.value.details?.issues.map((issue) => issue.message) ?? [];
+      expect(messages).toContain("integration target missing source_ids reference: pages/resources/technical/portable-cli-runtime.md");
+    }
+  });
+
   it("handleWikiLint reports duplicates, orphans, uncited sources, and staleness", () => {
     mkdirSync(path.join(wikiRoot, "pages", "resources", "technical"), { recursive: true });
     mkdirSync(path.join(wikiRoot, "pages", "areas", "technical"), { recursive: true });
@@ -745,7 +828,7 @@ See [[sources/src-a]].
       const issues = result.value.details?.issues ?? [];
       expect(issues.some((issue) => issue.kind === "duplicate")).toBe(true);
       expect(issues.some((issue) => issue.kind === "orphan")).toBe(true);
-      expect(issues.some((issue) => issue.kind === "coverage" && issue.message === "Source not cited by any canonical page.")).toBe(true);
+      expect(issues.some((issue) => issue.kind === "coverage" && issue.message === "Source not cited by any canonical page via source_ids.")).toBe(true);
       expect(issues.some((issue) => issue.kind === "staleness" && issue.path === "pages/sources/src-a.md")).toBe(true);
       expect(result.value.details?.counts.duplicates).toBeGreaterThan(0);
       expect(result.value.details?.counts.orphans).toBeGreaterThan(0);

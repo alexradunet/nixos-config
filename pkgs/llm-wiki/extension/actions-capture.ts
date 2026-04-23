@@ -50,7 +50,9 @@ function scaffoldSourcePage(
 		hosts,
 		...(domain ? { domain } : {}),
 		areas,
+		validation_level: "seed",
 		source_ids: [sourceId],
+		integration_targets: [],
 		summary: "",
 	};
 	const body = [

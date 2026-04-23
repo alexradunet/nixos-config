@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { appendEvent } from "./actions-meta.ts";
+import { appendEvent, buildRegistry, scanPages } from "./actions-meta.ts";
 import { atomicWriteFile } from "./lib/filesystem.ts";
 import { parseFrontmatter, stringifyFrontmatter } from "./lib/frontmatter.ts";
 import { err, nowIso, ok } from "./lib/core-utils.ts";
@@ -37,6 +37,60 @@ function readManifest(filePath: string): SourceManifest | undefined {
 	}
 }
 
+function normalizeIntegrationTarget(value: string): string {
+	const normalized = value.trim().replace(/\\/g, "/").replace(/^\/+/, "");
+	if (!normalized) return normalized;
+	if (normalized.startsWith("pages/")) return normalized;
+	return normalized.endsWith(".md") ? `pages/${normalized}` : `pages/${normalized}.md`;
+}
+
+function sourcePageFrontmatter(wikiRoot: string, sourceId: string): SourcePageFrontmatter | undefined {
+	const pagePath = sourcePageAbsPath(wikiRoot, sourceId);
+	if (!existsSync(pagePath)) return undefined;
+	const raw = readFileSync(pagePath, "utf8");
+	const { attributes } = parseFrontmatter<SourcePageFrontmatter>(raw);
+	return attributes;
+}
+
+function sourceIntegrationBlockers(
+	wikiRoot: string,
+	sourceId: string,
+	frontmatter: SourcePageFrontmatter | undefined,
+): { summary: string; integrationTargets: string[]; blockers: string[] } {
+	if (!frontmatter) {
+		return { summary: "", integrationTargets: [], blockers: ["missing-source-page"] };
+	}
+
+	const pages = scanPages(wikiRoot);
+	const registry = buildRegistry(pages);
+	const pagesByPath = new Map(registry.pages.map((page) => [page.path, page]));
+	const summary = typeof frontmatter.summary === "string" ? frontmatter.summary.trim() : "";
+	const integrationTargets = Array.isArray(frontmatter.integration_targets)
+		? [...new Set(frontmatter.integration_targets.map(normalizeIntegrationTarget).filter(Boolean))]
+		: [];
+	const blockers: string[] = [];
+
+	if (!summary) blockers.push("empty-summary");
+	if (integrationTargets.length === 0) blockers.push("no-integration-targets");
+
+	for (const target of integrationTargets) {
+		const targetPage = pagesByPath.get(target);
+		if (!targetPage) {
+			blockers.push(`missing-target:${target}`);
+			continue;
+		}
+		if (targetPage.type === "source") {
+			blockers.push(`invalid-target-type:${target}`);
+			continue;
+		}
+		if (!targetPage.sourceIds.includes(sourceId)) {
+			blockers.push(`target-missing-source-id:${target}`);
+		}
+	}
+
+	return { summary, integrationTargets, blockers };
+}
+
 function listSourcePackets(wikiRoot: string): PreparedSource[] {
 	const dir = rawDir(wikiRoot);
 	if (!existsSync(dir)) return [];
@@ -53,6 +107,8 @@ function listSourcePackets(wikiRoot: string): PreparedSource[] {
 
 			const sourcePagePath = sourcePageRelPath(sourceId);
 			const sourcePageExists = existsSync(sourcePageAbsPath(wikiRoot, sourceId));
+			const pageFrontmatter = sourcePageFrontmatter(wikiRoot, sourceId);
+			const { summary, integrationTargets, blockers } = sourceIntegrationBlockers(wikiRoot, sourceId, pageFrontmatter);
 			return {
 				sourceId,
 				title: manifest.title,
@@ -65,6 +121,10 @@ function listSourcePackets(wikiRoot: string): PreparedSource[] {
 				extractedPath: path.join("raw", sourceId, "extracted.md").replace(/\\/g, "/"),
 				sourcePagePath,
 				sourcePageExists,
+				summary,
+				integrationTargets,
+				ready: blockers.length === 0,
+				blockers,
 			};
 		})
 		.filter((packet): packet is PreparedSource => packet !== undefined)
@@ -93,7 +153,7 @@ export function handleIngestPrepare(
 	const lines = [
 		`Prepared ${filtered.length} source packet(s)${scopeText}:`,
 		...filtered.map((packet) =>
-			`- ${packet.sourceId} | ${packet.title} | ${packet.kind} | ${packet.status} | ${packet.extractedPath}`,
+			`- ${packet.sourceId} | ${packet.title} | ${packet.kind} | ${packet.status} | ${packet.ready ? "ready" : `blocked: ${packet.blockers.join(", ")}`} | ${packet.extractedPath}`,
 		),
 	];
 
@@ -109,7 +169,7 @@ function writeManifest(wikiRoot: string, manifest: SourceManifest): void {
 	atomicWriteFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 }
 
-function markSourcePageIntegrated(wikiRoot: string, sourceId: string): void {
+function markSourcePageIntegrated(wikiRoot: string, sourceId: string, integratedAt: string): void {
 	const pagePath = sourcePageAbsPath(wikiRoot, sourceId);
 	if (!existsSync(pagePath)) {
 		throw new Error(`Source page missing for ${sourceId}: ${sourcePageRelPath(sourceId)}`);
@@ -120,9 +180,16 @@ function markSourcePageIntegrated(wikiRoot: string, sourceId: string): void {
 	const updated: SourcePageFrontmatter & Record<string, unknown> = {
 		...attributes,
 		status: "integrated",
+		integrated_at: integratedAt,
+		validation_level: !attributes.validation_level || attributes.validation_level === "seed"
+			? "working"
+			: attributes.validation_level,
 		source_ids: Array.isArray(attributes.source_ids)
 			? [...new Set([...attributes.source_ids, sourceId])]
 			: [sourceId],
+		integration_targets: Array.isArray(attributes.integration_targets)
+			? [...new Set(attributes.integration_targets.map(normalizeIntegrationTarget).filter(Boolean))]
+			: [],
 	};
 	atomicWriteFile(pagePath, stringifyFrontmatter(updated, body));
 }
@@ -153,6 +220,10 @@ export function handleIngestFinalize(
 			skipped.push({ sourceId, reason: `status=${packet.status}` });
 			continue;
 		}
+		if (!packet.ready) {
+			skipped.push({ sourceId, reason: `blocked:${packet.blockers.join(",")}` });
+			continue;
+		}
 
 		const manifestPath = path.join(sourcePacketDir(wikiRoot, sourceId), "manifest.json");
 		const manifest = readManifest(manifestPath);
@@ -162,7 +233,7 @@ export function handleIngestFinalize(
 		}
 
 		try {
-			markSourcePageIntegrated(wikiRoot, sourceId);
+			markSourcePageIntegrated(wikiRoot, sourceId, integratedAt);
 			writeManifest(wikiRoot, {
 				...manifest,
 				status: "integrated",

@@ -54,6 +54,7 @@ export interface SourcePageFrontmatter {
 	kind: string;
 	status: "captured" | "integrated" | "superseded";
 	captured_at: string;
+	integrated_at?: string;
 	origin_type: "text" | "file" | "url";
 	origin_value: string;
 	aliases: string[];
@@ -61,7 +62,9 @@ export interface SourcePageFrontmatter {
 	hosts: string[];
 	domain?: string;
 	areas: string[];
+	validation_level?: string;
 	source_ids: string[];
+	integration_targets: string[];
 	summary: string;
 }
 
@@ -224,6 +227,10 @@ export interface PreparedSource {
 	extractedPath: string;
 	sourcePagePath: string;
 	sourcePageExists: boolean;
+	summary: string;
+	integrationTargets: string[];
+	ready: boolean;
+	blockers: string[];
 }
 
 export interface IngestPrepareDetails {
