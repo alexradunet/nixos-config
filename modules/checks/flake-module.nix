@@ -159,7 +159,6 @@
           ! grep -Fq 'netbird-ui' ${../../modules/features/nixos/desktop/packages.nix}
           ! grep -Fq 'nvidiaBusId' ${../../modules/features/nixos/role-nvidia/module.nix}
           ! grep -Fq 'amdgpuBusId' ${../../modules/features/nixos/role-nvidia/module.nix}
-          ! grep -Fq 'vps-nixos' ${../../modules/features/home/wezterm/module.nix}
           ! grep -Fq '10.77.0.0/24' ${../../modules/features/nixos/service-reaction/module.nix}
 
           touch $out

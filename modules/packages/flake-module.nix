@@ -57,6 +57,7 @@ in {
     _module.args.pkgs = import inputs.nixpkgs {
       inherit system;
       overlays = [
+        inputs.llm-agents.overlays.default
         (final: _prev: {
           pi = final.callPackage ../../pkgs/pi {};
           pi-web-access = final.callPackage ../../pkgs/pi-web-access {};
@@ -115,11 +116,13 @@ in {
     };
   };
 
-  flake.overlays.default = final: _prev: {
-    pi = final.callPackage ../../pkgs/pi {};
-    pi-web-access = final.callPackage ../../pkgs/pi-web-access {};
-    llm-wiki = final.callPackage ../../pkgs/llm-wiki {};
-    pi-gateway = final.callPackage ../../pkgs/pi-gateway {};
-    qmd = mkQmd final final.stdenv.hostPlatform.system;
-  };
+  flake.overlays.default = final: prev:
+    (inputs.llm-agents.overlays.default final prev)
+    // {
+      pi = final.callPackage ../../pkgs/pi {};
+      pi-web-access = final.callPackage ../../pkgs/pi-web-access {};
+      llm-wiki = final.callPackage ../../pkgs/llm-wiki {};
+      pi-gateway = final.callPackage ../../pkgs/pi-gateway {};
+      qmd = mkQmd final final.stdenv.hostPlatform.system;
+    };
 }

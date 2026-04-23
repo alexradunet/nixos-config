@@ -45,7 +45,6 @@
   llamaModels = config.pi.llamaModels;
 
   # Build enabled model IDs for PI settings.json.
-  # Includes all Synthetic cloud models + all local llama models.
   syntheticModelIds = [
     "synthetic/hf:zai-org/GLM-5.1"
     "synthetic/hf:moonshotai/Kimi-K2.5"
@@ -54,88 +53,96 @@
   ];
 
   llamaModelIds = map (m: "llama/${m.id}") llamaModels;
+  hasLlama = llamaModels != [];
+
+  syntheticProvider = {
+    baseUrl = "https://api.synthetic.new/openai/v1";
+    apiKey = "SYNTHETIC_API_KEY";
+    api = "openai-completions";
+    compat = {
+      supportsDeveloperRole = false;
+      supportsReasoningEffort = false;
+    };
+    models = [
+      {
+        id = "hf:zai-org/GLM-5.1";
+        name = "GLM 5.1 (Synthetic)";
+        reasoning = true;
+        input = ["text"];
+        contextWindow = 196608;
+        maxTokens = 65536;
+        cost = {
+          input = 0;
+          output = 0;
+          cacheRead = 0;
+          cacheWrite = 0;
+        };
+      }
+      {
+        id = "hf:moonshotai/Kimi-K2.5";
+        name = "Kimi K2.5 (Synthetic)";
+        reasoning = true;
+        input = ["text" "image"];
+        contextWindow = 262144;
+        maxTokens = 65536;
+        cost = {
+          input = 0;
+          output = 0;
+          cacheRead = 0;
+          cacheWrite = 0;
+        };
+      }
+      {
+        id = "hf:MiniMaxAI/MiniMax-M2.5";
+        name = "MiniMax M2.5 (Synthetic)";
+        reasoning = true;
+        input = ["text"];
+        contextWindow = 196608;
+        maxTokens = 65536;
+        cost = {
+          input = 0;
+          output = 0;
+          cacheRead = 0;
+          cacheWrite = 0;
+        };
+      }
+      {
+        id = "hf:Qwen/Qwen3-Coder-480B-A35B-Instruct";
+        name = "Qwen3 Coder 480B A35B Instruct (Synthetic)";
+        reasoning = true;
+        input = ["text"];
+        contextWindow = 262144;
+        maxTokens = 65536;
+        cost = {
+          input = 0;
+          output = 0;
+          cacheRead = 0;
+          cacheWrite = 0;
+        };
+      }
+    ];
+  };
+
+  llamaProvider = {
+    baseUrl = "http://127.0.0.1:8080/v1";
+    apiKey = "local";
+    api = "openai-completions";
+    compat = {
+      supportsDeveloperRole = false;
+      supportsReasoningEffort = false;
+      maxTokensField = "max_tokens";
+    };
+    models = llamaModels;
+  };
 
   piModelsBase = {
-    providers = {
-      synthetic = {
-        baseUrl = "https://api.synthetic.new/openai/v1";
-        apiKey = "SYNTHETIC_API_KEY";
-        api = "openai-completions";
-        compat = {
-          supportsDeveloperRole = false;
-          supportsReasoningEffort = false;
-        };
-        models = [
-          {
-            id = "hf:zai-org/GLM-5.1";
-            name = "GLM 5.1 (Synthetic)";
-            reasoning = true;
-            input = ["text"];
-            contextWindow = 196608;
-            maxTokens = 65536;
-            cost = {
-              input = 0;
-              output = 0;
-              cacheRead = 0;
-              cacheWrite = 0;
-            };
-          }
-          {
-            id = "hf:moonshotai/Kimi-K2.5";
-            name = "Kimi K2.5 (Synthetic)";
-            reasoning = true;
-            input = ["text" "image"];
-            contextWindow = 262144;
-            maxTokens = 65536;
-            cost = {
-              input = 0;
-              output = 0;
-              cacheRead = 0;
-              cacheWrite = 0;
-            };
-          }
-          {
-            id = "hf:MiniMaxAI/MiniMax-M2.5";
-            name = "MiniMax M2.5 (Synthetic)";
-            reasoning = true;
-            input = ["text"];
-            contextWindow = 196608;
-            maxTokens = 65536;
-            cost = {
-              input = 0;
-              output = 0;
-              cacheRead = 0;
-              cacheWrite = 0;
-            };
-          }
-          {
-            id = "hf:Qwen/Qwen3-Coder-480B-A35B-Instruct";
-            name = "Qwen3 Coder 480B A35B Instruct (Synthetic)";
-            reasoning = true;
-            input = ["text"];
-            contextWindow = 262144;
-            maxTokens = 65536;
-            cost = {
-              input = 0;
-              output = 0;
-              cacheRead = 0;
-              cacheWrite = 0;
-            };
-          }
-        ];
+    providers =
+      {
+        synthetic = syntheticProvider;
+      }
+      // lib.optionalAttrs hasLlama {
+        llama = llamaProvider;
       };
-      llama = {
-        baseUrl = "http://127.0.0.1:8080/v1";
-        apiKey = "local";
-        api = "openai-completions";
-        compat = {
-          supportsDeveloperRole = false;
-          supportsReasoningEffort = false;
-          maxTokensField = "max_tokens";
-        };
-        models = llamaModels;
-      };
-    };
   };
 
   piModelsBaseJson = pkgs.writeText "pi-models-base.json" (builtins.toJSON piModelsBase);
@@ -406,5 +413,4 @@ in {
     };
     Install.WantedBy = ["timers.target"];
   };
-
 }

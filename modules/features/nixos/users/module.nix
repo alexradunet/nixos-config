@@ -12,12 +12,15 @@
     "reaction.service"
   ];
   systemctlActions = ["start" "stop" "restart"];
-  staticUnitRules = lib.flatten (map (action:
-    map (unit: {
-      command = "/run/current-system/sw/bin/systemctl ${action} ${unit} --no-pager";
-      options = ["NOPASSWD"];
-    }) staticUnits
-  ) systemctlActions);
+  staticUnitRules = lib.flatten (map (
+      action:
+        map (unit: {
+          command = "/run/current-system/sw/bin/systemctl ${action} ${unit} --no-pager";
+          options = ["NOPASSWD"];
+        })
+        staticUnits
+    )
+    systemctlActions);
 in {
   users.users.alex = {
     isNormalUser = true;
@@ -41,37 +44,40 @@ in {
   security.sudo.extraRules = [
     {
       users = ["alex"];
-      commands = [
-        {
-          command = "/run/current-system/sw/bin/nixos-rebuild switch --flake ${flakeRef}";
-          options = ["NOPASSWD"];
-        }
-        {
-          command = "/run/current-system/sw/bin/nixos-rebuild switch --rollback";
-          options = ["NOPASSWD"];
-        }
-        {
-          command = "/run/current-system/sw/bin/systemctl reboot --no-pager";
-          options = ["NOPASSWD"];
-        }
-        {
-          command = "/run/current-system/sw/bin/shutdown -r";
-          options = ["NOPASSWD"];
-        }
-      ] ++ staticUnitRules ++ [
-        {
-          command = "/run/current-system/sw/bin/systemctl start nixpi-*.service --no-pager";
-          options = ["NOPASSWD"];
-        }
-        {
-          command = "/run/current-system/sw/bin/systemctl stop nixpi-*.service --no-pager";
-          options = ["NOPASSWD"];
-        }
-        {
-          command = "/run/current-system/sw/bin/systemctl restart nixpi-*.service --no-pager";
-          options = ["NOPASSWD"];
-        }
-      ];
+      commands =
+        [
+          {
+            command = "/run/current-system/sw/bin/nixos-rebuild switch --flake ${flakeRef}";
+            options = ["NOPASSWD"];
+          }
+          {
+            command = "/run/current-system/sw/bin/nixos-rebuild switch --rollback";
+            options = ["NOPASSWD"];
+          }
+          {
+            command = "/run/current-system/sw/bin/systemctl reboot --no-pager";
+            options = ["NOPASSWD"];
+          }
+          {
+            command = "/run/current-system/sw/bin/shutdown -r";
+            options = ["NOPASSWD"];
+          }
+        ]
+        ++ staticUnitRules
+        ++ [
+          {
+            command = "/run/current-system/sw/bin/systemctl start nixpi-*.service --no-pager";
+            options = ["NOPASSWD"];
+          }
+          {
+            command = "/run/current-system/sw/bin/systemctl stop nixpi-*.service --no-pager";
+            options = ["NOPASSWD"];
+          }
+          {
+            command = "/run/current-system/sw/bin/systemctl restart nixpi-*.service --no-pager";
+            options = ["NOPASSWD"];
+          }
+        ];
     }
   ];
 }

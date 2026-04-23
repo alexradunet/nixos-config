@@ -54,14 +54,14 @@ in {
 
     user = lib.mkOption {
       type = lib.types.str;
-      default = "alex";
-      description = "User account that runs the gateway (needs access to the pi binary and auth).";
+      default = "";
+      description = "User account that runs the gateway (needs access to the pi binary and auth). Must be set when enable = true.";
     };
 
     group = lib.mkOption {
       type = lib.types.str;
-      default = "users";
-      description = "Group for the gateway service.";
+      default = "";
+      description = "Group for the gateway service. Must be set when enable = true.";
     };
 
     piBin = lib.mkOption {
@@ -72,8 +72,8 @@ in {
 
     cwd = lib.mkOption {
       type = lib.types.str;
-      default = "/home/alex/Workspace";
-      description = "Working directory for pi sessions.";
+      default = "";
+      description = "Working directory for pi sessions. Must be set when enable = true.";
     };
 
     piTimeoutMs = lib.mkOption {
@@ -153,13 +153,23 @@ in {
         default = "${cfg.stateDir}/whatsapp/auth";
         description = "Directory used by the WhatsApp transport to persist Baileys auth state and QR artifacts.";
       };
-
-
     };
   };
 
   config = lib.mkIf cfg.enable {
     assertions = [
+      {
+        assertion = cfg.enable -> cfg.user != "";
+        message = "services.pi-gateway.user must be set when the gateway is enabled.";
+      }
+      {
+        assertion = cfg.enable -> cfg.group != "";
+        message = "services.pi-gateway.group must be set when the gateway is enabled.";
+      }
+      {
+        assertion = cfg.enable -> cfg.cwd != "";
+        message = "services.pi-gateway.cwd must be set when the gateway is enabled.";
+      }
       {
         assertion = cfg.signal.enable -> cfg.signal.account != "";
         message = "services.pi-gateway.signal.account must be set when signal transport is enabled.";
@@ -174,30 +184,31 @@ in {
       }
     ];
 
-    systemd.tmpfiles.settings.pi-gateway = {
-      "${cfg.stateDir}".d = {
-        mode = "0750";
-        user = cfg.user;
-        group = cfg.group;
+    systemd.tmpfiles.settings.pi-gateway =
+      {
+        "${cfg.stateDir}".d = {
+          mode = "0750";
+          user = cfg.user;
+          group = cfg.group;
+        };
+        "${cfg.stateDir}/sessions".d = {
+          mode = "0750";
+          user = cfg.user;
+          group = cfg.group;
+        };
+      }
+      // lib.optionalAttrs cfg.whatsapp.enable {
+        "${cfg.stateDir}/whatsapp".d = {
+          mode = "0750";
+          user = cfg.user;
+          group = cfg.group;
+        };
+        "${cfg.stateDir}/whatsapp/auth".d = {
+          mode = "0750";
+          user = cfg.user;
+          group = cfg.group;
+        };
       };
-      "${cfg.stateDir}/sessions".d = {
-        mode = "0750";
-        user = cfg.user;
-        group = cfg.group;
-      };
-    }
-    // lib.optionalAttrs cfg.whatsapp.enable {
-      "${cfg.stateDir}/whatsapp".d = {
-        mode = "0750";
-        user = cfg.user;
-        group = cfg.group;
-      };
-      "${cfg.stateDir}/whatsapp/auth".d = {
-        mode = "0750";
-        user = cfg.user;
-        group = cfg.group;
-      };
-    };
 
     systemd.services.nixpi-gateway = {
       description = "NixPI generic transport gateway";

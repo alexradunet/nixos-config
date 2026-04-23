@@ -35,8 +35,6 @@ jobs:
           - evo-nixos-smoke
           - pad-nixos-smoke
           - vps-nixos-smoke
-          - wireguard-hub-client
-          - wg-admin-basic
 
     steps:
       - name: Check out repository

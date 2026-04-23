@@ -1,4 +1,8 @@
-{config, lib, ...}: {
+{
+  config,
+  lib,
+  ...
+}: {
   options.pi.llamaModels = lib.mkOption {
     type = lib.types.listOf lib.types.attrs;
     default = [];

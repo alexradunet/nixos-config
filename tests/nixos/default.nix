@@ -158,7 +158,7 @@ in {
             config.flake.homeModules.pi
             config.flake.homeModules.shell
             config.flake.homeModules.ssh
-            config.flake.homeModules.wezterm
+            config.flake.homeModules.ghostty
             config.flake.homeModules.host-evo-nixos
           ];
         }

@@ -4,14 +4,14 @@
   ...
 }: let
   /*
-   Auto-discover feature modules under modules/features/{nixos,home}/.
+  Auto-discover feature modules under modules/features/{nixos,home}/.
 
-   Each feature directory that contains a module.nix is automatically registered:
-     - modules/features/nixos/service-openssh/module.nix → flake.nixosModules.service-openssh
-     - modules/features/home/git/module.nix              → flake.homeModules.git
+  Each feature directory that contains a module.nix is automatically registered:
+    - modules/features/nixos/service-openssh/module.nix → flake.nixosModules.service-openssh
+    - modules/features/home/git/module.nix              → flake.homeModules.git
 
-   Directories without module.nix are silently skipped (e.g. placeholder dirs,
-   asset-only directories like pi/skills, pi/extensions, etc.).
+  Directories without module.nix are silently skipped (e.g. placeholder dirs,
+  asset-only directories like pi/skills, pi/extensions, etc.).
   */
   featureRoot = ../features;
 

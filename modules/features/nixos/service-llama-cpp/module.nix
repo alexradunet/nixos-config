@@ -45,7 +45,7 @@
       ExecStart = "${cfg.package}/bin/llama-server ${lib.concatStringsSep " " (makeServerArgs cfg)}";
       Restart = "on-failure";
       RestartSec = "10s";
-      EnvironmentFile = lib.mkIf (cfg.environmentFile != null) [cfg.environmentFile];
+      EnvironmentFile = lib.optional (cfg.environmentFile != null) cfg.environmentFile;
       StateDirectory = "llama-server-${name}";
       StateDirectoryMode = "0755";
       SupplementaryGroups = ["video" "render"];
@@ -157,7 +157,6 @@
       };
     };
   };
-
 in {
   options.services.llama-servers = lib.mkOption {
     type = lib.types.attrsOf instanceSubmodule;
@@ -170,21 +169,25 @@ in {
 
   config = lib.mkIf (enabledInstances != {}) {
     assertions = lib.concatLists (lib.mapAttrsToList (name: cfg: [
-      {
-        assertion = (cfg.hfRepo != null) != (cfg.modelPath != null);
-        message = "services.llama-servers.${name}: set exactly one of hfRepo+hfFile or modelPath.";
-      }
-      {
-        assertion = cfg.hfRepo == null || cfg.hfFile != null;
-        message = "services.llama-servers.${name}: hfFile must be set when hfRepo is set.";
-      }
-    ]) enabledInstances);
+        {
+          assertion = (cfg.hfRepo != null) -> (cfg.modelPath == null);
+          message = "services.llama-servers.${name}: cannot set both hfRepo and modelPath — choose HuggingFace download or local path.";
+        }
+        {
+          assertion = (cfg.modelPath != null) -> (cfg.hfRepo == null);
+          message = "services.llama-servers.${name}: cannot set both modelPath and hfRepo — choose local path or HuggingFace download.";
+        }
+        {
+          assertion = cfg.hfRepo == null || cfg.hfFile != null;
+          message = "services.llama-servers.${name}: hfFile must be set when hfRepo is set.";
+        }
+      ])
+      enabledInstances);
 
     # Install the llama-cpp CLI system-wide so it's available on every host
     # that runs at least one llama-server instance.
-    environment.systemPackages = [
-      (builtins.elemAt (lib.attrValues enabledInstances) 0).package
-    ];
+    environment.systemPackages =
+      map (i: i.package) (lib.attrValues enabledInstances);
 
     users.users = lib.mapAttrs' (name: _:
       lib.nameValuePair "llama-server-${name}" {
@@ -193,12 +196,15 @@ in {
         home = "/var/lib/llama-server-${name}";
         createHome = false;
         description = "llama-server-${name} service user";
-      }) enabledInstances;
+      })
+    enabledInstances;
 
     users.groups = lib.mapAttrs' (name: _:
-      lib.nameValuePair "llama-server-${name}" {}) enabledInstances;
+      lib.nameValuePair "llama-server-${name}" {})
+    enabledInstances;
 
     systemd.services = lib.mapAttrs' (name: cfg:
-      lib.nameValuePair "llama-server-${name}" (makeService name cfg)) enabledInstances;
+      lib.nameValuePair "llama-server-${name}" (makeService name cfg))
+    enabledInstances;
   };
 }

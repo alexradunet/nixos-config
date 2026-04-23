@@ -4,10 +4,7 @@
 # - llama-server-vulkan on 127.0.0.1:8080
 # - model: bartowski/Qwen_Qwen3.5-27B-GGUF (dense 27B)
 # - OpenAI-compatible API bound to localhost only
-{
-  pkgs,
-  ...
-}: let
+{pkgs, ...}: let
   vulkanPkg = pkgs.llama-cpp.override {vulkanSupport = true;};
 in {
   boot.kernelParams = [

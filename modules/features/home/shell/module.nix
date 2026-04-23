@@ -1,8 +1,4 @@
-{
-  config,
-  lib,
-  ...
-}: {
+{config, ...}: {
   programs.bash = {
     enable = true;
     enableCompletion = true;
@@ -21,20 +17,14 @@
       "ignoredups"
     ];
 
-    initExtra =
-      ''
-        # Knowledge wiki shortcut
-        obsidian-wiki() {
-          nohup obsidian "$HOME/Workspace/Knowledge" >/dev/null 2>&1 &
-        }
-
-        # Wiki shortcut for the AI assistant context
-        wiki-technical() {
-          export PI_LLM_WIKI_DIR="$HOME/Workspace/Knowledge"
-          echo "Wiki context: Knowledge ($PI_LLM_WIKI_DIR)"
-        }
-      ''
-;
+    # wiki-technical() sets the PI_LLM_WIKI_DIR context variable.
+    # obsidian-wiki was removed along with obsidian.
+    initExtra = ''
+      wiki-technical() {
+        export PI_LLM_WIKI_DIR="$HOME/Workspace/Knowledge"
+        echo "Wiki context: Knowledge ($PI_LLM_WIKI_DIR)"
+      }
+    '';
   };
 
   programs.fzf = {
@@ -47,8 +37,6 @@
     enableBashIntegration = true;
   };
 
-  # vivid: generates LS_COLORS from a named theme — gives eza/ls coloured output
-  # without hardcoding ANSI escape strings.
   programs.vivid = {
     enable = true;
     enableBashIntegration = true;
