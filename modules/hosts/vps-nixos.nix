@@ -19,6 +19,7 @@ in {
           networking.hostName = "vps-nixos";
           services.openssh.openFirewall = true;
           system.stateVersion = "25.11";
+          nixpkgs.config.allowUnfree = true;
 
           services.wg-admin = {
             enable = true;
@@ -33,8 +34,16 @@ in {
           };
         })
         ../../hosts/vps-nixos/hardware-configuration.nix
-        config.flake.nixosModules.profile-server-base
+
+        # Server base
+        config.flake.nixosModules.common
+        config.flake.nixosModules.users
+        config.flake.nixosModules.service-openssh
+        config.flake.nixosModules.service-reaction
+
+        # VPS extras
         config.flake.nixosModules.service-wg-admin
+
         inputs.home-manager.nixosModules.home-manager
         {
           home-manager.useGlobalPkgs = true;
@@ -42,7 +51,12 @@ in {
           home-manager.backupFileExtension = "hm-backup";
           home-manager.users.alex.imports = [
             config.flake.homeModules.alex
-            config.flake.homeModules.profile-host-vps-nixos
+            # Home base
+            config.flake.homeModules.git
+            config.flake.homeModules.packages
+            config.flake.homeModules.pi
+            config.flake.homeModules.shell
+            config.flake.homeModules.ssh
           ];
         }
       ];

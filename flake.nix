@@ -33,49 +33,12 @@
       systems = ["x86_64-linux"];
 
       imports = [
+        # Core: option definitions + auto-discovery of feature modules
         ./modules/core/flake-module.nix
         ./modules/packages/flake-module.nix
         ./modules/checks/flake-module.nix
 
-        ./modules/features/nixos/common/flake-module.nix
-        ./modules/features/nixos/desktop/flake-module.nix
-        ./modules/features/nixos/laptop/flake-module.nix
-        ./modules/features/nixos/users/flake-module.nix
-        ./modules/features/nixos/role-gaming/flake-module.nix
-        ./modules/features/nixos/role-nvidia/flake-module.nix
-        ./modules/features/nixos/host-efi-systemd-boot/flake-module.nix
-        ./modules/features/nixos/host-unfree/flake-module.nix
-        ./modules/features/nixos/service-networkmanager/flake-module.nix
-        ./modules/features/nixos/service-openssh/flake-module.nix
-        ./modules/features/nixos/service-reaction/flake-module.nix
-        ./modules/features/nixos/service-syncthing/flake-module.nix
-
-        ./modules/features/nixos/service-wg-admin/flake-module.nix
-        ./modules/features/nixos/service-llama-cpp/flake-module.nix
-        ./modules/features/nixos/service-pi-gateway/flake-module.nix
-
-        ./modules/features/home/git/flake-module.nix
-        ./modules/features/home/llm-agents/flake-module.nix
-        ./modules/features/home/packages/flake-module.nix
-
-        ./modules/features/home/pi/flake-module.nix
-        ./modules/features/home/shell/flake-module.nix
-        ./modules/features/home/ssh/flake-module.nix
-        ./modules/features/home/ghostty/flake-module.nix
-        ./modules/features/home/wezterm/flake-module.nix
-        ./modules/features/home/host-evo-nixos/flake-module.nix
-        ./modules/features/home/host-pad-nixos/flake-module.nix
-        ./modules/features/home/host-vps-nixos/flake-module.nix
-
-        ./modules/profiles/nixos/desktop-workstation.nix
-        ./modules/profiles/nixos/laptop-workstation.nix
-        ./modules/profiles/nixos/server-base.nix
-        ./modules/profiles/nixos/gaming-nvidia.nix
-        ./modules/profiles/home/base.nix
-        ./modules/profiles/home/host-evo-nixos.nix
-        ./modules/profiles/home/host-pad-nixos.nix
-        ./modules/profiles/home/host-vps-nixos.nix
-
+        # User and host definitions
         ./modules/users/alex.nix
         ./modules/hosts/evo-nixos.nix
         ./modules/hosts/pad-nixos.nix

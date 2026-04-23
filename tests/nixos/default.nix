@@ -172,7 +172,6 @@ in {
         config.flake.nixosModules.common
         config.flake.nixosModules.desktop
         config.flake.nixosModules.users
-        config.flake.nixosModules.host-efi-systemd-boot
         config.flake.nixosModules.service-networkmanager
         config.flake.nixosModules.service-openssh
         config.flake.nixosModules.service-reaction
@@ -190,7 +189,11 @@ in {
           home-manager.backupFileExtension = "hm-backup";
           home-manager.users.alex.imports = [
             config.flake.homeModules.alex
-            config.flake.homeModules.profile-base
+            config.flake.homeModules.git
+            config.flake.homeModules.packages
+            config.flake.homeModules.pi
+            config.flake.homeModules.shell
+            config.flake.homeModules.ssh
             config.flake.homeModules.wezterm
             config.flake.homeModules.host-evo-nixos
           ];
@@ -227,7 +230,6 @@ in {
         config.flake.nixosModules.desktop
         config.flake.nixosModules.laptop
         config.flake.nixosModules.users
-        config.flake.nixosModules.host-efi-systemd-boot
         config.flake.nixosModules.service-networkmanager
         config.flake.nixosModules.service-openssh
         config.flake.nixosModules.service-reaction
@@ -240,7 +242,13 @@ in {
           home-manager.backupFileExtension = "hm-backup";
           home-manager.users.alex.imports = [
             config.flake.homeModules.alex
-            config.flake.homeModules.profile-host-pad-nixos
+            config.flake.homeModules.git
+            config.flake.homeModules.packages
+            config.flake.homeModules.pi
+            config.flake.homeModules.shell
+            config.flake.homeModules.ssh
+            config.flake.homeModules.ghostty
+            config.flake.homeModules.host-pad-nixos
           ];
         }
         (mkVmHostBase "pad-nixos")
@@ -295,7 +303,11 @@ in {
           home-manager.backupFileExtension = "hm-backup";
           home-manager.users.alex.imports = [
             config.flake.homeModules.alex
-            config.flake.homeModules.profile-host-vps-nixos
+            config.flake.homeModules.git
+            config.flake.homeModules.packages
+            config.flake.homeModules.pi
+            config.flake.homeModules.shell
+            config.flake.homeModules.ssh
           ];
         }
         (mkVmHostBase "vps-nixos")
@@ -339,7 +351,11 @@ in {
           home-manager.backupFileExtension = "hm-backup";
           home-manager.users.alex.imports = [
             config.flake.homeModules.alex
-            config.flake.homeModules.profile-base
+            config.flake.homeModules.git
+            config.flake.homeModules.packages
+            config.flake.homeModules.pi
+            config.flake.homeModules.shell
+            config.flake.homeModules.ssh
           ];
         }
       ];
