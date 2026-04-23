@@ -1,7 +1,10 @@
 {config, ...}: {
-  pi.packageSources = [
-    "git:github.com/NixPI-Dev/NixPI-Caveman-Lite@v0.1.0"
-  ];
+  # In-house extensions are now bundled as home.file declarations.
+  # Use pi.nixpiExtensions for in-house packages that need runtime install.
+  # Use pi.publicExtensions for third-party packages.
+  pi.nixpiExtensions = [];
+  pi.publicExtensions = [];
+
 
   # ── Local llama models available on this host ────────────────────────────
   pi.llamaModels = [

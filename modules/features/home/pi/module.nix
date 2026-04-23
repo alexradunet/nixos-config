@@ -25,18 +25,43 @@
       '';
     };
 
-    packageSources = lib.mkOption {
+    nixpiExtensions = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [];
       description = ''
-        Declarative PI package sources to place in ~/.pi/agent/settings.json.
-        Use pinned git or npm package sources for reproducible PI extensions,
-        skills, prompts, or themes.
+        In-house NixPI extension package sources (NixPI-Dev org refs).
+        These are published packages from the NixPI-Dev GitHub org,
+        installed via PI's runtime package mechanism when not bundled
+        as home.file declarations.
       '';
       example = lib.literalExpression ''
         [
-          "git:github.com/NixPI-Dev/NixPI-Caveman-Lite@v0.1.0"
+          "git:github.com/NixPI-Dev/NixPI-Some-Future-Ext@v1.0.0"
         ]
+      '';
+    };
+
+    publicExtensions = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [];
+      description = ''
+        Public/third-party PI extension package sources.
+        These are extensions from outside the NixPI-Dev org,
+        installed via PI's runtime package mechanism.
+      '';
+      example = lib.literalExpression ''
+        [
+          "git:github.com/some-org/some-pi-extension@v2.0.0"
+        ]
+      '';
+    };
+
+    packageSources = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = config.pi.nixpiExtensions ++ config.pi.publicExtensions;
+      description = ''
+        Combined PI package sources for ~/.pi/agent/settings.json.
+        Computed from nixpiExtensions and publicExtensions.
       '';
     };
   };

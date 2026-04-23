@@ -208,17 +208,21 @@ in {
   home.file.".pi/agent/themes/.keep".text = "";
   home.file.".pi/agent/agents/.keep".text = "";
 
-  # ── PI extensions ─────────────────────────────────────────────────────────
-  home.file.".pi/agent/extensions/zz-synthetic-search".source = ./extensions/zz-synthetic-search;
+  # ── PI extensions — in-house (NixPI-Dev) ─────────────────────────────────
+  home.file.".pi/agent/extensions/caveman-lite".source = ./extensions/nixpi/caveman-lite;
   home.file.".pi/agent/extensions/llm-wiki".source = llmWikiRoot;
-  home.file.".pi/agent/extensions/persona".source = ./extensions/persona;
-  home.file.".pi/agent/extensions/os".source = ./extensions/os;
-  home.file.".pi/agent/extensions/nixpi".source = ./extensions/nixpi;
-  home.file.".pi/agent/extensions/subagent".source = ./extensions/subagent;
+  home.file.".pi/agent/extensions/nixpi".source = ./extensions/nixpi/nixpi;
+  home.file.".pi/agent/extensions/os".source = ./extensions/nixpi/os;
+  home.file.".pi/agent/extensions/persona".source = ./extensions/nixpi/persona;
+  home.file.".pi/agent/extensions/subagent".source = ./extensions/nixpi/subagent;
+  home.file.".pi/agent/extensions/zz-synthetic-search".source = ./extensions/nixpi/zz-synthetic-search;
   home.file.".pi/agent/extensions/sudo-auth" = {
-    source = ./extensions/sudo-auth;
+    source = ./extensions/nixpi/sudo-auth;
     force = true;
   };
+
+  # ── PI extensions — public/third-party (future) ──────────────────────────
+  # Add home.file entries for public extensions under ./extensions/public/ here.
 
   # ── PI skills ─────────────────────────────────────────────────────────────
   home.file.".pi/agent/skills/librarian/SKILL.md".source = "${piWebAccessRoot}/skills/librarian/SKILL.md";
@@ -314,7 +318,7 @@ in {
     guardrails_path="$HOME/.pi/agent/guardrails.yaml"
     mkdir -p "$(dirname "$guardrails_path")"
     if [ ! -e "$guardrails_path" ]; then
-      cp ${./extensions/persona/guardrails.yaml} "$guardrails_path"
+      cp ${./extensions/nixpi/persona/guardrails.yaml} "$guardrails_path"
     fi
   '';
 
@@ -323,6 +327,11 @@ in {
     rm -rf "$HOME/.pi/agent/extensions/sudo-prompt"
     rm -rf "$HOME/.pi/agent/extensions/sudo-handoff"
     rm -rf "$HOME/.pi/agent/extensions/tmux-manager"
+  '';
+
+  # Remove the old runtime-installed Caveman Lite git package (now declarative).
+  home.activation.piCavemanLiteCleanup = lib.hm.dag.entryAfter ["writeBoundary"] ''
+    rm -rf "$HOME/.pi/agent/git/github.com/NixPI-Dev/NixPI-Caveman-Lite"
   '';
 
   # ── Activation: wiki seed (idempotent — never overwrites existing files) ──

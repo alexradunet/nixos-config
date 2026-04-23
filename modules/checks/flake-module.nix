@@ -32,7 +32,7 @@
             touch $out
           '';
 
-        llm-wiki-tests = pkgs.callPackage ../../pkgs/llm-wiki/tests.nix {};
+        llm-wiki-tests = inputs.llm-wiki.checks.${system}.tests;
 
         llm-wiki-home = pkgs.runCommand "llm-wiki-home-check" {} ''
           session_var=${lib.escapeShellArg alexHome.sessionVariables.PI_LLM_WIKI_DIR}
