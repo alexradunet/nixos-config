@@ -1,4 +1,4 @@
-import type { ActionResult as SharedActionResult } from "./lib/utils.js";
+import type { ActionResult as SharedActionResult } from "./lib/core-utils.ts";
 
 export type ActionResult<TDetails extends object = Record<string, unknown>> = SharedActionResult<TDetails>;
 

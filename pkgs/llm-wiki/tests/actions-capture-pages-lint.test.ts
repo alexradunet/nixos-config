@@ -3,10 +3,10 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, 
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { captureFile, captureText } from "../extension/actions-capture.js";
-import { handleWikiLint } from "../extension/actions-lint.js";
-import { readEvents, rebuildAllMeta } from "../extension/actions-meta.js";
-import { handleEnsurePage } from "../extension/actions-pages.js";
+import { captureFile, captureText } from "../extension/actions-capture.ts";
+import { handleWikiLint } from "../extension/actions-lint.ts";
+import { readEvents, rebuildAllMeta } from "../extension/actions-meta.ts";
+import { handleEnsurePage } from "../extension/actions-pages.ts";
 
 describe("capture, pages, and lint", () => {
   let wikiRoot: string;

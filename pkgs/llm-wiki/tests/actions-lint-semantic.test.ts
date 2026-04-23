@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { handleWikiLint } from "../extension/actions-lint.js";
+import { handleWikiLint } from "../extension/actions-lint.ts";
 
 describe("actions-lint semantic heuristics", () => {
   let wikiRoot: string;

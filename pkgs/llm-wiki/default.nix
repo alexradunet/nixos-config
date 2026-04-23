@@ -2,6 +2,8 @@
   lib,
   buildNpmPackage,
   fetchNpmDeps,
+  nodejs,
+  makeWrapper,
 }: let
   src = ./extension;
 in
@@ -16,20 +18,26 @@ in
       hash = "sha256-+LeWxRQkXOuVRHqg76p3DEdj7T9xEpUpohCY/G1tHGY=";
     };
 
+    nativeBuildInputs = [makeWrapper];
+
     dontNpmBuild = true;
 
     installPhase = ''
       runHook preInstall
 
-      mkdir -p $out/share/llm-wiki
+      mkdir -p $out/share/llm-wiki $out/bin
       cp -r . $out/share/llm-wiki/
+
+      makeWrapper ${nodejs}/bin/node $out/bin/llm-wiki \
+        --add-flags "--experimental-strip-types $out/share/llm-wiki/cli.ts"
 
       runHook postInstall
     '';
 
     meta = {
-      description = "Pi extension for local wiki capture, search, scaffolding, and linting";
+      description = "Portable Markdown wiki runtime and Pi extension for capture, search, scaffolding, and linting";
       license = lib.licenses.mit;
       platforms = lib.platforms.all;
+      mainProgram = "llm-wiki";
     };
   }

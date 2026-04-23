@@ -15,7 +15,7 @@ import {
   renderIndex,
   renderLog,
   scanPages,
-} from "../extension/actions-meta.js";
+} from "../extension/actions-meta.ts";
 
 describe("actions-meta", () => {
   let wikiRoot: string;

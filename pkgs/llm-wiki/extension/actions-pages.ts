@@ -1,9 +1,9 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import { atomicWriteFile } from "./lib/filesystem.js";
-import { stringifyFrontmatter } from "./lib/frontmatter.js";
-import { err, nowIso, ok } from "./lib/utils.js";
-import { appendEvent, loadRegistry } from "./actions-meta.js";
+import { atomicWriteFile } from "./lib/filesystem.ts";
+import { stringifyFrontmatter } from "./lib/frontmatter.ts";
+import { err, nowIso, ok } from "./lib/core-utils.ts";
+import { appendEvent, loadRegistry } from "./actions-meta.ts";
 import {
 	buildPagePath,
 	dedupeSlug,
@@ -15,8 +15,8 @@ import {
 	normalizePageFolder,
 	slugifyTitle,
 	todayStamp,
-} from "./paths.js";
-import type { ActionResult, CanonicalPageFrontmatter, CanonicalPageType, EnsurePageDetails } from "./types.js";
+} from "./paths.ts";
+import type { ActionResult, CanonicalPageFrontmatter, CanonicalPageType, EnsurePageDetails } from "./types.ts";
 
 // Review cycles in days for durable object types
 const REVIEW_CYCLES: Record<string, number> = {

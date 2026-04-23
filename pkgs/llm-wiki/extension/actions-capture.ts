@@ -1,12 +1,12 @@
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { appendEvent } from "./actions-meta.js";
-import { atomicWriteFile } from "./lib/filesystem.js";
-import { stringifyFrontmatter } from "./lib/frontmatter.js";
-import { err, ok } from "./lib/utils.js";
-import { makeSourceId, getAllowedDomains, isDomainAllowed, normalizeAreas, normalizeDomain, normalizeHosts } from "./paths.js";
-import type { ActionResult, CaptureDetails, SourceManifest, SourcePageFrontmatter } from "./types.js";
+import { appendEvent } from "./actions-meta.ts";
+import { atomicWriteFile } from "./lib/filesystem.ts";
+import { stringifyFrontmatter } from "./lib/frontmatter.ts";
+import { err, ok } from "./lib/core-utils.ts";
+import { makeSourceId, getAllowedDomains, isDomainAllowed, normalizeAreas, normalizeDomain, normalizeHosts } from "./paths.ts";
+import type { ActionResult, CaptureDetails, SourceManifest, SourcePageFrontmatter } from "./types.ts";
 
 function sha256(value: string | Buffer): string {
 	return `sha256:${createHash("sha256").update(value).digest("hex")}`;

@@ -2,8 +2,8 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { rebuildAllMeta } from "../extension/actions-meta.js";
-import { handleEnsurePage } from "../extension/actions-pages.js";
+import { rebuildAllMeta } from "../extension/actions-meta.ts";
+import { handleEnsurePage } from "../extension/actions-pages.ts";
 
 describe("actions-pages v2 scaffolding", () => {
   let wikiRoot: string;

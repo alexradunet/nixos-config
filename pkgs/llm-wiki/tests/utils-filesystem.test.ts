@@ -2,8 +2,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { atomicWriteFile, ensureDir } from "../extension/lib/filesystem.js";
-import { ActionResult, EmptyToolParams, errorResult, nowIso, registerTools, textToolResult, toToolResult, truncate } from "../extension/lib/utils.js";
+import { atomicWriteFile, ensureDir } from "../extension/lib/filesystem.ts";
+import { ActionResult, EmptyToolParams, errorResult, nowIso, registerTools, textToolResult, toToolResult, truncate } from "../extension/lib/utils.ts";
 import { err, ok } from "neverthrow";
 
 describe("utils and filesystem helpers", () => {

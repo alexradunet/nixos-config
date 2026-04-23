@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { buildWikiDigest, rebuildAllMeta } from "../extension/actions-meta.js";
+import { buildWikiDigest, rebuildAllMeta } from "../extension/actions-meta.ts";
 
 describe("actions-meta planner digest", () => {
   let wikiRoot: string;

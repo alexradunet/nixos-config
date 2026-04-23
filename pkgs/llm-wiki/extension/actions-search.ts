@@ -1,5 +1,5 @@
-import { ok } from "./lib/utils.js";
-import { SEARCH_FIELD_WEIGHTS } from "./rules.js";
+import { ok } from "./lib/core-utils.ts";
+import { SEARCH_FIELD_WEIGHTS } from "./rules.ts";
 import {
 	appliesToHost,
 	folderMatches,
@@ -12,8 +12,8 @@ import {
 	normalizeAreas,
 	normalizeDomain,
 	normalizePageFolder,
-} from "./paths.js";
-import type { ActionResult, RegistryData, RegistryEntry, WikiPageType } from "./types.js";
+} from "./paths.ts";
+import type { ActionResult, RegistryData, RegistryEntry, WikiPageType } from "./types.ts";
 
 export interface SearchMatch {
 	type: string;

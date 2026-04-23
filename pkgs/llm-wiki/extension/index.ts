@@ -7,14 +7,14 @@
 import { StringEnum } from "@mariozechner/pi-ai";
 import { type ExtensionAPI, isToolCallEventType } from "@mariozechner/pi-coding-agent";
 import { type Static, Type } from "@sinclair/typebox";
-import { captureFile, captureText } from "./actions-capture.js";
-import { handleWikiLint } from "./actions-lint.js";
-import { buildWikiDigest, handleWikiStatus, loadRegistry, rebuildAllMeta } from "./actions-meta.js";
-import { handleEnsurePage } from "./actions-pages.js";
-import { handleWikiSearch } from "./actions-search.js";
-import { EmptyToolParams, ok, type RegisteredExtensionTool, registerTools, toToolResult, type ActionResult } from "./lib/utils.js";
-import { getCurrentHost, getAllowedDomains, getWikiRoot, isProtectedPath, isWikiPagePath } from "./paths.js";
-import type { CanonicalPageType } from "./types.js";
+import { captureFile, captureText } from "./actions-capture.ts";
+import { handleWikiLint } from "./actions-lint.ts";
+import { buildWikiDigest, handleWikiStatus, loadRegistry, rebuildAllMeta } from "./actions-meta.ts";
+import { handleEnsurePage } from "./actions-pages.ts";
+import { handleWikiSearch } from "./actions-search.ts";
+import { EmptyToolParams, ok, type RegisteredExtensionTool, registerTools, toToolResult, type ActionResult } from "./lib/utils.ts";
+import { getCurrentHost, getAllowedDomains, getWikiRoot, isProtectedPath, isWikiPagePath } from "./paths.ts";
+import type { CanonicalPageType } from "./types.ts";
 
 const PageTypeEnum = StringEnum([
 	"source", "concept", "entity", "synthesis", "analysis",

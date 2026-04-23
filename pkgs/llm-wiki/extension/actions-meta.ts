@@ -1,8 +1,8 @@
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { atomicWriteFile } from "./lib/filesystem.js";
-import { parseFrontmatter } from "./lib/frontmatter.js";
-import { nowIso, ok } from "./lib/utils.js";
+import { atomicWriteFile } from "./lib/filesystem.ts";
+import { parseFrontmatter } from "./lib/frontmatter.ts";
+import { nowIso, ok } from "./lib/core-utils.ts";
 import {
 	appliesToHost,
 	countWords,
@@ -21,7 +21,7 @@ import {
 	normalizeHosts,
 	normalizeWikiLink,
 	todayStamp,
-} from "./paths.js";
+} from "./paths.ts";
 import type {
 	ActionResult,
 	BacklinksData,
@@ -31,8 +31,8 @@ import type {
 	WikiMetaArtifacts,
 	WikiPageType,
 	WikiStatusDetails,
-} from "./types.js";
-import { PAGE_TYPES } from "./types.js";
+} from "./types.ts";
+import { PAGE_TYPES } from "./types.ts";
 
 function asString(value: unknown, fallback = ""): string {
 	return typeof value === "string" ? value : fallback;

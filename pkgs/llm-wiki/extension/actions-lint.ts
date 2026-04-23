@@ -1,10 +1,10 @@
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-import { atomicWriteFile } from "./lib/filesystem.js";
-import { ok } from "./lib/utils.js";
-import { buildBacklinks, buildRegistry, scanPages } from "./actions-meta.js";
-import { normalizeDomain, normalizeWikiLink, todayStamp } from "./paths.js";
-import { PAGE_TYPES, type WikiPageType } from "./types.js";
+import { atomicWriteFile } from "./lib/filesystem.ts";
+import { ok } from "./lib/core-utils.ts";
+import { buildBacklinks, buildRegistry, scanPages } from "./actions-meta.ts";
+import { normalizeDomain, normalizeWikiLink, todayStamp } from "./paths.ts";
+import { PAGE_TYPES, type WikiPageType } from "./types.ts";
 import {
 	type LintMode,
 	REQUIRED_FRONTMATTER_FIELDS,
@@ -14,8 +14,8 @@ import {
 	REMINDER_STATUSES,
 	OPERATIONAL_TYPES,
 	KNOWLEDGE_TYPES,
-} from "./rules.js";
-import type { ActionResult, BacklinksData, LintDetails, LintIssue, RegistryData } from "./types.js";
+} from "./rules.ts";
+import type { ActionResult, BacklinksData, LintDetails, LintIssue, RegistryData } from "./types.ts";
 
 const SOURCE_STATUSES = new Set(["captured", "integrated", "superseded"]);
 const ORIGIN_TYPES = new Set(["text", "file", "url"]);

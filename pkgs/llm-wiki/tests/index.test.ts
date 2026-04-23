@@ -1,6 +1,6 @@
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createMockExtensionAPI } from "./helpers/mock-extension-api.js";
+import { createMockExtensionAPI } from "./helpers/mock-extension-api.ts";
 
 const state = vi.hoisted(() => ({
   wikiRoot: "/tmp/wiki-root",
@@ -98,7 +98,7 @@ describe("llm-wiki extension wiring", () => {
 
   async function loadExtension() {
     const api = createMockExtensionAPI();
-    const mod = await import("../extension/index.js");
+    const mod = await import("../extension/index.ts");
     mod.default(api as never);
     return api;
   }

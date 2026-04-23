@@ -2,7 +2,7 @@ import { chmodSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:f
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { handleWikiLint } from "../extension/actions-lint.js";
+import { handleWikiLint } from "../extension/actions-lint.ts";
 
 describe("actions-lint contradiction review and qmd-backed concept discovery", () => {
   let wikiRoot: string;

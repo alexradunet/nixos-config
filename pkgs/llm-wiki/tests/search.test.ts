@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { handleWikiSearch, searchRegistry } from "../extension/actions-search.js";
-import type { RegistryData, RegistryEntry } from "../extension/types.js";
+import { handleWikiSearch, searchRegistry } from "../extension/actions-search.ts";
+import type { RegistryData, RegistryEntry } from "../extension/types.ts";
 
 function makeEntry(overrides: Partial<RegistryEntry>): RegistryEntry {
   return {

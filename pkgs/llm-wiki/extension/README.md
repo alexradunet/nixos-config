@@ -11,10 +11,21 @@ It provides these tools:
 - `wiki_lint`
 - `wiki_rebuild`
 
+It also ships a portable CLI entrypoint:
+
+- `llm-wiki describe`
+- `llm-wiki status`
+- `llm-wiki search ...`
+- `llm-wiki ensure-page ...`
+- `llm-wiki capture text ...`
+- `llm-wiki capture file ...`
+- `llm-wiki lint ...`
+- `llm-wiki rebuild`
+
 ## Storage path
 
-By default it stores wiki data under `~/Workspace/Knowledge`.
-You can override that with `PI_LLM_WIKI_DIR`.
+By default it uses `PI_LLM_WIKI_DIR` when set.
+You can also pass `--wiki-root <path>` to the CLI.
 
 ## Obsidian support
 

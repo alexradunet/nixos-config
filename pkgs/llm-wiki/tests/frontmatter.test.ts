@@ -2,9 +2,9 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { atomicWriteFile, ensureDir } from "../extension/lib/filesystem.js";
-import { parseFrontmatter, stringifyFrontmatter } from "../extension/lib/frontmatter.js";
-import { EmptyToolParams, errorResult, nowIso, registerTools, textToolResult, toToolResult, truncate } from "../extension/lib/utils.js";
+import { atomicWriteFile, ensureDir } from "../extension/lib/filesystem.ts";
+import { parseFrontmatter, stringifyFrontmatter } from "../extension/lib/frontmatter.ts";
+import { EmptyToolParams, errorResult, nowIso, registerTools, textToolResult, toToolResult, truncate } from "../extension/lib/utils.ts";
 import { err, ok } from "neverthrow";
 
 let tempDir: string | undefined;

@@ -22,7 +22,7 @@ import {
   normalizePageFolder,
   normalizeWikiLink,
   slugifyTitle,
-} from "../extension/paths.js";
+} from "../extension/paths.ts";
 
 afterEach(() => {
   delete process.env.PI_LLM_WIKI_DIR;

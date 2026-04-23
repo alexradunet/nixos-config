@@ -2,13 +2,13 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import extension from "../extension/index.js";
-import { captureText } from "../extension/actions-capture.js";
-import { handleWikiLint } from "../extension/actions-lint.js";
-import { buildBacklinks, handleWikiStatus, loadRegistry, readEvents, rebuildAllMeta } from "../extension/actions-meta.js";
-import { handleEnsurePage } from "../extension/actions-pages.js";
-import { handleWikiSearch } from "../extension/actions-search.js";
-import { createMockExtensionAPI } from "./helpers/mock-extension-api.js";
+import extension from "../extension/index.ts";
+import { captureText } from "../extension/actions-capture.ts";
+import { handleWikiLint } from "../extension/actions-lint.ts";
+import { buildBacklinks, handleWikiStatus, loadRegistry, readEvents, rebuildAllMeta } from "../extension/actions-meta.ts";
+import { handleEnsurePage } from "../extension/actions-pages.ts";
+import { handleWikiSearch } from "../extension/actions-search.ts";
+import { createMockExtensionAPI } from "./helpers/mock-extension-api.ts";
 
 function initWikiRoot(root: string) {
   for (const dir of [

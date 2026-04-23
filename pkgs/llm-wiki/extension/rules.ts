@@ -1,4 +1,4 @@
-import type { RegistryEntry, WikiPageType } from "./types.js";
+import type { RegistryEntry, WikiPageType } from "./types.ts";
 
 export const KNOWLEDGE_TYPES = new Set<WikiPageType>(["concept", "entity", "synthesis", "analysis", "evolution", "procedure", "decision", "identity"]);
 export const OPERATIONAL_TYPES = new Set<WikiPageType>(["task", "event", "reminder"]);
