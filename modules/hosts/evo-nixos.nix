@@ -65,6 +65,15 @@ in {
             # evo-nixos extras
             config.flake.homeModules.llm-agents
             config.flake.homeModules.ghostty
+            {
+              programs.fresh-editor = {
+                enable = true;
+                defaultEditor = true;
+                settings = {
+                  check_for_updates = false;
+                };
+              };
+            }
             config.flake.homeModules.host-evo-nixos
           ];
         }
