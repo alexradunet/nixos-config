@@ -61,6 +61,7 @@ in {
         home-manager.users.alex.imports = [
           config.flake.homeModules.alex
           # Home base
+          config.flake.homeModules.fresh
           config.flake.homeModules.git
           config.flake.homeModules.packages
           config.flake.homeModules.pi
@@ -69,15 +70,6 @@ in {
           # evo-nixos extras
           config.flake.homeModules.llm-agents
           config.flake.homeModules.ghostty
-          {
-            programs.fresh-editor = {
-              enable = true;
-              defaultEditor = true;
-              settings = {
-                check_for_updates = false;
-              };
-            };
-          }
           config.flake.homeModules.host-evo-nixos
         ];
       }

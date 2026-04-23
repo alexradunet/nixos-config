@@ -153,6 +153,7 @@ in {
           home-manager.backupFileExtension = "hm-backup";
           home-manager.users.alex.imports = [
             config.flake.homeModules.alex
+            config.flake.homeModules.fresh
             config.flake.homeModules.git
             config.flake.homeModules.packages
             config.flake.homeModules.pi
@@ -206,6 +207,7 @@ in {
           home-manager.backupFileExtension = "hm-backup";
           home-manager.users.alex.imports = [
             config.flake.homeModules.alex
+            config.flake.homeModules.fresh
             config.flake.homeModules.git
             config.flake.homeModules.packages
             config.flake.homeModules.pi
@@ -255,6 +257,7 @@ in {
           home-manager.backupFileExtension = "hm-backup";
           home-manager.users.alex.imports = [
             config.flake.homeModules.alex
+            config.flake.homeModules.fresh
             config.flake.homeModules.git
             config.flake.homeModules.packages
             config.flake.homeModules.pi
@@ -298,6 +301,7 @@ in {
           home-manager.backupFileExtension = "hm-backup";
           home-manager.users.alex.imports = [
             config.flake.homeModules.alex
+            config.flake.homeModules.fresh
             config.flake.homeModules.git
             config.flake.homeModules.packages
             config.flake.homeModules.pi

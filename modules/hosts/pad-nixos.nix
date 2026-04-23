@@ -36,6 +36,7 @@
         home-manager.users.alex.imports = [
           config.flake.homeModules.alex
           # Home base
+          config.flake.homeModules.fresh
           config.flake.homeModules.git
           config.flake.homeModules.packages
           config.flake.homeModules.pi
