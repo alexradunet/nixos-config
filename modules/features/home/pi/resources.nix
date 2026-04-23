@@ -232,6 +232,22 @@ in {
   home.sessionVariables.PI_LLM_WIKI_DIR = wikiDir;
   home.sessionVariables.PI_LLM_WIKI_ALLOWED_DOMAINS = "technical,personal";
 
+  # ── Synthetic API key from local secret file ────────────────────────────
+  # Set a placeholder so the session-var file is generated; activation
+  # overwrites it with the real key from ~/.config/nixos-secrets/.
+  home.sessionVariables.SYNTHETIC_API_KEY = "PLACEHOLDER_SYNTHETIC_KEY";
+  home.activation.syntheticApiKey = lib.hm.dag.entryAfter ["writeBoundary"] ''
+    keyFile="$HOME/.config/nixos-secrets/synthetic-api-key"
+    if [ -f "$keyFile" ]; then
+      key=$(cat "$keyFile" | tr -d '[:space:]')
+      envd="$HOME/.config/environment.d/10-home-manager.conf"
+      if [ -f "$envd" ]; then
+        ${pkgs.gnused}/bin/sed -i \
+          "s|SYNTHETIC_API_KEY=.*|SYNTHETIC_API_KEY=$key|" "$envd"
+      fi
+    fi
+  '';
+
   # ── Activation: PI web-search config (once) ───────────────────────────────
   home.activation.piWebAccessStarter = lib.hm.dag.entryAfter ["writeBoundary"] ''
     config_path="$HOME/.pi/web-search.json"
